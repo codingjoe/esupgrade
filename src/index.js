@@ -13,7 +13,7 @@ const BASELINE_LEVELS = {
     'objectAssignToSpread',
     'arrayFromForEachToForOf',
     'forEachToForOf',
-    'forInToForOf',
+    'forOfKeysToForIn',
   ],
   'newly-available': [
     'varToConst',
@@ -21,7 +21,7 @@ const BASELINE_LEVELS = {
     'objectAssignToSpread',
     'arrayFromForEachToForOf',
     'forEachToForOf',
-    'forInToForOf',
+    'forOfKeysToForIn',
     'promiseTry',
   ]
 };
@@ -296,41 +296,49 @@ function forEachToForOf(j, root) {
 }
 
 /**
- * Transform for...in loops to for...of with Object.keys()
+ * Transform for...of Object.keys() loops to for...in
  */
-function forInToForOf(j, root) {
+function forOfKeysToForIn(j, root) {
   let modified = false;
   const changes = [];
   
-  root.find(j.ForInStatement)
+  root.find(j.ForOfStatement)
+    .filter(path => {
+      const node = path.node;
+      const right = node.right;
+      
+      // Check if iterating over Object.keys() call
+      if (j.CallExpression.check(right) &&
+          j.MemberExpression.check(right.callee) &&
+          j.Identifier.check(right.callee.object) &&
+          right.callee.object.name === 'Object' &&
+          j.Identifier.check(right.callee.property) &&
+          right.callee.property.name === 'keys' &&
+          right.arguments.length === 1) {
+        return true;
+      }
+      
+      return false;
+    })
     .forEach(path => {
       const node = path.node;
       const left = node.left;
-      const right = node.right;
+      const objectArg = node.right.arguments[0];
       const body = node.body;
       
-      // Create Object.keys() call
-      const objectKeysCall = j.callExpression(
-        j.memberExpression(
-          j.identifier('Object'),
-          j.identifier('keys')
-        ),
-        [right]
-      );
-      
-      // Create for...of loop
-      const forOfLoop = j.forOfStatement(
+      // Create for...in loop
+      const forInLoop = j.forInStatement(
         left,
-        objectKeysCall,
+        objectArg,
         body
       );
       
-      j(path).replaceWith(forOfLoop);
+      j(path).replaceWith(forInLoop);
       
       modified = true;
       if (node.loc) {
         changes.push({
-          type: 'forInToForOf',
+          type: 'forOfKeysToForIn',
           line: node.loc.start.line
         });
       }
@@ -460,7 +468,7 @@ function transform(code, options = {}) {
     objectAssignToSpread,
     arrayFromForEachToForOf,
     forEachToForOf,
-    forInToForOf,
+    forOfKeysToForIn,
     promiseTry,
   };
   

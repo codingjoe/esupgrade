@@ -144,9 +144,9 @@ test('forEach with function expression to for...of', () => {
   assert.match(result.code, /for \(const n of numbers\)/);
 });
 
-test('for...in to for...of with Object.keys()', () => {
+test('for...of Object.keys() to for...in', () => {
   const input = `
-    for (const key in obj) {
+    for (const key of Object.keys(obj)) {
       console.log(key);
     }
   `;
@@ -154,7 +154,7 @@ test('for...in to for...of with Object.keys()', () => {
   const result = transform(input);
   
   assert.strictEqual(result.modified, true);
-  assert.match(result.code, /for \(const key of Object\.keys\(obj\)\)/);
+  assert.match(result.code, /for \(const key in obj\)/);
 });
 
 test('Promise.try transformation - newly-available', () => {
