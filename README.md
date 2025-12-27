@@ -1,210 +1,145 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./images/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./images/logo-light.svg">
+    <img alt="esupgrade: Auto-upgrade your JavaScript syntax" src="./images/logo-light.svg">
+  </picture>
+</p>
+
 # esupgrade
 
-Auto-upgrade your JavaScript syntax to modern ECMAScript standards.
-
-`esupgrade` is a tool that automatically modernizes your JavaScript code by transforming outdated patterns into their modern equivalents. All transformations are based on [Baseline](https://web.dev/baseline) widely-available features, ensuring your code works across all modern browsers.
-
-## Features
-
-`esupgrade` performs the following safe transformations:
-
-### 1. `Array.from().forEach()` → `for...of` loops
-```javascript
-// Before
-Array.from(items).forEach(item => {
-  console.log(item);
-});
-
-// After
-for (const item of items) {
-  console.log(item);
-}
-```
-
-### 2. `var` → `let`/`const`
-```javascript
-// Before
-var x = 1;
-
-// After
-const x = 1;  // or 'let' if reassigned
-```
-
-### 3. String concatenation → Template literals
-```javascript
-// Before
-const greeting = 'Hello ' + name + '!';
-
-// After
-const greeting = `Hello ${name}!`;
-```
-
-### 4. `Object.assign({}, ...)` → Object spread
-```javascript
-// Before
-const obj = Object.assign({}, obj1, obj2);
-
-// After
-const obj = { ...obj1, ...obj2 };
-```
-
-### 5. `.concat()` → Array spread
-```javascript
-// Before
-const combined = arr1.concat(arr2, arr3);
-
-// After
-const combined = [...arr1, ...arr2, ...arr3];
-```
-
-### 6. Function expressions → Arrow functions
-```javascript
-// Before
-const fn = function(x) { return x * 2; };
-
-// After
-const fn = x => { return x * 2; };
-```
-
-**Note:** Functions using `this`, `arguments`, or `super` are not converted to arrow functions.
-
-## Installation
-
-```bash
-npm install --save-dev esupgrade
-```
-
-Or use it directly with `npx`:
-
-```bash
-npx esupgrade <files>
-```
+Keeping your JavaScript and TypeScript code up to date with full browser compatibility.
 
 ## Usage
 
-### Basic Usage
+### CLI
 
-Upgrade a single file:
 ```bash
-npx esupgrade src/app.js
+npx esupgrade --help
 ```
 
-Upgrade multiple files:
+### pre-commit
+
 ```bash
-npx esupgrade src/**/*.js
+uvx pre-commit install
 ```
 
-Upgrade a directory:
-```bash
-npx esupgrade src/
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/codingjoe/esupgrade
+    rev: v0.1.0  # Use the latest version
+    hooks:
+      - id: esupgrade
 ```
 
-### Options
+```bash
+pre-commit run esupgrade --all-files
+```
 
-#### `--baseline <level>`
-Set the baseline level for transformations. Options:
-- `widely-available` (default): Use features available in all modern browsers
-- `newly-available`: Include newer ECMAScript features
+## Browser Support & Baseline
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word.svg">
+  <img alt="Baseline: widely available" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word.svg" height="32" align="right">
+</picture>
+
+All transformations are based on [Web Platform Baseline](https://web.dev/baseline) features. Baseline tracks which web platform features are safe to use across browsers.
+
+By default, `esupgrade` uses **widely available** features, meaning they work in all major browsers (Chrome, Edge, Safari, Firefox) for at least 30 months. This ensures full compatibility while keeping your code modern.
+
+You can opt into **newly available** features (available in all browsers for 0-30 months) with:
 
 ```bash
 npx esupgrade --baseline newly-available src/
 ```
 
-#### `--check`
-Check if files need upgrading without modifying them. Exits with code 1 if changes are needed.
+For more information about Baseline browser support, visit [web.dev/baseline](https://web.dev/baseline).
 
-```bash
-npx esupgrade --check src/app.js
+## Transformations
+
+All transformations are safe and behavior-preserving. Here's what `esupgrade` does:
+
+### 1. `var` → `let`/`const`
+
+```diff
+-var x = 1;
+-var y = 2;
+-y = 3;
++const x = 1;
++let y = 2;
++y = 3;
 ```
 
-This is useful for CI/CD pipelines to ensure code is already modernized.
+### 2. String concatenation → Template literals
 
-#### `--write`
-Write changes to files (default behavior).
-
-```bash
-npx esupgrade --write src/app.js
+```diff
+-const greeting = 'Hello ' + name + '!';
+-const message = 'You have ' + count + ' items';
++const greeting = `Hello ${name}!`;
++const message = `You have ${count} items`;
 ```
 
-### Pre-commit Hook
+### 3. `Array.from().forEach()` → `for...of` loops
 
-To run `esupgrade` automatically before every commit, add it as a pre-commit hook:
-
-#### Using pre-commit
-
-1. Install [pre-commit](https://pre-commit.com/):
-```bash
-pip install pre-commit
+```diff
+-Array.from(items).forEach(item => {
+-  console.log(item);
+-});
++for (const item of items) {
++  console.log(item);
++}
 ```
 
-2. Create a `.pre-commit-config.yaml` file in your project:
-```yaml
-repos:
-  - repo: local
-    hooks:
-      - id: esupgrade
-        name: esupgrade
-        entry: npx esupgrade --check
-        language: system
-        types: [javascript, jsx, ts, tsx]
-        pass_filenames: true
+### 4. `Object.assign({}, ...)` → Object spread
+
+```diff
+-const obj = Object.assign({}, obj1, obj2);
+-const copy = Object.assign({}, original);
++const obj = { ...obj1, ...obj2 };
++const copy = { ...original };
 ```
 
-3. Install the hooks:
-```bash
-pre-commit install
+### 5. `.concat()` → Array spread
+
+```diff
+-const combined = arr1.concat(arr2, arr3);
+-const withItem = array.concat([item]);
++const combined = [...arr1, ...arr2, ...arr3];
++const withItem = [...array, item];
 ```
 
-#### Using Husky
+### 6. Function expressions → Arrow functions
 
-1. Install Husky:
-```bash
-npm install --save-dev husky
-npx husky init
+```diff
+-const fn = function(x) { return x * 2; };
+-items.map(function(item) { return item.name; });
++const fn = x => { return x * 2; };
++items.map(item => { return item.name; });
 ```
 
-2. Add esupgrade to your pre-commit hook:
-```bash
-echo "npx esupgrade --check \$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|ts|tsx)$')" > .husky/pre-commit
-```
+**Note:** Functions using `this`, `arguments`, or `super` are not converted to preserve semantics.
 
-## Safety
+### Complete Example
 
-All transformations performed by `esupgrade` are designed to be safe and behavior-preserving:
+```diff
+-var userName = 'John';
+-var userAge = 30;
+-var greeting = 'Hello, ' + userName + '!';
++const userName = 'John';
++const userAge = 30;
++const greeting = `Hello, ${userName}!`;
 
-- **No semantics changes**: The code behavior remains identical after transformation
-- **Conservative approach**: Only transforms patterns that are unambiguous
-- **Preserves `this` binding**: Function expressions using `this` are not converted to arrow functions
-- **Type-aware**: Understands JavaScript/TypeScript syntax
+-Array.from(users).forEach(function(user) {
+-  console.log('User: ' + user.name);
+-});
++for (const user of users) {
++  console.log(`User: ${user.name}`);
++}
 
-## Examples
-
-### Example 1: Complete file transformation
-
-**Before:**
-```javascript
-var userName = 'John';
-var userAge = 30;
-var greeting = 'Hello, ' + userName + '!';
-
-Array.from(users).forEach(function(user) {
-  console.log('User: ' + user.name);
-});
-
-var settings = Object.assign({}, defaultSettings, userSettings);
-```
-
-**After:**
-```javascript
-const userName = 'John';
-const userAge = 30;
-const greeting = `Hello, ${userName}!`;
-
-for (const user of users) {
-  console.log(`User: ${user.name}`);
-}
-
-const settings = { ...defaultSettings, ...userSettings };
+-var settings = Object.assign({}, defaultSettings, userSettings);
++const settings = { ...defaultSettings, ...userSettings };
 ```
 
 ## Supported File Types
@@ -215,26 +150,3 @@ const settings = { ...defaultSettings, ...userSettings };
 - `.tsx` - TypeScript with JSX
 - `.mjs` - ES Modules
 - `.cjs` - CommonJS
-
-## Requirements
-
-- Node.js >= 18.0.0
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-BSD-2-Clause License - see [LICENSE](LICENSE) file for details.
-
-## Author
-
-Johannes Maron
-
-## Related Projects
-
-- [jscodeshift](https://github.com/facebook/jscodeshift) - A toolkit for running codemods
-- [lebab](https://github.com/lebab/lebab) - Modernize JavaScript using codemods
-- [@babel/preset-env](https://babeljs.io/docs/en/babel-preset-env) - Babel preset for compiling modern JavaScript
-

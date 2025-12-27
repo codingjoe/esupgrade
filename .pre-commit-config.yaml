@@ -1,0 +1,53 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-json
+      - id: check-yaml
+      - id: debug-statements
+      - id: destroyed-symlinks
+      - id: check-executables-have-shebangs
+      - id: end-of-file-fixer
+      - id: no-commit-to-branch
+        args: [--branch, main]
+      - id: detect-private-key
+  - repo: https://github.com/hukkin/mdformat
+    rev: 1.0.0
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-footnote
+          - mdformat-gfm
+          - mdformat-gfm-alerts
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.20.0
+    hooks:
+      - id: yamlfmt
+  - repo: https://github.com/btford/write-good
+    rev: v1.0.8
+    hooks:
+      - id: write-good
+        args: [--no-passive]
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: prettier --check --write --ignore-unknown
+        args:
+          - --config=package.json
+        language: node
+        additional_dependencies: ["prettier"]
+        types_or: [javascript]
+#      - id: esupgrade
+#        name: esupgrade
+#        entry: npx . --check
+#        args: [--write]
+#        language: system
+#        types_or: [javascript]
+ci:
+  autoupdate_schedule: weekly
+  skip:
+    - no-commit-to-branch
+    - write-good

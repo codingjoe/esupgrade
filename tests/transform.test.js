@@ -1,217 +1,217 @@
-import { test } from 'node:test';
-import assert from 'node:assert';
-import { transform } from '../src/index.js';
+import { test } from "node:test"
+import assert from "node:assert"
+import { transform } from "../src/index.js"
 
-test('Array.from().forEach() to for...of', () => {
+test("Array.from().forEach() to for...of", () => {
   const input = `
     Array.from(items).forEach(item => {
       console.log(item);
     });
-  `;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /for \(const item of items\)/);
-  assert.match(result.code, /console\.log\(item\)/);
-});
+  `
 
-test('Array.from().forEach() with arrow function expression', () => {
-  const input = `Array.from(numbers).forEach(n => console.log(n));`;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /for \(const n of numbers\)/);
-});
+  const result = transform(input)
 
-test('var to const when not reassigned', () => {
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /for \(const item of items\)/)
+  assert.match(result.code, /console\.log\(item\)/)
+})
+
+test("Array.from().forEach() with arrow function expression", () => {
+  const input = `Array.from(numbers).forEach(n => console.log(n));`
+
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /for \(const n of numbers\)/)
+})
+
+test("var to const when not reassigned", () => {
   const input = `
     var x = 1;
-  `;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /const x = 1/);
-  assert.doesNotMatch(result.code, /var x/);
-});
+  `
 
-test('var to const (simplified version)', () => {
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /const x = 1/)
+  assert.doesNotMatch(result.code, /var x/)
+})
+
+test("var to const (simplified version)", () => {
   const input = `
     var x = 1;
     x = 2;
-  `;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /const x = 1/);
-  assert.doesNotMatch(result.code, /var x/);
+  `
+
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /const x = 1/)
+  assert.doesNotMatch(result.code, /var x/)
   // Note: This will cause a runtime error due to const reassignment
   // A more sophisticated version would detect reassignments and use 'let'
-});
+})
 
-test('string concatenation to template literal', () => {
-  const input = `const greeting = 'Hello ' + name + '!';`;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /`Hello \$\{name\}!`/);
-});
+test("string concatenation to template literal", () => {
+  const input = `const greeting = 'Hello ' + name + '!';`
 
-test('multiple string concatenations', () => {
-  const input = `const msg = 'Hello ' + firstName + ' ' + lastName + '!';`;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /`Hello \$\{firstName\} \$\{lastName\}!`/);
-});
+  const result = transform(input)
 
-test('Object.assign to object spread', () => {
-  const input = `const obj = Object.assign({}, obj1, obj2);`;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /\.\.\.obj1/);
-  assert.match(result.code, /\.\.\.obj2/);
-});
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /`Hello \$\{name\}!`/)
+})
 
-test('no changes needed', () => {
+test("multiple string concatenations", () => {
+  const input = `const msg = 'Hello ' + firstName + ' ' + lastName + '!';`
+
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /`Hello \$\{firstName\} \$\{lastName\}!`/)
+})
+
+test("Object.assign to object spread", () => {
+  const input = `const obj = Object.assign({}, obj1, obj2);`
+
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /\.\.\.obj1/)
+  assert.match(result.code, /\.\.\.obj2/)
+})
+
+test("no changes needed", () => {
   const input = `
     const x = 1;
     const y = 2;
-  `;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, false);
-});
+  `
 
-test('complex transformation', () => {
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, false)
+})
+
+test("complex transformation", () => {
   const input = `
     var userName = 'Alice';
     var greeting = 'Hello ' + userName;
-  `;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /const userName/);
-  assert.match(result.code, /`Hello \$\{userName\}`/);
-});
+  `
 
-test('baseline option - widely-available', () => {
-  const input = `var x = 1;`;
-  
-  const result = transform(input, { baseline: 'widely-available' });
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /const x = 1/);
-});
+  const result = transform(input)
 
-test('baseline option - newly-available', () => {
-  const input = `var x = 1;`;
-  
-  const result = transform(input, { baseline: 'newly-available' });
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /const x = 1/);
-});
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /const userName/)
+  assert.match(result.code, /`Hello \$\{userName\}`/)
+})
 
-test('forEach to for...of', () => {
+test("baseline option - widely-available", () => {
+  const input = `var x = 1;`
+
+  const result = transform(input, { baseline: "widely-available" })
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /const x = 1/)
+})
+
+test("baseline option - newly-available", () => {
+  const input = `var x = 1;`
+
+  const result = transform(input, { baseline: "newly-available" })
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /const x = 1/)
+})
+
+test("forEach to for...of", () => {
   const input = `
     items.forEach(item => {
       console.log(item);
     });
-  `;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /for \(const item of items\)/);
-});
+  `
 
-test('forEach with function expression to for...of', () => {
-  const input = `numbers.forEach(function(n) { console.log(n); });`;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /for \(const n of numbers\)/);
-});
+  const result = transform(input)
 
-test('for...of Object.keys() to for...in', () => {
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /for \(const item of items\)/)
+})
+
+test("forEach with function expression to for...of", () => {
+  const input = `numbers.forEach(function(n) { console.log(n); });`
+
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /for \(const n of numbers\)/)
+})
+
+test("for...of Object.keys() to for...in", () => {
   const input = `
     for (const key of Object.keys(obj)) {
       console.log(key);
     }
-  `;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /for \(const key in obj\)/);
-});
+  `
 
-test('Promise.try transformation - newly-available', () => {
-  const input = `const p = new Promise((resolve) => resolve(getData()));`;
-  
-  const result = transform(input, { baseline: 'newly-available' });
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /Promise\.try/);
-});
+  const result = transform(input)
 
-test('Promise.try not in widely-available', () => {
-  const input = `const p = new Promise((resolve) => resolve(getData()));`;
-  
-  const result = transform(input, { baseline: 'widely-available' });
-  
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /for \(const key in obj\)/)
+})
+
+test("Promise.try transformation - newly-available", () => {
+  const input = `const p = new Promise((resolve) => resolve(getData()));`
+
+  const result = transform(input, { baseline: "newly-available" })
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /Promise\.try/)
+})
+
+test("Promise.try not in widely-available", () => {
+  const input = `const p = new Promise((resolve) => resolve(getData()));`
+
+  const result = transform(input, { baseline: "widely-available" })
+
   // Should not transform Promise with widely-available baseline
-  assert.doesNotMatch(result.code, /Promise\.try/);
-});
+  assert.doesNotMatch(result.code, /Promise\.try/)
+})
 
-test('Array.from().forEach() with array destructuring', () => {
+test("Array.from().forEach() with array destructuring", () => {
   const input = `
     Array.from(Object.entries(obj)).forEach(([key, value]) => {
       console.log(key, value);
     });
-  `;
-  
-  const result = transform(input);
-  
-  assert.strictEqual(result.modified, true);
-  assert.match(result.code, /for \(const \[key, value\] of Object\.entries\(obj\)\)/);
-});
+  `
 
-test('Array.from().forEach() should NOT transform with index parameter', () => {
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /for \(const \[key, value\] of Object\.entries\(obj\)\)/)
+})
+
+test("Array.from().forEach() should NOT transform with index parameter", () => {
   const input = `
     Array.from(items).forEach((item, index) => {
       console.log(item, index);
     });
-  `;
-  
-  const result = transform(input);
-  
-  // Should not transform because callback uses index parameter
-  assert.strictEqual(result.modified, false);
-  assert.match(result.code, /forEach\(\(item, index\)/);
-});
+  `
 
-test('forEach should NOT transform with index parameter', () => {
+  const result = transform(input)
+
+  // Should not transform because callback uses index parameter
+  assert.strictEqual(result.modified, false)
+  assert.match(result.code, /forEach\(\(item, index\)/)
+})
+
+test("forEach should NOT transform with index parameter", () => {
   const input = `
     items.forEach((item, index) => {
       console.log(item, index);
     });
-  `;
-  
-  const result = transform(input);
-  
+  `
+
+  const result = transform(input)
+
   // Should not transform because callback uses index parameter
-  assert.strictEqual(result.modified, false);
-  assert.match(result.code, /forEach\(\(item, index\)/);
-});
+  assert.strictEqual(result.modified, false)
+  assert.match(result.code, /forEach\(\(item, index\)/)
+})
