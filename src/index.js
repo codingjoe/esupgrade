@@ -1,11 +1,6 @@
-import { parse } from '@babel/parser';
-import traverseDefault from '@babel/traverse';
-import generateDefault from '@babel/generator';
+import * as recast from 'recast';
+import { parse as babelParse } from '@babel/parser';
 import * as transformers from './transformers.js';
-
-// Handle default exports from Babel packages
-const traverse = traverseDefault.default || traverseDefault;
-const generate = generateDefault.default || generateDefault;
 
 /**
  * Baseline levels for ECMAScript features
@@ -38,7 +33,7 @@ const BASELINE_LEVELS = {
  * @param {string} code - The source code to transform
  * @param {Object} options - Transformation options
  * @param {string} options.baseline - Baseline level ('widely-available' or 'newly-available')
- * @returns {Object} - Object with { code, modified }
+ * @returns {Object} - Object with { code, modified, changes }
  */
 function transform(code, options = {}) {
   const baseline = options.baseline || 'widely-available';
@@ -46,57 +41,118 @@ function transform(code, options = {}) {
   
   let ast;
   try {
-    ast = parse(code, {
-      sourceType: 'module',
-      plugins: ['jsx', 'typescript'],
+    ast = recast.parse(code, {
+      parser: {
+        parse(source) {
+          return babelParse(source, {
+            sourceType: 'module',
+            plugins: ['jsx', 'typescript'],
+            tokens: true,
+          });
+        }
+      }
     });
   } catch (error) {
     throw new Error(`Parse error: ${error.message}`);
   }
   
   let modified = false;
+  const changes = [];
   
-  // Apply transformers
-  traverse(ast, {
-    enter(path) {
-      // Skip if already processed
-      if (path.node._transformed) {
-        return;
-      }
-      
-      // Try each enabled transformer
-      for (const transformerName of enabledTransformers) {
-        const transformer = transformers[transformerName];
-        if (transformer && transformer(path)) {
-          modified = true;
-          // Mark as transformed to avoid re-processing
-          if (path.node) {
+  // Create visitor methods for each node type we care about
+  const visitors = {
+    visitCallExpression(path) {
+      if (!path.node._transformed) {
+        for (const transformerName of enabledTransformers) {
+          const transformer = transformers[transformerName];
+          if (transformer && transformer(path)) {
+            modified = true;
+            changes.push({
+              type: transformerName,
+              line: path.node.loc ? path.node.loc.start.line : 'unknown'
+            });
             path.node._transformed = true;
+            break;
           }
-          break;
         }
       }
+      this.traverse(path);
+    },
+    visitVariableDeclaration(path) {
+      if (!path.node._transformed) {
+        for (const transformerName of enabledTransformers) {
+          const transformer = transformers[transformerName];
+          if (transformer && transformer(path)) {
+            modified = true;
+            changes.push({
+              type: transformerName,
+              line: path.node.loc ? path.node.loc.start.line : 'unknown'
+            });
+            path.node._transformed = true;
+            break;
+          }
+        }
+      }
+      this.traverse(path);
+    },
+    visitBinaryExpression(path) {
+      if (!path.node._transformed) {
+        for (const transformerName of enabledTransformers) {
+          const transformer = transformers[transformerName];
+          if (transformer && transformer(path)) {
+            modified = true;
+            changes.push({
+              type: transformerName,
+              line: path.node.loc ? path.node.loc.start.line : 'unknown'
+            });
+            path.node._transformed = true;
+            break;
+          }
+        }
+      }
+      this.traverse(path);
+    },
+    visitFunctionExpression(path) {
+      if (!path.node._transformed) {
+        for (const transformerName of enabledTransformers) {
+          const transformer = transformers[transformerName];
+          if (transformer && transformer(path)) {
+            modified = true;
+            changes.push({
+              type: transformerName,
+              line: path.node.loc ? path.node.loc.start.line : 'unknown'
+            });
+            path.node._transformed = true;
+            break;
+          }
+        }
+      }
+      this.traverse(path);
     }
-  });
+  };
+  
+  // Apply transformers
+  recast.visit(ast, visitors);
   
   // Clean up transformation markers
-  traverse(ast, {
-    enter(path) {
+  recast.visit(ast, {
+    visitNode(path) {
       if (path.node._transformed) {
         delete path.node._transformed;
       }
+      this.traverse(path);
     }
   });
   
-  const output = generate(ast, {
-    retainLines: false,
-    compact: false,
-    concise: false,
-  }, code);
+  const output = recast.print(ast, {
+    tabWidth: 2,
+    reuseWhitespace: true,
+  });
   
   return {
     code: output.code,
-    modified
+    modified,
+    changes
   };
 }
 

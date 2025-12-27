@@ -17,8 +17,8 @@ program
   .version('0.1.0')
   .argument('[files...]', 'Files or directories to process')
   .option('--baseline <level>', 'Set baseline level: widely-available (default) or newly-available', 'widely-available')
-  .option('--check', 'Check if files need upgrading without modifying them (exit 1 if changes needed)')
-  .option('--write', 'Write changes to files (default)')
+  .option('--check', 'Report which files need upgrading and exit with code 1 if any do')
+  .option('--write', 'Write changes to files (default: true unless only --check is specified)')
   .action((files, options) => {
     if (files.length === 0) {
       console.error('Error: No files specified');
@@ -32,10 +32,10 @@ program
       process.exit(1);
     }
 
-    // Handle check/write options
-    // Default is to write unless --check is specified
-    const shouldWrite = !options.check;
-    const shouldCheck = options.check;
+    // Handle check/write options - they are not mutually exclusive
+    // Default: write is true unless ONLY --check is specified (no --write)
+    const shouldWrite = options.write !== undefined ? options.write : !options.check;
+    const shouldCheck = options.check || false;
 
     const processingOptions = {
       baseline: options.baseline,
@@ -98,12 +98,36 @@ function processFile(filePath, options) {
     const result = transform(code, { baseline: options.baseline });
     
     if (result.modified) {
+      if (options.check) {
+        console.log(`✗ ${filePath}`);
+        if (result.changes && result.changes.length > 0) {
+          // Group changes by type
+          const changesByType = {};
+          result.changes.forEach(change => {
+            if (!changesByType[change.type]) {
+              changesByType[change.type] = [];
+            }
+            changesByType[change.type].push(change.line);
+          });
+          
+          // Display changes
+          Object.entries(changesByType).forEach(([type, lines]) => {
+            const uniqueLines = [...new Set(lines)].sort((a, b) => a - b);
+            const displayName = type.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+            console.log(`  - ${displayName} (line${uniqueLines.length > 1 ? 's' : ''}: ${uniqueLines.join(', ')})`);
+          });
+        }
+      }
+      
       if (options.write) {
         fs.writeFileSync(filePath, result.code, 'utf8');
-        console.log(`✓ Upgraded: ${filePath}`);
-      } else {
-        console.log(`✗ Needs upgrade: ${filePath}`);
+        if (!options.check) {
+          console.log(`✓ Upgraded: ${filePath}`);
+        } else {
+          console.log(`  ✓ Changes written to file`);
+        }
       }
+      
       return true;
     } else {
       if (!options.check) {
@@ -140,8 +164,21 @@ function processFiles(patterns, options) {
     }
   }
   
-  console.log(`\nSummary: ${modifiedCount} file(s) ${options.write ? 'upgraded' : 'need upgrading'}`);
+  // Summary
+  console.log('');
+  if (modifiedCount > 0) {
+    if (options.write && options.check) {
+      console.log(`Summary: ${modifiedCount} file(s) upgraded`);
+    } else if (options.write) {
+      console.log(`Summary: ${modifiedCount} file(s) upgraded`);
+    } else {
+      console.log(`Summary: ${modifiedCount} file(s) need upgrading`);
+    }
+  } else {
+    console.log('Summary: All files are already modern');
+  }
   
+  // Exit with code 1 if --check specified and there were changes
   if (options.check && modifiedCount > 0) {
     process.exit(1);
   }
