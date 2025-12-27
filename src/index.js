@@ -5,6 +5,10 @@ const transformers = require('./transformers');
 
 /**
  * Baseline levels for ECMAScript features
+ * 
+ * Currently both levels have the same transformers because all implemented
+ * transformations use features that are widely-available according to Baseline.
+ * Future versions may add transformers that are only enabled for 'newly-available'.
  */
 const BASELINE_LEVELS = {
   'widely-available': [
