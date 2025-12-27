@@ -254,10 +254,14 @@ function arrayFromForEachToForOf(j, root) {
 }
 
 /**
- * Helper function to check if an expression is likely an array or iterable
+ * Helper function to check if an expression is definitively an array or iterable
+ * 
+ * This function is conservative - it only returns true for expressions that we can
+ * statically determine are iterable. This prevents transforming forEach calls on
+ * objects that implement forEach but are not iterable (like jscodeshift's Collection).
  */
-function isLikelyArrayOrIterable(j, node) {
-  // Array literal
+function isDefinitelyArrayOrIterable(j, node) {
+  // Array literal - definitely iterable
   if (j.ArrayExpression.check(node)) {
     return true
   }
@@ -266,8 +270,8 @@ function isLikelyArrayOrIterable(j, node) {
   if (j.CallExpression.check(node)) {
     const callee = node.callee
 
-    // Array.from(), Array.of(), Array.prototype methods
     if (j.MemberExpression.check(callee)) {
+      // Array.from(), Array.of() - definitely return arrays
       if (j.Identifier.check(callee.object) && callee.object.name === "Array") {
         return true
       }
@@ -312,20 +316,21 @@ function isLikelyArrayOrIterable(j, node) {
       }
 
       // document.querySelectorAll() returns NodeList (iterable)
+      // document.getElementsBy* returns HTMLCollection (iterable)
       if (
         j.Identifier.check(callee.property) &&
         (callee.property.name === "querySelectorAll" ||
           callee.property.name === "getElementsByTagName" ||
-          callee.property.name === "getElementsByClassName")
+          callee.property.name === "getElementsByClassName" ||
+          callee.property.name === "getElementsByName")
       ) {
         return true
       }
     }
   }
 
-  // Member expressions that might be arrays
+  // Member expressions for known iterable properties
   if (j.MemberExpression.check(node)) {
-    // Accessing array-like properties
     const property = node.property
     if (
       j.Identifier.check(property) &&
@@ -335,28 +340,22 @@ function isLikelyArrayOrIterable(j, node) {
     }
   }
 
-  // Identifiers that suggest arrays (heuristic)
-  if (j.Identifier.check(node)) {
-    const name = node.name
-    // Common array naming patterns
-    if (
-      name.endsWith("s") || // plurals: items, users, etc.
-      name.endsWith("List") ||
-      name.endsWith("Array") ||
-      name.includes("items") ||
-      name.includes("list")
-    ) {
-      return true
-    }
-  }
-
-  // New expressions for Set
+  // New expressions for known iterables
   if (j.NewExpression.check(node)) {
-    if (j.Identifier.check(node.callee) && node.callee.name === "Set") {
-      return true
+    if (j.Identifier.check(node.callee)) {
+      const constructorName = node.callee.name
+      // Set, Map, Array, WeakSet - all iterable
+      // Note: Map has different forEach signature (value, key), so it's handled separately
+      if (constructorName === "Set" || constructorName === "Array" ||
+          constructorName === "WeakSet") {
+        return true
+      }
     }
   }
 
+  // Do NOT use heuristics like variable names - we can't be sure from the name alone
+  // For example, a variable named "items" could be a jscodeshift Collection,
+  // which has forEach but is not iterable
   return false
 }
 
@@ -394,8 +393,8 @@ function forEachToForOf(j, root) {
         return false
       }
 
-      // Only transform if the object is likely an array or iterable
-      if (!isLikelyArrayOrIterable(j, object)) {
+      // Only transform if the object is definitely an array or iterable
+      if (!isDefinitelyArrayOrIterable(j, object)) {
         return false
       }
 

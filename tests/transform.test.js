@@ -122,7 +122,7 @@ test("baseline option - newly-available", () => {
   assert.match(result.code, /const x = 1/)
 })
 
-test("forEach to for...of", () => {
+test("forEach should NOT transform plain identifiers (cannot confirm iterable)", () => {
   const input = `
     items.forEach(item => {
       console.log(item);
@@ -131,17 +131,30 @@ test("forEach to for...of", () => {
 
   const result = transform(input)
 
-  assert.strictEqual(result.modified, true)
-  assert.match(result.code, /for \(const item of items\)/)
+  // Should not transform because we can't statically confirm 'items' is iterable
+  // It could be a jscodeshift Collection or other object with forEach but not Symbol.iterator
+  assert.strictEqual(result.modified, false)
+  assert.match(result.code, /items\.forEach/)
 })
 
-test("forEach with function expression to for...of", () => {
+test("forEach should NOT transform plain identifiers with function expression", () => {
   const input = `numbers.forEach(function(n) { console.log(n); });`
 
   const result = transform(input)
 
+  // Should not transform because we can't statically confirm 'numbers' is iterable
+  assert.strictEqual(result.modified, false)
+  assert.match(result.code, /numbers\.forEach/)
+})
+
+test("forEach DOES transform array literals", () => {
+  const input = `[1, 2, 3].forEach(n => console.log(n));`
+
+  const result = transform(input)
+
+  // Should transform because array literals are definitely iterable
   assert.strictEqual(result.modified, true)
-  assert.match(result.code, /for \(const n of numbers\)/)
+  assert.match(result.code, /for \(const n of \[1, 2, 3\]\)/)
 })
 
 test("for...of Object.keys() to for...in", () => {
