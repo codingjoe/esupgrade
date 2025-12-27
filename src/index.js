@@ -190,7 +190,10 @@ function arrayFromForEachToForOf(j, root) {
       const iterable = node.callee.object.arguments[0];
       const callback = node.arguments[0];
       
-      if (callback && (j.ArrowFunctionExpression.check(callback) || j.FunctionExpression.check(callback))) {
+      // Only transform if callback is function with 1-2 params
+      if (callback && 
+          (j.ArrowFunctionExpression.check(callback) || j.FunctionExpression.check(callback)) &&
+          callback.params.length >= 1 && callback.params.length <= 2) {
         const itemParam = callback.params[0];
         const body = callback.body;
         
