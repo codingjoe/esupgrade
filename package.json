@@ -1,0 +1,38 @@
+{
+  "name": "esupgrade",
+  "version": "0.1.0",
+  "description": "Auto-upgrade your JavaScript syntax",
+  "main": "src/index.js",
+  "bin": {
+    "esupgrade": "./bin/esupgrade.js"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [
+    "javascript",
+    "ecmascript",
+    "modernize",
+    "upgrade",
+    "codemod",
+    "ast",
+    "transform"
+  ],
+  "author": "Johannes Maron",
+  "license": "BSD-2-Clause",
+  "dependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.0",
+    "@babel/generator": "^7.23.0",
+    "@babel/types": "^7.23.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codingjoe/esupgrade.git"
+  }
+}
