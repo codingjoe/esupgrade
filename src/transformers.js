@@ -1,4 +1,4 @@
-const t = require('@babel/types');
+import t from '@babel/types';
 
 /**
  * Transformation rules for modernizing ECMAScript code.
@@ -261,7 +261,7 @@ function functionToArrow(path) {
   return false;
 }
 
-module.exports = {
+export {
   arrayFromForEachToForOf,
   varToLetConst,
   concatToTemplateLiteral,
@@ -269,3 +269,4 @@ module.exports = {
   concatToSpread,
   functionToArrow,
 };
+

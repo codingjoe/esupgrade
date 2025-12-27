@@ -1,6 +1,6 @@
-const { test } = require('node:test');
-const assert = require('node:assert');
-const { transform } = require('../src/index');
+import { test } from 'node:test';
+import assert from 'node:assert';
+import { transform } from '../src/index.js';
 
 test('Array.from().forEach() to for...of', () => {
   const input = `

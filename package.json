@@ -2,6 +2,7 @@
   "name": "esupgrade",
   "version": "0.1.0",
   "description": "Auto-upgrade your JavaScript syntax",
+  "type": "module",
   "main": "src/index.js",
   "bin": {
     "esupgrade": "./bin/esupgrade.js"
@@ -22,12 +23,12 @@
   "license": "BSD-2-Clause",
   "dependencies": {
     "@babel/core": "^7.23.0",
+    "@babel/generator": "^7.23.0",
     "@babel/parser": "^7.23.0",
     "@babel/traverse": "^7.23.0",
-    "@babel/generator": "^7.23.0",
-    "@babel/types": "^7.23.0"
+    "@babel/types": "^7.23.0",
+    "commander": "^14.0.2"
   },
-  "devDependencies": {},
   "engines": {
     "node": ">=18.0.0"
   },

@@ -1,7 +1,11 @@
-const parser = require('@babel/parser');
-const traverse = require('@babel/traverse').default;
-const generate = require('@babel/generator').default;
-const transformers = require('./transformers');
+import { parse } from '@babel/parser';
+import traverseDefault from '@babel/traverse';
+import generateDefault from '@babel/generator';
+import * as transformers from './transformers.js';
+
+// Handle default exports from Babel packages
+const traverse = traverseDefault.default || traverseDefault;
+const generate = generateDefault.default || generateDefault;
 
 /**
  * Baseline levels for ECMAScript features
@@ -42,7 +46,7 @@ function transform(code, options = {}) {
   
   let ast;
   try {
-    ast = parser.parse(code, {
+    ast = parse(code, {
       sourceType: 'module',
       plugins: ['jsx', 'typescript'],
     });
@@ -96,7 +100,7 @@ function transform(code, options = {}) {
   };
 }
 
-module.exports = {
+export {
   transform,
   BASELINE_LEVELS,
 };
