@@ -22,13 +22,8 @@
   "author": "Johannes Maron",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "@babel/core": "^7.23.0",
-    "@babel/generator": "^7.23.0",
-    "@babel/parser": "^7.23.0",
-    "@babel/traverse": "^7.23.0",
-    "@babel/types": "^7.23.0",
     "commander": "^14.0.2",
-    "recast": "^0.23.11"
+    "jscodeshift": "^17.3.0"
   },
   "engines": {
     "node": ">=18.0.0"
