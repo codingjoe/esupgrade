@@ -174,3 +174,44 @@ test('Promise.try not in widely-available', () => {
   // Should not transform Promise with widely-available baseline
   assert.doesNotMatch(result.code, /Promise\.try/);
 });
+
+test('Array.from().forEach() with array destructuring', () => {
+  const input = `
+    Array.from(Object.entries(obj)).forEach(([key, value]) => {
+      console.log(key, value);
+    });
+  `;
+  
+  const result = transform(input);
+  
+  assert.strictEqual(result.modified, true);
+  assert.match(result.code, /for \(const \[key, value\] of Object\.entries\(obj\)\)/);
+});
+
+test('Array.from().forEach() should NOT transform with index parameter', () => {
+  const input = `
+    Array.from(items).forEach((item, index) => {
+      console.log(item, index);
+    });
+  `;
+  
+  const result = transform(input);
+  
+  // Should not transform because callback uses index parameter
+  assert.strictEqual(result.modified, false);
+  assert.match(result.code, /forEach\(\(item, index\)/);
+});
+
+test('forEach should NOT transform with index parameter', () => {
+  const input = `
+    items.forEach((item, index) => {
+      console.log(item, index);
+    });
+  `;
+  
+  const result = transform(input);
+  
+  // Should not transform because callback uses index parameter
+  assert.strictEqual(result.modified, false);
+  assert.match(result.code, /forEach\(\(item, index\)/);
+});

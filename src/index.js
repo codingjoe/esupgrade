@@ -194,31 +194,41 @@ function arrayFromForEachToForOf(j, root) {
       const iterable = node.callee.object.arguments[0];
       const callback = node.arguments[0];
       
-      // Only transform if callback is function with 1-2 params
+      // Only transform if callback is a function
       if (callback && 
-          (j.ArrowFunctionExpression.check(callback) || j.FunctionExpression.check(callback)) &&
-          callback.params.length >= 1 && callback.params.length <= 2) {
-        const itemParam = callback.params[0];
-        const body = callback.body;
+          (j.ArrowFunctionExpression.check(callback) || j.FunctionExpression.check(callback))) {
         
-        // Create for...of loop
-        const forOfLoop = j.forOfStatement(
-          j.variableDeclaration('const', [j.variableDeclarator(itemParam)]),
-          iterable,
-          j.BlockStatement.check(body) ? body : j.blockStatement([j.expressionStatement(body)])
-        );
+        // Only transform if:
+        // 1. Callback has exactly 1 parameter (element only), OR
+        // 2. Callback has 2+ params AND first param is a destructuring pattern (e.g., [key, value])
+        //    This handles cases like Array.from(Object.entries(obj)).forEach(([k, v]) => ...)
+        const params = callback.params;
+        const canTransform = params.length === 1 || 
+          (params.length >= 2 && j.ArrayPattern.check(params[0]));
         
-        // Replace the expression statement containing the forEach call
-        const statement = path.parent;
-        if (j.ExpressionStatement.check(statement.node)) {
-          j(statement).replaceWith(forOfLoop);
+        if (canTransform) {
+          const itemParam = callback.params[0];
+          const body = callback.body;
           
-          modified = true;
-          if (node.loc) {
-            changes.push({
-              type: 'arrayFromForEachToForOf',
-              line: node.loc.start.line
-            });
+          // Create for...of loop
+          const forOfLoop = j.forOfStatement(
+            j.variableDeclaration('const', [j.variableDeclarator(itemParam)]),
+            iterable,
+            j.BlockStatement.check(body) ? body : j.blockStatement([j.expressionStatement(body)])
+          );
+          
+          // Replace the expression statement containing the forEach call
+          const statement = path.parent;
+          if (j.ExpressionStatement.check(statement.node)) {
+            j(statement).replaceWith(forOfLoop);
+            
+            modified = true;
+            if (node.loc) {
+              changes.push({
+                type: 'arrayFromForEachToForOf',
+                line: node.loc.start.line
+              });
+            }
           }
         }
       }
@@ -262,31 +272,40 @@ function forEachToForOf(j, root) {
       const iterable = node.callee.object;
       const callback = node.arguments[0];
       
-      // Only transform if callback is function with 1-2 params
+      // Only transform if callback is a function
       if (callback && 
-          (j.ArrowFunctionExpression.check(callback) || j.FunctionExpression.check(callback)) &&
-          callback.params.length >= 1 && callback.params.length <= 2) {
-        const itemParam = callback.params[0];
-        const body = callback.body;
+          (j.ArrowFunctionExpression.check(callback) || j.FunctionExpression.check(callback))) {
         
-        // Create for...of loop
-        const forOfLoop = j.forOfStatement(
-          j.variableDeclaration('const', [j.variableDeclarator(itemParam)]),
-          iterable,
-          j.BlockStatement.check(body) ? body : j.blockStatement([j.expressionStatement(body)])
-        );
+        // Only transform if:
+        // 1. Callback has exactly 1 parameter (element only), OR
+        // 2. Callback has 2+ params AND first param is a destructuring pattern
+        const params = callback.params;
+        const canTransform = params.length === 1 || 
+          (params.length >= 2 && j.ArrayPattern.check(params[0]));
         
-        // Replace the expression statement containing the forEach call
-        const statement = path.parent;
-        if (j.ExpressionStatement.check(statement.node)) {
-          j(statement).replaceWith(forOfLoop);
+        if (canTransform) {
+          const itemParam = callback.params[0];
+          const body = callback.body;
           
-          modified = true;
-          if (node.loc) {
-            changes.push({
-              type: 'forEachToForOf',
-              line: node.loc.start.line
-            });
+          // Create for...of loop
+          const forOfLoop = j.forOfStatement(
+            j.variableDeclaration('const', [j.variableDeclarator(itemParam)]),
+            iterable,
+            j.BlockStatement.check(body) ? body : j.blockStatement([j.expressionStatement(body)])
+          );
+          
+          // Replace the expression statement containing the forEach call
+          const statement = path.parent;
+          if (j.ExpressionStatement.check(statement.node)) {
+            j(statement).replaceWith(forOfLoop);
+            
+            modified = true;
+            if (node.loc) {
+              changes.push({
+                type: 'forEachToForOf',
+                line: node.loc.start.line
+              });
+            }
           }
         }
       }
