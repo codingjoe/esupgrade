@@ -34,8 +34,8 @@ program
 
     // Handle check/write options
     // Default is to write unless --check is specified
-    const shouldWrite = options.check ? false : true;
-    const shouldCheck = options.check || false;
+    const shouldWrite = !options.check;
+    const shouldCheck = options.check;
 
     const processingOptions = {
       baseline: options.baseline,
