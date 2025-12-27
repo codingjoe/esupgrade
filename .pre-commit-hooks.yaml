@@ -1,9 +1,6 @@
-repos:
-  - repo: local
-    hooks:
-      - id: esupgrade
-        name: esupgrade
-        entry: npx esupgrade --check
-        language: system
-        types: [javascript, jsx, ts, tsx]
-        pass_filenames: true
+- id: esupgrade
+  name: esupgrade
+  entry: npx esupgrade --check
+  language: system
+  types: [javascript, jsx, ts, tsx]
+  pass_filenames: true

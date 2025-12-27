@@ -67,14 +67,19 @@ function findFiles(patterns) {
   const files = [];
   
   for (const pattern of patterns) {
-    const stats = fs.statSync(pattern);
-    
-    if (stats.isFile()) {
-      files.push(pattern);
-    } else if (stats.isDirectory()) {
-      // Recursively find .js, .jsx, .ts, .tsx files
-      const dirFiles = walkDirectory(pattern);
-      files.push(...dirFiles);
+    try {
+      const stats = fs.statSync(pattern);
+      
+      if (stats.isFile()) {
+        files.push(pattern);
+      } else if (stats.isDirectory()) {
+        // Recursively find .js, .jsx, .ts, .tsx files
+        const dirFiles = walkDirectory(pattern);
+        files.push(...dirFiles);
+      }
+    } catch (error) {
+      console.error(`Error: Cannot access '${pattern}': ${error.message}`);
+      process.exit(1);
     }
   }
   

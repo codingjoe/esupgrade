@@ -153,3 +153,26 @@ test('baseline option - newly-available', () => {
   assert.strictEqual(result.modified, true);
   assert.match(result.code, /const x = 1/);
 });
+
+test('function expression using arguments object should not be converted', () => {
+  const input = `const fn = function() { return arguments.length; };`;
+  
+  const result = transform(input);
+  
+  // Should not be converted because it uses the arguments object
+  assert.match(result.code, /function \(\)/);
+  assert.doesNotMatch(result.code, /=>/);
+});
+
+test('nested function with arguments should not prevent outer conversion', () => {
+  const input = `const outer = function(x) { 
+    const inner = function() { return arguments.length; };
+    return x * 2;
+  };`;
+  
+  const result = transform(input);
+  
+  // Outer function should be converted since it doesn't use arguments
+  assert.strictEqual(result.modified, true);
+  assert.match(result.code, /const outer = x =>/);
+});

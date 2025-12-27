@@ -220,12 +220,30 @@ function functionToArrow(path) {
         usesThis = true;
       },
       Identifier(innerPath) {
+        // Check if 'arguments' refers to the function's arguments object
+        // Skip if it's a local binding (parameter or variable)
         if (innerPath.node.name === 'arguments' && innerPath.isReferencedIdentifier()) {
-          usesArguments = true;
+          const binding = innerPath.scope.getBinding('arguments');
+          // If there's no binding, it refers to the function's arguments object
+          if (!binding) {
+            usesArguments = true;
+          }
         }
       },
       Super() {
         usesThis = true; // super also prevents arrow function conversion
+      },
+      // Stop traversing into nested functions
+      FunctionExpression(innerPath) {
+        if (innerPath.node !== node) {
+          innerPath.skip();
+        }
+      },
+      FunctionDeclaration(innerPath) {
+        innerPath.skip();
+      },
+      ArrowFunctionExpression(innerPath) {
+        innerPath.skip();
       }
     });
     
