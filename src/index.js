@@ -409,14 +409,8 @@ function promiseTry(j, root) {
       }
       
       if (expression) {
-        // Wrap in arrow function if not already a function call
-        let tryArg;
-        if (j.CallExpression.check(expression) || j.Identifier.check(expression)) {
-          // If it's a simple call or identifier, wrap in arrow function
-          tryArg = j.arrowFunctionExpression([], expression);
-        } else {
-          tryArg = j.arrowFunctionExpression([], expression);
-        }
+        // Wrap expression in arrow function for Promise.try
+        const tryArg = j.arrowFunctionExpression([], expression);
         
         // Create Promise.try(fn)
         const promiseTryCall = j.callExpression(
