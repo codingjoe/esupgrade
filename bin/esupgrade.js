@@ -18,7 +18,7 @@ program
   .argument('[files...]', 'Files or directories to process')
   .option('--baseline <level>', 'Set baseline level: widely-available (default) or newly-available', 'widely-available')
   .option('--check', 'Check if files need upgrading without modifying them (exit 1 if changes needed)')
-  .option('--write', 'Write changes to files (default)', true)
+  .option('--write', 'Write changes to files (default)')
   .action((files, options) => {
     if (files.length === 0) {
       console.error('Error: No files specified');
@@ -33,8 +33,9 @@ program
     }
 
     // Handle check/write options
-    const shouldWrite = options.check ? false : options.write;
-    const shouldCheck = options.check;
+    // Default is to write unless --check is specified
+    const shouldWrite = options.check ? false : true;
+    const shouldCheck = options.check || false;
 
     const processingOptions = {
       baseline: options.baseline,
