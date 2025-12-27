@@ -121,3 +121,56 @@ test('baseline option - newly-available', () => {
   assert.strictEqual(result.modified, true);
   assert.match(result.code, /const x = 1/);
 });
+
+test('forEach to for...of', () => {
+  const input = `
+    items.forEach(item => {
+      console.log(item);
+    });
+  `;
+  
+  const result = transform(input);
+  
+  assert.strictEqual(result.modified, true);
+  assert.match(result.code, /for \(const item of items\)/);
+});
+
+test('forEach with function expression to for...of', () => {
+  const input = `numbers.forEach(function(n) { console.log(n); });`;
+  
+  const result = transform(input);
+  
+  assert.strictEqual(result.modified, true);
+  assert.match(result.code, /for \(const n of numbers\)/);
+});
+
+test('for...in to for...of with Object.keys()', () => {
+  const input = `
+    for (const key in obj) {
+      console.log(key);
+    }
+  `;
+  
+  const result = transform(input);
+  
+  assert.strictEqual(result.modified, true);
+  assert.match(result.code, /for \(const key of Object\.keys\(obj\)\)/);
+});
+
+test('Promise.try transformation - newly-available', () => {
+  const input = `const p = new Promise((resolve) => resolve(getData()));`;
+  
+  const result = transform(input, { baseline: 'newly-available' });
+  
+  assert.strictEqual(result.modified, true);
+  assert.match(result.code, /Promise\.try/);
+});
+
+test('Promise.try not in widely-available', () => {
+  const input = `const p = new Promise((resolve) => resolve(getData()));`;
+  
+  const result = transform(input, { baseline: 'widely-available' });
+  
+  // Should not transform Promise with widely-available baseline
+  assert.doesNotMatch(result.code, /Promise\.try/);
+});

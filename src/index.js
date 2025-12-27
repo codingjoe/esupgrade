@@ -3,9 +3,8 @@ import jscodeshift from 'jscodeshift';
 /**
  * Baseline levels for ECMAScript features
  * 
- * Currently both levels have the same transformers because all implemented
- * transformations use features that are widely-available according to Baseline.
- * Future versions may add transformers that are only enabled for 'newly-available'.
+ * - widely-available: Features available across all modern browsers
+ * - newly-available: Newly standardized features (e.g., Promise.try)
  */
 const BASELINE_LEVELS = {
   'widely-available': [
@@ -13,12 +12,17 @@ const BASELINE_LEVELS = {
     'concatToTemplateLiteral',
     'objectAssignToSpread',
     'arrayFromForEachToForOf',
+    'forEachToForOf',
+    'forInToForOf',
   ],
   'newly-available': [
     'varToConst',
     'concatToTemplateLiteral',
     'objectAssignToSpread',
     'arrayFromForEachToForOf',
+    'forEachToForOf',
+    'forInToForOf',
+    'promiseTry',
   ]
 };
 
@@ -224,6 +228,221 @@ function arrayFromForEachToForOf(j, root) {
 }
 
 /**
+ * Transform all .forEach() calls to for...of loops
+ */
+function forEachToForOf(j, root) {
+  let modified = false;
+  const changes = [];
+  
+  root.find(j.CallExpression)
+    .filter(path => {
+      const node = path.node;
+      // Check if this is a forEach call
+      if (!j.MemberExpression.check(node.callee) || 
+          !j.Identifier.check(node.callee.property) ||
+          node.callee.property.name !== 'forEach') {
+        return false;
+      }
+      
+      // Skip Array.from().forEach() as it's handled by arrayFromForEachToForOf
+      const object = node.callee.object;
+      if (j.CallExpression.check(object) &&
+          j.MemberExpression.check(object.callee) &&
+          j.Identifier.check(object.callee.object) &&
+          object.callee.object.name === 'Array' &&
+          j.Identifier.check(object.callee.property) &&
+          object.callee.property.name === 'from') {
+        return false;
+      }
+      
+      return true;
+    })
+    .forEach(path => {
+      const node = path.node;
+      const iterable = node.callee.object;
+      const callback = node.arguments[0];
+      
+      // Only transform if callback is function with 1-2 params
+      if (callback && 
+          (j.ArrowFunctionExpression.check(callback) || j.FunctionExpression.check(callback)) &&
+          callback.params.length >= 1 && callback.params.length <= 2) {
+        const itemParam = callback.params[0];
+        const body = callback.body;
+        
+        // Create for...of loop
+        const forOfLoop = j.forOfStatement(
+          j.variableDeclaration('const', [j.variableDeclarator(itemParam)]),
+          iterable,
+          j.BlockStatement.check(body) ? body : j.blockStatement([j.expressionStatement(body)])
+        );
+        
+        // Replace the expression statement containing the forEach call
+        const statement = path.parent;
+        if (j.ExpressionStatement.check(statement.node)) {
+          j(statement).replaceWith(forOfLoop);
+          
+          modified = true;
+          if (node.loc) {
+            changes.push({
+              type: 'forEachToForOf',
+              line: node.loc.start.line
+            });
+          }
+        }
+      }
+    });
+  
+  return { modified, changes };
+}
+
+/**
+ * Transform for...in loops to for...of with Object.keys()
+ */
+function forInToForOf(j, root) {
+  let modified = false;
+  const changes = [];
+  
+  root.find(j.ForInStatement)
+    .forEach(path => {
+      const node = path.node;
+      const left = node.left;
+      const right = node.right;
+      const body = node.body;
+      
+      // Create Object.keys() call
+      const objectKeysCall = j.callExpression(
+        j.memberExpression(
+          j.identifier('Object'),
+          j.identifier('keys')
+        ),
+        [right]
+      );
+      
+      // Create for...of loop
+      const forOfLoop = j.forOfStatement(
+        left,
+        objectKeysCall,
+        body
+      );
+      
+      j(path).replaceWith(forOfLoop);
+      
+      modified = true;
+      if (node.loc) {
+        changes.push({
+          type: 'forInToForOf',
+          line: node.loc.start.line
+        });
+      }
+    });
+  
+  return { modified, changes };
+}
+
+/**
+ * Transform new Promise((resolve, reject) => { resolve(fn()) }) to Promise.try(fn)
+ */
+function promiseTry(j, root) {
+  let modified = false;
+  const changes = [];
+  
+  root.find(j.NewExpression)
+    .filter(path => {
+      const node = path.node;
+      // Check if this is new Promise(...)
+      if (!j.Identifier.check(node.callee) || node.callee.name !== 'Promise') {
+        return false;
+      }
+      
+      // Check if there's one argument that's a function
+      if (node.arguments.length !== 1) {
+        return false;
+      }
+      
+      const executor = node.arguments[0];
+      if (!j.ArrowFunctionExpression.check(executor) && !j.FunctionExpression.check(executor)) {
+        return false;
+      }
+      
+      // Check if function has 1-2 params (resolve, reject)
+      if (executor.params.length < 1 || executor.params.length > 2) {
+        return false;
+      }
+      
+      // Check if body is a block with single resolve() call or expression body
+      const body = executor.body;
+      
+      // For arrow functions with expression body: (resolve) => someFunc()
+      if (!j.BlockStatement.check(body)) {
+        return true;
+      }
+      
+      // For functions with block body containing single resolve(expr) call
+      if (body.body.length === 1 && j.ExpressionStatement.check(body.body[0])) {
+        const expr = body.body[0].expression;
+        if (j.CallExpression.check(expr) && 
+            j.Identifier.check(expr.callee) &&
+            expr.callee.name === executor.params[0].name) {
+          return true;
+        }
+      }
+      
+      return false;
+    })
+    .forEach(path => {
+      const node = path.node;
+      const executor = node.arguments[0];
+      const body = executor.body;
+      
+      let expression;
+      
+      // Extract the expression
+      if (!j.BlockStatement.check(body)) {
+        // Arrow function with expression body: (resolve) => expr
+        expression = body;
+      } else if (body.body.length === 1 && j.ExpressionStatement.check(body.body[0])) {
+        // Block with resolve(expr) call
+        const callExpr = body.body[0].expression;
+        if (j.CallExpression.check(callExpr) && callExpr.arguments.length > 0) {
+          expression = callExpr.arguments[0];
+        }
+      }
+      
+      if (expression) {
+        // Wrap in arrow function if not already a function call
+        let tryArg;
+        if (j.CallExpression.check(expression) || j.Identifier.check(expression)) {
+          // If it's a simple call or identifier, wrap in arrow function
+          tryArg = j.arrowFunctionExpression([], expression);
+        } else {
+          tryArg = j.arrowFunctionExpression([], expression);
+        }
+        
+        // Create Promise.try(fn)
+        const promiseTryCall = j.callExpression(
+          j.memberExpression(
+            j.identifier('Promise'),
+            j.identifier('try')
+          ),
+          [tryArg]
+        );
+        
+        j(path).replaceWith(promiseTryCall);
+        
+        modified = true;
+        if (node.loc) {
+          changes.push({
+            type: 'promiseTry',
+            line: node.loc.start.line
+          });
+        }
+      }
+    });
+  
+  return { modified, changes };
+}
+
+/**
  * Transform JavaScript code using the specified transformers
  * @param {string} code - The source code to transform
  * @param {Object} options - Transformation options
@@ -246,6 +465,9 @@ function transform(code, options = {}) {
     concatToTemplateLiteral,
     objectAssignToSpread,
     arrayFromForEachToForOf,
+    forEachToForOf,
+    forInToForOf,
+    promiseTry,
   };
   
   for (const transformerName of enabledTransformers) {
