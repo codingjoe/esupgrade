@@ -254,7 +254,115 @@ function arrayFromForEachToForOf(j, root) {
 }
 
 /**
+ * Helper function to check if an expression is likely an array or iterable
+ */
+function isLikelyArrayOrIterable(j, node) {
+  // Array literal
+  if (j.ArrayExpression.check(node)) {
+    return true
+  }
+
+  // Call expressions that return arrays/iterables
+  if (j.CallExpression.check(node)) {
+    const callee = node.callee
+
+    // Array.from(), Array.of(), Array.prototype methods
+    if (j.MemberExpression.check(callee)) {
+      if (j.Identifier.check(callee.object) && callee.object.name === "Array") {
+        return true
+      }
+
+      // Array methods that return arrays
+      const arrayMethods = [
+        "filter",
+        "map",
+        "slice",
+        "concat",
+        "flat",
+        "flatMap",
+        "splice",
+        "reverse",
+        "sort",
+      ]
+      if (
+        j.Identifier.check(callee.property) &&
+        arrayMethods.includes(callee.property.name)
+      ) {
+        return true
+      }
+
+      // String methods that return arrays
+      if (
+        j.Identifier.check(callee.property) &&
+        (callee.property.name === "split" || callee.property.name === "match")
+      ) {
+        return true
+      }
+
+      // Object.keys(), Object.values(), Object.entries() - these return arrays
+      if (
+        j.Identifier.check(callee.object) &&
+        callee.object.name === "Object" &&
+        j.Identifier.check(callee.property) &&
+        (callee.property.name === "keys" ||
+          callee.property.name === "values" ||
+          callee.property.name === "entries")
+      ) {
+        return true
+      }
+
+      // document.querySelectorAll() returns NodeList (iterable)
+      if (
+        j.Identifier.check(callee.property) &&
+        (callee.property.name === "querySelectorAll" ||
+          callee.property.name === "getElementsByTagName" ||
+          callee.property.name === "getElementsByClassName")
+      ) {
+        return true
+      }
+    }
+  }
+
+  // Member expressions that might be arrays
+  if (j.MemberExpression.check(node)) {
+    // Accessing array-like properties
+    const property = node.property
+    if (
+      j.Identifier.check(property) &&
+      (property.name === "children" || property.name === "childNodes")
+    ) {
+      return true
+    }
+  }
+
+  // Identifiers that suggest arrays (heuristic)
+  if (j.Identifier.check(node)) {
+    const name = node.name
+    // Common array naming patterns
+    if (
+      name.endsWith("s") || // plurals: items, users, etc.
+      name.endsWith("List") ||
+      name.endsWith("Array") ||
+      name.includes("items") ||
+      name.includes("list")
+    ) {
+      return true
+    }
+  }
+
+  // New expressions for Set
+  if (j.NewExpression.check(node)) {
+    if (j.Identifier.check(node.callee) && node.callee.name === "Set") {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
  * Transform all .forEach() calls to for...of loops
+ * Only transforms when the object is likely an array or iterable
  */
 function forEachToForOf(j, root) {
   let modified = false
@@ -283,6 +391,11 @@ function forEachToForOf(j, root) {
         j.Identifier.check(object.callee.property) &&
         object.callee.property.name === "from"
       ) {
+        return false
+      }
+
+      // Only transform if the object is likely an array or iterable
+      if (!isLikelyArrayOrIterable(j, object)) {
         return false
       }
 

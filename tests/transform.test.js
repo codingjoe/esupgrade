@@ -215,3 +215,71 @@ test("forEach should NOT transform with index parameter", () => {
   assert.strictEqual(result.modified, false)
   assert.match(result.code, /forEach\(\(item, index\)/)
 })
+
+test("forEach transforms array methods that return arrays", () => {
+  const input = `
+    items.filter(x => x > 0).forEach(item => {
+      console.log(item);
+    });
+  `
+
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /for \(const item of items\.filter/)
+})
+
+test("forEach transforms Object.keys/values/entries", () => {
+  const input = `
+    Object.keys(obj).forEach(key => {
+      console.log(key);
+    });
+  `
+
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  // Object.keys().forEach() -> for...of Object.keys() -> for...in
+  assert.match(result.code, /for \(const key in obj\)/)
+})
+
+test("forEach transforms Set iteration", () => {
+  const input = `
+    new Set([1, 2, 3]).forEach(value => {
+      console.log(value);
+    });
+  `
+
+  const result = transform(input)
+
+  assert.strictEqual(result.modified, true)
+  assert.match(result.code, /for \(const value of new Set/)
+})
+
+test("forEach should NOT transform unknown objects", () => {
+  const input = `
+    myCustomObject.forEach(item => {
+      console.log(item);
+    });
+  `
+
+  const result = transform(input)
+
+  // Should not transform because we can't be sure myCustomObject is iterable
+  assert.strictEqual(result.modified, false)
+  assert.match(result.code, /myCustomObject\.forEach/)
+})
+
+test("forEach should NOT transform Map (uses different signature)", () => {
+  const input = `
+    myMap.forEach((value, key) => {
+      console.log(key, value);
+    });
+  `
+
+  const result = transform(input)
+
+  // Should not transform Map.forEach because it has 2 parameters (value, key)
+  assert.strictEqual(result.modified, false)
+  assert.match(result.code, /myMap\.forEach/)
+})
