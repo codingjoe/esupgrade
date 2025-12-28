@@ -34,7 +34,7 @@ repos:
     hooks:
       - id: esupgrade
         name: esupgrade
-        entry: npx . --check
+        entry: npx .
         args: [--write]
         language: system
         types_or: [javascript]

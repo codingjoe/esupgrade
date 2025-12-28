@@ -142,7 +142,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 ### Newly available
 
-> [!CATION]
+> [!CAUTION]
 > These transformations are mainly to harden code for future releases and should be used with caution.
 
 #### `new Promise((resolve) => { ... })` → `Promise.try(() => { ... })`
