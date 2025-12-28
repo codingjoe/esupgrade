@@ -75,7 +75,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### `var` → `let`/`const`
 
-[MDN: const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) | [MDN: let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let)
+[MDN: const][mdn-const] | [MDN: let][mdn-let]
 
 ```diff
 -var x = 1;
@@ -88,7 +88,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### String concatenation → Template literals
 
-[MDN: Template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals)
+[MDN: Template literals][mdn-template-literals]
 
 ```diff
 -const greeting = 'Hello ' + name + '!';
@@ -99,7 +99,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### `Array.from().forEach()` → `for...of` loops
 
-[MDN: for...of](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of)
+[MDN: for...of][mdn-for-of]
 
 ```diff
 -Array.from(items).forEach(item => {
@@ -126,7 +126,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### `Object.assign({}, ...)` → Object spread
 
-[MDN: Spread syntax](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
+[MDN: Spread syntax][mdn-spread]
 
 ```diff
 -const obj = Object.assign({}, obj1, obj2);
@@ -137,7 +137,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### `.concat()` → Array spread
 
-[MDN: Spread syntax](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
+[MDN: Spread syntax][mdn-spread]
 
 ```diff
 -const combined = arr1.concat(arr2, arr3);
@@ -148,7 +148,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### Function expressions → Arrow functions
 
-[MDN: Arrow functions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions)
+[MDN: Arrow functions][mdn-arrow-functions]
 
 ```diff
 -const fn = function(x) { return x * 2; };
@@ -173,7 +173,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### `new Promise((resolve) => { ... })` → `Promise.try(() => { ... })`
 
-[MDN: Promise.try()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try)
+[MDN: Promise.try()][mdn-promise-try]
 
 ```diff
 -new Promise((resolve) => {
@@ -187,3 +187,10 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 [baseline]: https://web.dev/baseline/
 [pre-commit]: https://pre-commit.com/
+[mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+[mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
+[mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+[mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
+[mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+[mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+[mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
