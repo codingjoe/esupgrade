@@ -68,7 +68,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word.svg">
-  <img alt="Baseline: Widely available" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word.svg" height="32" align="right">
+  <img alt="Baseline: widely available" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word.svg" height="32" align="right">
 </picture>
 
 ### Widely available
@@ -160,6 +160,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
   <img alt="Baseline: Limited availability" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-limited-word.svg" height="32" align="right">
 </picture>
 
+> [!NOTE]
+> There are currently no transformations that are limited in availability. This section will be updated once such transformations are supported.
 ### Limited availability
 
 [baseline]: https://web.dev/baseline/
