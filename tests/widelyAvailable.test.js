@@ -1,1876 +1,1538 @@
 import { describe, test } from "node:test"
-import assert from "node:assert"
+import assert from "node:assert/strict"
 import { transform } from "../src/index.js"
 
-describe("widely-available", () => {
-  describe("for...of loop", () => {
-    test("Array.from().forEach() to for...of", () => {
-      const input = `
+describe("arrayFromForEachToForOf", () => {
+  test("Array.from().forEach() with arrow function", () => {
+    const result = transform(`
     Array.from(items).forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform Array.from().forEach()")
+    assert.match(result.code, /for \(const item of items\)/)
+    assert.match(result.code, /console\.log\(item\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const item of items\)/)
-      assert.match(result.code, /console\.log\(item\)/)
-    })
+  test("Array.from().forEach() with arrow function expression", () => {
+    const result = transform(`Array.from(numbers).forEach(n => console.log(n));`)
 
-    test("Array.from().forEach() with arrow function expression", () => {
-      const input = `Array.from(numbers).forEach(n => console.log(n));`
+    assert(result.modified, "transform Array.from().forEach()")
+    assert.match(result.code, /for \(const n of numbers\)/)
+  })
 
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const n of numbers\)/)
-    })
-
-    test("forEach should NOT transform plain identifiers (cannot confirm iterable)", () => {
-      const input = `
+  test("plain identifier forEach", () => {
+    const result = transform(`
     items.forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip plain identifier forEach")
+    assert.match(result.code, /items\.forEach/)
+  })
 
-      // Should not transform because we can't statically confirm 'items' is iterable
-      // It could be a jscodeshift Collection or other object with forEach but not Symbol.iterator
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /items\.forEach/)
-    })
+  test("plain identifier forEach with function expression", () => {
+    const result = transform(`numbers.forEach((n) => { console.log(n); });`)
 
-    test("forEach should NOT transform plain identifiers with function expression", () => {
-      const input = `numbers.forEach((n) => { console.log(n); });`
+    assert(!result.modified, "skip plain identifier forEach")
+    assert.match(result.code, /numbers\.forEach/)
+  })
 
-      const result = transform(input)
-
-      // Should not transform because we can't statically confirm 'numbers' is iterable
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /numbers\.forEach/)
-    })
-
-    test("for...of Object.keys() to for...in", () => {
-      const input = `
+  test("Object.keys() to for...in", () => {
+    const result = transform(`
     for (const key of Object.keys(obj)) {
       console.log(key);
     }
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform Object.keys()")
+    assert.match(result.code, /for \(const key in obj\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const key in obj\)/)
-    })
-
-    test("Array.from().forEach() with array destructuring", () => {
-      const input = `
+  test("Array.from().forEach() with array destructuring", () => {
+    const result = transform(`
     Array.from(Object.entries(obj)).forEach(([key, value]) => {
       console.log(key, value);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform Array.from().forEach() with destructuring")
+    assert.match(result.code, /for \(const \[key, value\] of Object\.entries\(obj\)\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const \[key, value\] of Object\.entries\(obj\)\)/,
-      )
-    })
-
-    test("Array.from().forEach() should NOT transform with index parameter", () => {
-      const input = `
+  test("Array.from().forEach() with index parameter", () => {
+    const result = transform(`
     Array.from(items).forEach((item, index) => {
       console.log(item, index);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip callback with index parameter")
+    assert.match(result.code, /forEach\(\(item, index\)/)
+  })
 
-      // Should not transform because callback uses index parameter
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(\(item, index\)/)
-    })
-
-    test("forEach should NOT transform with index parameter", () => {
-      const input = `
+  test("forEach with index parameter", () => {
+    const result = transform(`
     items.forEach((item, index) => {
       console.log(item, index);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip callback with index parameter")
+    assert.match(result.code, /forEach\(\(item, index\)/)
+  })
 
-      // Should not transform because callback uses index parameter
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(\(item, index\)/)
-    })
-
-    test("forEach should NOT transform unknown objects", () => {
-      const input = `
+  test("forEach on unknown objects", () => {
+    const result = transform(`
     myCustomObject.forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip forEach on unknown objects")
+    assert.match(result.code, /myCustomObject\.forEach/)
+  })
 
-      // Should not transform because we can't be sure myCustomObject is iterable
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /myCustomObject\.forEach/)
-    })
-
-    test("forEach should NOT transform Map (uses different signature)", () => {
-      const input = `
+  test("Map.forEach()", () => {
+    const result = transform(`
     myMap.forEach((value, key) => {
       console.log(key, value);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip Map.forEach() with 2 parameters")
+    assert.match(result.code, /myMap\.forEach/)
+  })
 
-      // Should not transform Map.forEach because it has 2 parameters (value, key)
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /myMap\.forEach/)
-    })
+  test("Array.from().forEach() without callback", () => {
+    const result = transform(`Array.from(items).forEach();`)
 
-    test("Array.from().forEach() should NOT transform without callback", () => {
-      const input = `Array.from(items).forEach();`
+    assert(!result.modified, "skip Array.from().forEach() without callback")
+    assert.match(result.code, /forEach\(\)/)
+  })
 
-      const result = transform(input)
+  test("Array.from().forEach() with non-function callback", () => {
+    const result = transform(`Array.from(items).forEach(callback);`)
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(\)/)
-    })
+    assert(!result.modified, "skip Array.from().forEach() with non-function callback")
+    assert.match(result.code, /forEach\(callback\)/)
+  })
 
-    test("Array.from().forEach() should NOT transform with non-function callback", () => {
-      const input = `Array.from(items).forEach(callback);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(callback\)/)
-    })
-
-    test("Array.from().forEach() with function expression", () => {
-      const input = `Array.from(items).forEach(function(item) {
+  test("Array.from().forEach() with function expression", () => {
+    const result = transform(`Array.from(items).forEach(function(item) {
         console.log(item);
-      });`
+      });`)
 
-      const result = transform(input)
+    assert(result.modified, "transform Array.from().forEach() with function expression")
+    assert.match(result.code, /for \(const item of items\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const item of items\)/)
-    })
-
-    test("for...of Object.keys() should NOT transform non-Object.keys", () => {
-      const input = `
+  test("non-Object.keys for...of", () => {
+    const result = transform(`
     for (const item of myArray) {
       console.log(item);
     }
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip non-Object.keys for...of")
+    assert.match(result.code, /for \(const item of myArray\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /for \(const item of myArray\)/)
-    })
-
-    test("for...of Object.keys() should NOT transform without arguments", () => {
-      const input = `
+  test("Object.keys() without arguments", () => {
+    const result = transform(`
     for (const key of Object.keys()) {
       console.log(key);
     }
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip Object.keys() without arguments")
+    assert.match(result.code, /Object\.keys\(\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /Object\.keys\(\)/)
-    })
+  test("tracks line numbers for Array.from().forEach()", () => {
+    const result = transform(`// Line 1
+Array.from(items).forEach(item => console.log(item));`)
 
-    test("Array.from().forEach() tracks line numbers", () => {
-      const input = `// Line 1
-Array.from(items).forEach(item => console.log(item));`
+    assert(result.modified, "tracks line numbers")
+    assert.equal(result.changes.length, 1)
+    assert.equal(result.changes[0].type, "arrayFromForEachToForOf")
+    assert.equal(result.changes[0].line, 2)
+  })
 
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.strictEqual(result.changes.length, 1)
-      assert.strictEqual(result.changes[0].type, "arrayFromForEachToForOf")
-      assert.strictEqual(result.changes[0].line, 2)
-    })
-
-    test("for...of Object.keys() tracks line numbers", () => {
-      const input = `// Line 1
+  test("tracks line numbers for Object.keys()", () => {
+    const result = transform(`// Line 1
 for (const key of Object.keys(obj)) {
   console.log(key);
-}`
+}`)
 
-      const result = transform(input)
+    assert(result.modified, "tracks line numbers")
+    assert.equal(result.changes.length, 1)
+    assert.equal(result.changes[0].type, "forOfKeysToForIn")
+    assert.equal(result.changes[0].line, 2)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.strictEqual(result.changes.length, 1)
-      assert.strictEqual(result.changes[0].type, "forOfKeysToForIn")
-      assert.strictEqual(result.changes[0].line, 2)
-    })
-
-    test("Array.from().forEach() with destructuring and 2+ params transforms if first param is array pattern", () => {
-      const input = `Array.from(items).forEach(([a, b], index) => {
+  test("Array.from().forEach() with destructuring and 2+ params", () => {
+    const result = transform(`Array.from(items).forEach(([a, b], index) => {
         console.log(a, b, index);
-      });`
+      });`)
 
-      const result = transform(input)
+    assert(result.modified, "transform when first param is ArrayPattern")
+    assert.match(result.code, /for \(const \[a, b\] of items\)/)
+  })
+})
 
-      // According to the code, this should transform because first param is ArrayPattern
-      // The logic says: params.length === 1 OR (params.length >= 2 AND first is ArrayPattern)
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const \[a, b\] of items\)/)
-    })
+describe("arrayFromToSpread", () => {
+  test("Array.from() with map()", () => {
+    const result = transform(`const doubled = Array.from(numbers).map(n => n * 2);`)
+
+    assert(result.modified, "transform Array.from() with map()")
+    assert.match(result.code, /\[\.\.\.numbers\]\.map/)
+    assert.doesNotMatch(result.code, /Array\.from/)
   })
 
-  describe("Array.from() to spread", () => {
-    test("Array.from().map() to [...].map()", () => {
-      const input = `const doubled = Array.from(numbers).map(n => n * 2);`
+  test("Array.from() with filter()", () => {
+    const result = transform(`const filtered = Array.from(items).filter(x => x > 5);`)
 
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.numbers\]\.map/)
-      assert.doesNotMatch(result.code, /Array\.from/)
-    })
-
-    test("Array.from().filter() to [...].filter()", () => {
-      const input = `const filtered = Array.from(items).filter(x => x > 5);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.items\]\.filter/)
-    })
-
-    test("Array.from().some() to [...].some()", () => {
-      const input = `const hasValue = Array.from(collection).some(item => item.active);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.collection\]\.some/)
-    })
-
-    test("Array.from().every() to [...].every()", () => {
-      const input = `const allValid = Array.from(items).every(x => x.valid);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.items\]\.every/)
-    })
-
-    test("Array.from().find() to [...].find()", () => {
-      const input = `const found = Array.from(elements).find(el => el.id === 'target');`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.elements\]\.find/)
-    })
-
-    test("Array.from().reduce() to [...].reduce()", () => {
-      const input = `const sum = Array.from(values).reduce((a, b) => a + b, 0);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.values\]\.reduce/)
-    })
-
-    test("Array.from() standalone to [...]", () => {
-      const input = `const arr = Array.from(iterable);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /const arr = \[\.\.\.iterable\]/)
-    })
-
-    test("Array.from() with property access", () => {
-      const input = `const length = Array.from(items).length;`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.items\]\.length/)
-    })
-
-    test("Array.from().forEach() should NOT be transformed (handled by other transformer)", () => {
-      const input = `Array.from(items).forEach(item => console.log(item));`
-
-      const result = transform(input)
-
-      // Should be transformed by arrayFromForEachToForOf, not arrayFromToSpread
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const item of items\)/)
-      assert.doesNotMatch(result.code, /\[\.\.\./)
-    })
-
-    test("Array.from() with mapping function should NOT be transformed", () => {
-      const input = `const doubled = Array.from(numbers, n => n * 2);`
-
-      const result = transform(input)
-
-      // Should not transform because there's a mapping function
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /Array\.from\(numbers, n => n \* 2\)/)
-    })
-
-    test("Array.from() with thisArg should NOT be transformed", () => {
-      const input = `const result = Array.from(items, function(x) { return x * this.multiplier; }, context);`
-
-      const result = transform(input)
-
-      // Should not transform because there are 3 arguments
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /Array\.from/)
-    })
-
-    test("Array.from() chained methods", () => {
-      const input = `const result = Array.from(set).map(x => x * 2).filter(x => x > 10);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.set\]\.map/)
-    })
-
-    test("Array.from() with complex iterable", () => {
-      const input = `const arr = Array.from(document.querySelectorAll('.item'));`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.document\.querySelectorAll\('\.item'\)\]/)
-    })
-
-    test("Array.from() tracks line numbers", () => {
-      const input = `// Line 1
-const result = Array.from(items).map(x => x * 2);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.strictEqual(result.changes.length, 1)
-      assert.strictEqual(result.changes[0].type, "arrayFromToSpread")
-      assert.strictEqual(result.changes[0].line, 2)
-    })
+    assert(result.modified, "transform Array.from() with filter()")
+    assert.match(result.code, /\[\.\.\.items\]\.filter/)
   })
 
-  describe("const and let", () => {
-    test("var to const when not reassigned", () => {
-      const input = `
+  test("Array.from() with some()", () => {
+    const result = transform(
+      `const hasValue = Array.from(collection).some(item => item.active);`,
+    )
+
+    assert(result.modified, "transform Array.from() with some()")
+    assert.match(result.code, /\[\.\.\.collection\]\.some/)
+  })
+
+  test("Array.from() with every()", () => {
+    const result = transform(`const allValid = Array.from(items).every(x => x.valid);`)
+
+    assert(result.modified, "transform Array.from() with every()")
+    assert.match(result.code, /\[\.\.\.items\]\.every/)
+  })
+
+  test("Array.from() with find()", () => {
+    const result = transform(
+      `const found = Array.from(elements).find(el => el.id === 'target');`,
+    )
+
+    assert(result.modified, "transform Array.from() with find()")
+    assert.match(result.code, /\[\.\.\.elements\]\.find/)
+  })
+
+  test("Array.from() with reduce()", () => {
+    const result = transform(
+      `const sum = Array.from(values).reduce((a, b) => a + b, 0);`,
+    )
+
+    assert(result.modified, "transform Array.from() with reduce()")
+    assert.match(result.code, /\[\.\.\.values\]\.reduce/)
+  })
+
+  test("standalone Array.from()", () => {
+    const result = transform(`const arr = Array.from(iterable);`)
+
+    assert(result.modified, "transform standalone Array.from()")
+    assert.match(result.code, /const arr = \[\.\.\.iterable\]/)
+  })
+
+  test("Array.from() with property access", () => {
+    const result = transform(`const length = Array.from(items).length;`)
+
+    assert(result.modified, "transform Array.from() with property access")
+    assert.match(result.code, /\[\.\.\.items\]\.length/)
+  })
+
+  test("Array.from().forEach() prioritizes over spread", () => {
+    const result = transform(`Array.from(items).forEach(item => console.log(item));`)
+
+    assert(result.modified, "prioritize over spread")
+    assert.match(result.code, /for \(const item of items\)/)
+    assert.doesNotMatch(result.code, /\[\.\.\./)
+  })
+
+  test("Array.from() with mapping function", () => {
+    const result = transform(`const doubled = Array.from(numbers, n => n * 2);`)
+
+    assert(!result.modified, "skip Array.from() with mapping function")
+    assert.match(result.code, /Array\.from\(numbers, n => n \* 2\)/)
+  })
+
+  test("Array.from() with thisArg", () => {
+    const result = transform(
+      `const result = Array.from(items, function(x) { return x * this.multiplier; }, context);`,
+    )
+
+    assert(!result.modified, "skip Array.from() with thisArg")
+    assert.match(result.code, /Array\.from/)
+  })
+
+  test("chained methods on Array.from()", () => {
+    const result = transform(
+      `const result = Array.from(set).map(x => x * 2).filter(x => x > 10);`,
+    )
+
+    assert(result.modified, "transform Array.from() with chained methods")
+    assert.match(result.code, /\[\.\.\.set\]\.map/)
+  })
+
+  test("Array.from() with complex iterable", () => {
+    const result = transform(
+      `const arr = Array.from(document.querySelectorAll('.item'));`,
+    )
+
+    assert(result.modified, "transform Array.from() with complex iterable")
+    assert.match(result.code, /\[\.\.\.document\.querySelectorAll\('\.item'\)\]/)
+  })
+
+  test("tracks line numbers for Array.from() to spread", () => {
+    const result = transform(`// Line 1
+const result = Array.from(items).map(x => x * 2);`)
+
+    assert(result.modified, "tracks line numbers")
+    assert.equal(result.changes.length, 1)
+    assert.equal(result.changes[0].type, "arrayFromToSpread")
+    assert.equal(result.changes[0].line, 2)
+  })
+})
+
+describe("varToConst", () => {
+  test("not reassigned", () => {
+    const result = transform(`
     var x = 1;
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform var when not reassigned")
+    assert.match(result.code, /const x = 1/)
+    assert.doesNotMatch(result.code, /var x/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /const x = 1/)
-      assert.doesNotMatch(result.code, /var x/)
-    })
-
-    test("var to const (simplified version)", () => {
-      const input = `
+  test("with reassignment", () => {
+    const result = transform(`
     var x = 1;
     x = 2;
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform var with reassignment")
+    assert.match(result.code, /const x = 1/)
+    assert.doesNotMatch(result.code, /var x/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /const x = 1/)
-      assert.doesNotMatch(result.code, /var x/)
-      // Note: This will cause a runtime error due to const reassignment
-      // A more sophisticated version would detect reassignments and use 'let'
-    })
-
-    test("multiple var declarations", () => {
-      const input = `
+  test("multiple declarations", () => {
+    const result = transform(`
     var x = 1;
     var y = 2;
     var z = 3;
-  `
+  `)
 
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /const x = 1/)
-      assert.match(result.code, /const y = 2/)
-      assert.match(result.code, /const z = 3/)
-      assert.strictEqual(result.changes.length, 3)
-    })
-
-    test("var declaration tracks line numbers", () => {
-      const input = `// Line 1
-var x = 1;`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.strictEqual(result.changes.length, 1)
-      assert.strictEqual(result.changes[0].type, "varToConst")
-      assert.strictEqual(result.changes[0].line, 2)
-    })
-  })
-
-  describe("template literals", () => {
-    test("string concatenation to template literal", () => {
-      const input = `const greeting = 'Hello ' + name + '!';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`Hello \$\{name\}!`/)
-    })
-
-    test("multiple string concatenations", () => {
-      const input = `const msg = 'Hello ' + firstName + ' ' + lastName + '!';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`Hello \$\{firstName\} \$\{lastName\}!`/)
-    })
-
-    test("concatenation starting with expression", () => {
-      const input = `const msg = prefix + ' world';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`\$\{prefix\} world`/)
-    })
-
-    test("concatenation with only expressions", () => {
-      const input = `const msg = a + b + c;`
-
-      const result = transform(input)
-
-      // Should not transform if no string literals
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /a \+ b \+ c/)
-    })
-
-    test("concatenation ending with expression", () => {
-      const input = `const msg = 'Value: ' + value;`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`Value: \$\{value\}`/)
-    })
-
-    test("complex nested concatenation", () => {
-      const input = `const msg = 'Start ' + (a + 'middle') + ' end';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`/)
-    })
-
-    test("numeric addition followed by string concatenation", () => {
-      const input = `cal_box.style.left = findPosX(cal_link) + 17 + 'px';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Should treat (findPosX(cal_link) + 17) as a single numeric expression
-      assert.match(result.code, /`\$\{findPosX\(cal_link\) \+ 17\}px`/)
-    })
-
-    test("multiple numeric additions followed by string concatenation", () => {
-      const input = `const result = a + b + c + 'd';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Should treat (a + b + c) as a single numeric expression
-      assert.match(result.code, /`\$\{a \+ b \+ c\}d`/)
-    })
-
-    test("string concatenation followed by numeric addition", () => {
-      const input = `const result = 'Value: ' + x + y;`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // After first string, all subsequent + are string concatenation
-      assert.match(result.code, /`Value: \$\{x\}\$\{y\}`/)
-    })
-
-    test("numeric addition in middle of string concatenations", () => {
-      const input = `const result = 'start' + (a + b) + 'end';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Parenthesized numeric expression should be preserved
-      // jscodeshift may add parentheses around binary expressions in template literals
-      assert.match(result.code, /`start\$\{(\()?a \+ b(\))?\}end`/)
-    })
-
-    test("consecutive string literals should be merged", () => {
-      const input = `const msg = 'Hello' + ' ' + 'world';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`Hello world`/)
-    })
-
-    test("string literal followed by non-binary expression", () => {
-      const input = `const msg = 'Value: ' + getValue();`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`Value: \$\{getValue\(\)\}`/)
-    })
-
-    test("expression followed by string literal", () => {
-      const input = `const msg = getValue() + ' is the value';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`\$\{getValue\(\)\} is the value`/)
-    })
-
-    test("non-binary expression in the middle", () => {
-      const input = `const msg = 'start' + getValue() + 'end';`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /`start\$\{getValue\(\)\}end`/)
-    })
-
-    test("should preserve escape sequences in regex patterns", () => {
-      const input = `const id_regex = new RegExp("(" + prefix + "-(\\\\d+|__prefix__))");`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Should preserve the double backslash for \d
-      assert.match(result.code, /`\(\$\{prefix\}-\(\\\\d\+\|__prefix__\)\)`/)
-      // Verify backslashes are not lost
-      assert.ok(result.code.includes("\\\\d"), "Should preserve \\\\d escape sequence")
-    })
-
-    test("should preserve newline escape sequences", () => {
-      const input = `const str = "Line 1\\\\n" + "Line 2";`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Should preserve the double backslash for \n
-      assert.ok(result.code.includes("\\\\n"), "Should preserve \\\\n escape sequence")
-    })
-
-    test("should preserve tab escape sequences", () => {
-      const input = `const str = "Tab\\\\t" + value + "\\\\t";`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Should preserve the double backslash for \t
-      assert.ok(result.code.includes("\\\\t"), "Should preserve \\\\t escape sequence")
-    })
-  })
-
-  describe("object spread", () => {
-    test("Object.assign to object spread", () => {
-      const input = `const obj = Object.assign({}, obj1, obj2);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\.\.\.obj1/)
-      assert.match(result.code, /\.\.\.obj2/)
-    })
-
-    test("Object.assign should not transform with non-empty first arg", () => {
-      const input = `const obj = Object.assign({ a: 1 }, obj1);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /Object\.assign/)
-    })
-
-    test("Object.assign should not transform with non-object first arg", () => {
-      const input = `const obj = Object.assign(target, obj1);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /Object\.assign/)
-    })
-
-    test("Object.assign with only empty object", () => {
-      const input = `const obj = Object.assign({});`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\{\}/)
-    })
-  })
-
-  describe("Math.pow() to exponentiation operator", () => {
-    test("Math.pow() to **", () => {
-      const input = `const result = Math.pow(2, 3);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /2 \*\* 3/)
-    })
-
-    test("Math.pow() with variables", () => {
-      const input = `const power = Math.pow(base, exponent);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /base \*\* exponent/)
-    })
-
-    test("Math.pow() with complex expressions", () => {
-      const input = `const result = Math.pow(x + 1, y * 2);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\(x \+ 1\) \*\* \(y \* 2\)/)
-    })
-
-    test("Math.pow() in expressions", () => {
-      const input = `const area = Math.PI * Math.pow(radius, 2);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /Math\.PI \* radius \*\* 2/)
-    })
-
-    test("Math.pow() should not transform with wrong number of arguments", () => {
-      const input = `const result = Math.pow(2);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /Math\.pow\(2\)/)
-    })
-
-    test("Math.pow() nested calls", () => {
-      const input = `const result = Math.pow(Math.pow(2, 3), 4);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Only the outer Math.pow is transformed in a single pass
-      assert.match(result.code, /Math\.pow\(2, 3\) \*\* 4/)
-    })
-
-    test("Math.pow() tracks line numbers", () => {
-      const input = `// Line 1
-const result = Math.pow(2, 3);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      const mathPowChanges = result.changes.filter(
-        (c) => c.type === "mathPowToExponentiation",
-      )
-      assert.strictEqual(mathPowChanges.length, 1)
-      assert.strictEqual(mathPowChanges[0].line, 2)
-    })
-  })
-
-  test("no changes needed", () => {
-    const input = `
-    const x = 1;
-    const y = 2;
-  `
-
-    const result = transform(input)
-
-    assert.strictEqual(result.modified, false)
-  })
-
-  test("complex transformation", () => {
-    const input = `
-    var userName = 'Alice';
-    var greeting = 'Hello ' + userName;
-  `
-
-    const result = transform(input)
-
-    assert.strictEqual(result.modified, true)
-    assert.match(result.code, /const userName/)
-    assert.match(result.code, /`Hello \$\{userName\}`/)
-  })
-
-  test("baseline option - widely-available", () => {
-    const input = `var x = 1;`
-
-    const result = transform(input)
-
-    assert.strictEqual(result.modified, true)
+    assert(result.modified, "transform multiple var declarations")
     assert.match(result.code, /const x = 1/)
+    assert.match(result.code, /const y = 2/)
+    assert.match(result.code, /const z = 3/)
+    assert.equal(result.changes.length, 3)
   })
 
-  test("baseline option - newly-available", () => {
-    const input = `var x = 1;`
+  test("tracks line numbers", () => {
+    const result = transform(`// Line 1
+var x = 1;`)
 
-    const result = transform(input, "newly-available")
+    assert(result.modified, "tracks line numbers")
+    assert.equal(result.changes.length, 1)
+    assert.equal(result.changes[0].type, "varToConst")
+    assert.equal(result.changes[0].line, 2)
+  })
+})
 
-    assert.strictEqual(result.modified, true)
-    assert.match(result.code, /const x = 1/)
+describe("stringConcatToTemplate", () => {
+  test("string concatenation", () => {
+    const result = transform(`const greeting = 'Hello ' + name + '!';`)
+
+    assert(result.modified, "transform string concatenation")
+    assert.match(result.code, /`Hello \$\{name\}!`/)
   })
 
-  describe("traditional for loop to for...of", () => {
-    test("basic for loop with array indexing", () => {
-      const input = `
+  test("multiple concatenations", () => {
+    const result = transform(`const msg = 'Hello ' + firstName + ' ' + lastName + '!';`)
+
+    assert(result.modified, "transform multiple concatenations")
+    assert.match(result.code, /`Hello \$\{firstName\} \$\{lastName\}!`/)
+  })
+
+  test("starting with expression", () => {
+    const result = transform(`const msg = prefix + ' world';`)
+
+    assert(result.modified, "transform concatenation starting with expression")
+    assert.match(result.code, /`\$\{prefix\} world`/)
+  })
+
+  test("only expressions", () => {
+    const result = transform(`const msg = a + b + c;`)
+
+    assert(!result.modified, "skip concatenation with only expressions")
+    assert.match(result.code, /a \+ b \+ c/)
+  })
+
+  test("ending with expression", () => {
+    const result = transform(`const msg = 'Value: ' + value;`)
+
+    assert(result.modified, "transform concatenation ending with expression")
+    assert.match(result.code, /`Value: \$\{value\}`/)
+  })
+
+  test("complex nested", () => {
+    const result = transform(`const msg = 'Start ' + (a + 'middle') + ' end';`)
+
+    assert(result.modified, "transform complex nested concatenation")
+    assert.match(result.code, /`/)
+  })
+
+  test("numeric addition followed by string", () => {
+    const result = transform(`cal_box.style.left = findPosX(cal_link) + 17 + 'px';`)
+
+    assert(
+      result.modified,
+      "transform numeric addition followed by string concatenation",
+    )
+    assert.match(result.code, /`\$\{findPosX\(cal_link\) \+ 17\}px`/)
+  })
+
+  test("multiple numeric additions followed by string", () => {
+    const result = transform(`const result = a + b + c + 'd';`)
+
+    assert(
+      result.modified,
+      "transform multiple numeric additions followed by string concatenation",
+    )
+    assert.match(result.code, /`\$\{a \+ b \+ c\}d`/)
+  })
+
+  test("string followed by numeric addition", () => {
+    const result = transform(`const result = 'Value: ' + x + y;`)
+
+    assert(
+      result.modified,
+      "transform string concatenation followed by numeric addition",
+    )
+    assert.match(result.code, /`Value: \$\{x\}\$\{y\}`/)
+  })
+
+  test("numeric addition in middle", () => {
+    const result = transform(`const result = 'start' + (a + b) + 'end';`)
+
+    assert(result.modified, "transform numeric addition in middle of concatenations")
+    assert.match(result.code, /`start\$\{(\()?a \+ b(\))?\}end`/)
+  })
+
+  test("consecutive string literals", () => {
+    const result = transform(`const msg = 'Hello' + ' ' + 'world';`)
+
+    assert(result.modified, "merge consecutive string literals")
+    assert.match(result.code, /`Hello world`/)
+  })
+
+  test("string literal followed by expression", () => {
+    const result = transform(`const msg = 'Value: ' + getValue();`)
+
+    assert(result.modified, "transform string literal followed by expression")
+    assert.match(result.code, /`Value: \$\{getValue\(\)\}`/)
+  })
+
+  test("expression followed by string literal", () => {
+    const result = transform(`const msg = getValue() + ' is the value';`)
+
+    assert(result.modified, "transform expression followed by string literal")
+    assert.match(result.code, /`\$\{getValue\(\)\} is the value`/)
+  })
+
+  test("expression in middle", () => {
+    const result = transform(`const msg = 'start' + getValue() + 'end';`)
+
+    assert(result.modified, "transform expression in middle")
+    assert.match(result.code, /`start\$\{getValue\(\)\}end`/)
+  })
+
+  test("preserves escape sequences in regex", () => {
+    const result = transform(
+      `const id_regex = new RegExp("(" + prefix + "-(\\\\d+|__prefix__))");`,
+    )
+
+    assert(result.modified, "transform and preserve escape sequences")
+    assert.match(result.code, /`\(\$\{prefix\}-\(\\\\d\+\|__prefix__\)\)`/)
+    assert.ok(result.code.includes("\\\\d"), "preserve \\\\d escape sequence")
+  })
+
+  test("preserves newline escapes", () => {
+    const result = transform(`const str = "Line 1\\\\n" + "Line 2";`)
+
+    assert(result.modified, "transform and preserve newline escapes")
+    assert.ok(result.code.includes("\\\\n"), "preserve \\\\n escape sequence")
+  })
+
+  test("preserves tab escapes", () => {
+    const result = transform(`const str = "Tab\\\\t" + value + "\\\\t";`)
+
+    assert(result.modified, "transform and preserve tab escapes")
+    assert.ok(result.code.includes("\\\\t"), "preserve \\\\t escape sequence")
+  })
+})
+
+describe("objectAssignToSpread", () => {
+  test("to object spread", () => {
+    const result = transform(`const obj = Object.assign({}, obj1, obj2);`)
+
+    assert(result.modified, "transform Object.assign")
+    assert.match(result.code, /\.\.\.obj1/)
+    assert.match(result.code, /\.\.\.obj2/)
+  })
+
+  test("non-empty first arg", () => {
+    const result = transform(`const obj = Object.assign({ a: 1 }, obj1);`)
+
+    assert(!result.modified, "skip Object.assign with non-empty first arg")
+    assert.match(result.code, /Object\.assign/)
+  })
+
+  test("non-object first arg", () => {
+    const result = transform(`const obj = Object.assign(target, obj1);`)
+
+    assert(!result.modified, "skip Object.assign with non-object first arg")
+    assert.match(result.code, /Object\.assign/)
+  })
+
+  test("only empty object", () => {
+    const result = transform(`const obj = Object.assign({});`)
+
+    assert(result.modified, "transform Object.assign with only empty object")
+    assert.match(result.code, /\{\}/)
+  })
+})
+
+describe("mathPowToExponentiation", () => {
+  test("to **", () => {
+    const result = transform(`const result = Math.pow(2, 3);`)
+
+    assert(result.modified, "transform Math.pow()")
+    assert.match(result.code, /2 \*\* 3/)
+  })
+
+  test("with variables", () => {
+    const result = transform(`const power = Math.pow(base, exponent);`)
+
+    assert(result.modified, "transform Math.pow() with variables")
+    assert.match(result.code, /base \*\* exponent/)
+  })
+
+  test("with complex expressions", () => {
+    const result = transform(`const result = Math.pow(x + 1, y * 2);`)
+
+    assert(result.modified, "transform Math.pow() with complex expressions")
+    assert.match(result.code, /\(x \+ 1\) \*\* \(y \* 2\)/)
+  })
+
+  test("in expressions", () => {
+    const result = transform(`const area = Math.PI * Math.pow(radius, 2);`)
+
+    assert(result.modified, "transform Math.pow() in expressions")
+    assert.match(result.code, /Math\.PI \* radius \*\* 2/)
+  })
+
+  test("wrong number of arguments", () => {
+    const result = transform(`const result = Math.pow(2);`)
+
+    assert(!result.modified, "skip Math.pow() with wrong number of arguments")
+    assert.match(result.code, /Math\.pow\(2\)/)
+  })
+
+  test("nested calls", () => {
+    const result = transform(`const result = Math.pow(Math.pow(2, 3), 4);`)
+
+    assert(result.modified, "transform nested Math.pow() in single pass")
+    assert.match(result.code, /Math\.pow\(2, 3\) \*\* 4/)
+  })
+
+  test("tracks line numbers", () => {
+    const result = transform(`// Line 1
+const result = Math.pow(2, 3);`)
+
+    assert(result.modified, "tracks line numbers")
+    const mathPowChanges = result.changes.filter(
+      (c) => c.type === "mathPowToExponentiation",
+    )
+    assert.equal(mathPowChanges.length, 1)
+    assert.equal(mathPowChanges[0].line, 2)
+  })
+})
+
+describe("forLoopToForOf", () => {
+  test("basic array indexing", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(result.modified, "transform basic array indexing")
+    assert.match(result.code, /for \(const item of items\)/)
+    assert.match(result.code, /console\.log\(item\)/)
+    assert.doesNotMatch(result.code, /items\[i\]/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const item of items\)/)
-      assert.match(result.code, /console\.log\(item\)/)
-      assert.doesNotMatch(result.code, /items\[i\]/)
-    })
-
-    test("for loop with const variable", () => {
-      const input = `
+  test("const variable", () => {
+    const result = transform(`
 for (let i = 0; i < arr.length; i++) {
   const element = arr[i];
   process(element);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(result.modified, "transform with const variable")
+    assert.match(result.code, /for \(const element of arr\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const element of arr\)/)
-    })
-
-    test("for loop with let variable", () => {
-      const input = `
+  test("let variable", () => {
+    const result = transform(`
 for (let i = 0; i < arr.length; i++) {
   let element = arr[i];
   element = transform(element);
   console.log(element);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(result.modified, "transform with let variable")
+    assert.match(result.code, /for \(let element of arr\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(let element of arr\)/)
-    })
-
-    test("for loop with var variable", () => {
-      const input = `
+  test("var variable", () => {
+    const result = transform(`
 for (let i = 0; i < arr.length; i++) {
   var element = arr[i];
   console.log(element);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(result.modified, "transform with var variable")
+    assert.match(result.code, /for \(const element of arr\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      // Note: var is also converted to const by the varToConst transformer
-      assert.match(result.code, /for \(const element of arr\)/)
-    })
-
-    test("should NOT transform when index is used in body", () => {
-      const input = `
+  test("index used in body", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[i];
   console.log(item, i);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when index used in body")
+    assert.match(result.code, /for \(let i = 0; i < items\.length; i\+\+\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /for \(let i = 0; i < items\.length; i\+\+\)/)
-    })
-
-    test("should NOT transform when no array access statement", () => {
-      const input = `
+  test("no array access statement", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   console.log(i);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when no array access statement")
+    assert.match(result.code, /for \(let i = 0/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /for \(let i = 0/)
-    })
-
-    test("should NOT transform when body is empty", () => {
-      const input = `
+  test("empty body", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when body is empty")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when using different increment", () => {
-      const input = `
+  test("different increment", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i += 2) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when using different increment")
+    assert.match(result.code, /i \+= 2/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /i \+= 2/)
-    })
-
-    test("should NOT transform when starting from non-zero", () => {
-      const input = `
+  test("non-zero start", () => {
+    const result = transform(`
 for (let i = 1; i < items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when starting from non-zero")
+    assert.match(result.code, /let i = 1/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /let i = 1/)
-    })
-
-    test("should NOT transform when using <= instead of <", () => {
-      const input = `
+  test("using <= instead of <", () => {
+    const result = transform(`
 for (let i = 0; i <= items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when using <= instead of <")
+    assert.match(result.code, /i <= items\.length/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /i <= items\.length/)
-    })
-
-    test("should NOT transform when accessing different array", () => {
-      const input = `
+  test("different array access", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = otherArray[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when accessing different array")
+    assert.match(result.code, /otherArray\[i\]/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /otherArray\[i\]/)
-    })
-
-    test("should NOT transform when first statement is not variable declaration", () => {
-      const input = `
+  test("no variable declaration first", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   console.log(items[i]);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when first statement is not variable declaration")
+    assert.match(result.code, /for \(let i = 0/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /for \(let i = 0/)
-    })
-
-    test("should NOT transform when using different index variable", () => {
-      const input = `
+  test("different index variable", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[j];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when using different index variable")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should transform with ++i (prefix increment)", () => {
-      const input = `
+  test("prefix increment", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; ++i) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(result.modified, "transform with prefix increment")
+    assert.match(result.code, /for \(const item of items\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const item of items\)/)
-    })
-
-    test("multiple statements after array access", () => {
-      const input = `
+  test("multiple statements", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[i];
   console.log(item);
   process(item);
   cleanup();
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(result.modified, "transform with multiple statements")
+    assert.match(result.code, /for \(const item of items\)/)
+    assert.match(result.code, /console\.log\(item\)/)
+    assert.match(result.code, /process\(item\)/)
+    assert.match(result.code, /cleanup\(\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const item of items\)/)
-      assert.match(result.code, /console\.log\(item\)/)
-      assert.match(result.code, /process\(item\)/)
-      assert.match(result.code, /cleanup\(\)/)
-    })
-
-    test("should NOT transform when init is not a variable declaration", () => {
-      const input = `
+  test("init not variable declaration", () => {
+    const result = transform(`
 for (i = 0; i < items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when init is not variable declaration")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when init has multiple declarations", () => {
-      const input = `
+  test("init multiple declarations", () => {
+    const result = transform(`
 for (let i = 0, j = 0; i < items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when init has multiple declarations")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when init id is not an identifier", () => {
-      const input = `
+  test("init id not identifier", () => {
+    const result = transform(`
 for (let [i] = [0]; i < items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when init id is not identifier")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when test is not a binary expression", () => {
-      const input = `
+  test("test not binary expression", () => {
+    const result = transform(`
 for (let i = 0; items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when test is not binary expression")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when test operator is not <", () => {
-      const input = `
+  test("test operator not <", () => {
+    const result = transform(`
 for (let i = 0; i <= items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when test operator is not <")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when test left is not the index variable", () => {
-      const input = `
+  test("test left not index variable", () => {
+    const result = transform(`
 for (let i = 0; j < items.length; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when test left is not index variable")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when test right is not a member expression", () => {
-      const input = `
+  test("test right not member expression", () => {
+    const result = transform(`
 for (let i = 0; i < 10; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when test right is not member expression")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when test right property is not 'length'", () => {
-      const input = `
+  test("test right property not 'length'", () => {
+    const result = transform(`
 for (let i = 0; i < items.size; i++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when test right property is not 'length'")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when test right object is not an identifier", () => {
-      const input = `
+  test("test right object not identifier", () => {
+    const result = transform(`
 for (let i = 0; i < getItems().length; i++) {
   const item = getItems()[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when test right object is not identifier")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when update is not an update expression", () => {
-      const input = `
+  test("update not update expression", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i = i + 1) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when update is not update expression")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when update argument is not the index variable", () => {
-      const input = `
+  test("update argument not index variable", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; j++) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when update argument is not index variable")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when update operator is not ++", () => {
-      const input = `
+  test("update operator not ++", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i--) {
   const item = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when update operator is not ++")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when body is not a block statement", () => {
-      const input = `
+  test("body not block statement", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++)
   console.log(items[i]);
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when body is not block statement")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when first statement has multiple declarations", () => {
-      const input = `
+  test("first statement multiple declarations", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[i], other = null;
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when first statement has multiple declarations")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when first statement id is not an identifier", () => {
-      const input = `
+  test("first statement id not identifier", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const [item] = items[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when first statement id is not identifier")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when first statement init is not a member expression", () => {
-      const input = `
+  test("first statement init not member expression", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = getItem(i);
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when first statement init is not member expression")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when member expression object name doesn't match", () => {
-      const input = `
+  test("member expression object name mismatch", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = other[i];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when member expression object name doesn't match")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when member expression property doesn't match index", () => {
-      const input = `
+  test("member expression property not matching index", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[j];
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when member expression property doesn't match index")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("should NOT transform when member expression is not computed", () => {
-      const input = `
+  test("member expression not computed", () => {
+    const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items.i;
   console.log(item);
 }
-      `
+      `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when member expression is not computed")
+  })
 
-      assert.strictEqual(result.modified, false)
-    })
-
-    test("tracks line numbers for forLoopToForOf", () => {
-      const input = `// Line 1
+  test("tracks line numbers", () => {
+    const result = transform(`// Line 1
 for (let i = 0; i < items.length; i++) {
   const item = items[i];
   console.log(item);
-}`
+}`)
 
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      const forLoopChanges = result.changes.filter((c) => c.type === "forLoopToForOf")
-      assert.strictEqual(forLoopChanges.length, 1)
-      assert.strictEqual(forLoopChanges[0].line, 2)
-    })
+    assert(result.modified, "tracks line numbers")
+    const forLoopChanges = result.changes.filter((c) => c.type === "forLoopToForOf")
+    assert.equal(forLoopChanges.length, 1)
+    assert.equal(forLoopChanges[0].line, 2)
   })
+})
 
-  describe("iterable forEach to for...of", () => {
-    test("document.querySelectorAll().forEach() to for...of", () => {
-      const input = `
+describe("iterableForEachToForOf", () => {
+  test("document.querySelectorAll()", () => {
+    const result = transform(`
     document.querySelectorAll('.item').forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform document.querySelectorAll().forEach()")
+    assert.match(
+      result.code,
+      /for \(const item of document\.querySelectorAll\(['"]\.item['"]\)\)/,
+    )
+    assert.match(result.code, /console\.log\(item\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const item of document\.querySelectorAll\(['"]\.item['"]\)\)/,
-      )
-      assert.match(result.code, /console\.log\(item\)/)
-    })
-
-    test("document.getElementsByTagName().forEach() to for...of", () => {
-      const input = `
+  test("document.getElementsByTagName()", () => {
+    const result = transform(`
     document.getElementsByTagName('div').forEach(div => {
       div.classList.add('active');
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform document.getElementsByTagName().forEach()")
+    assert.match(
+      result.code,
+      /for \(const div of document\.getElementsByTagName\(['"]div['"]\)\)/,
+    )
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const div of document\.getElementsByTagName\(['"]div['"]\)\)/,
-      )
-    })
-
-    test("document.getElementsByClassName().forEach() to for...of", () => {
-      const input = `
+  test("document.getElementsByClassName()", () => {
+    const result = transform(`
     document.getElementsByClassName('button').forEach(button => {
       button.disabled = true;
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform document.getElementsByClassName().forEach()")
+    assert.match(
+      result.code,
+      /for \(const button of document\.getElementsByClassName\(['"]button['"]\)\)/,
+    )
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const button of document\.getElementsByClassName\(['"]button['"]\)\)/,
-      )
-    })
-
-    test("document.getElementsByName().forEach() to for...of", () => {
-      const input = `
+  test("document.getElementsByName()", () => {
+    const result = transform(`
     document.getElementsByName('email').forEach(input => {
       input.required = true;
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform document.getElementsByName().forEach()")
+    assert.match(
+      result.code,
+      /for \(const input of document\.getElementsByName\(['"]email['"]\)\)/,
+    )
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const input of document\.getElementsByName\(['"]email['"]\)\)/,
-      )
-    })
-
-    test("element variable querySelectorAll should NOT transform", () => {
-      const input = `
-    element.querySelectorAll('span').forEach(span => {
-      span.remove();
+  test("element variable querySelectorAll", () => {
+    const result = transform(`
+    element.querySelectorAll('.item').forEach(item => {
+      console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip element variable querySelectorAll")
+    assert.match(result.code, /element\.querySelectorAll/)
+  })
 
-      // Should NOT transform because element is not from document chain
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /element\.querySelectorAll/)
-    })
-
-    test("chained element method .querySelectorAll().forEach() to for...of", () => {
-      const input = `
+  test("chained querySelectorAll()", () => {
+    const result = transform(`
     document.getElementById('container').querySelectorAll('p').forEach(p => {
       p.textContent = '';
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform chained querySelectorAll().forEach()")
+    assert.match(
+      result.code,
+      /for \(const p of document\.getElementById\(['"]container['"]\)\.querySelectorAll\(['"]p['"]\)\)/,
+    )
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const p of document\.getElementById\(['"]container['"]\)\.querySelectorAll\(['"]p['"]\)\)/,
-      )
-    })
-
-    test("window.frames property forEach() to for...of", () => {
-      const input = `
+  test("window.frames", () => {
+    const result = transform(`
     window.frames.forEach(frame => {
       frame.postMessage('hello', '*');
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform window.frames.forEach()")
+    assert.match(result.code, /for \(const frame of window\.frames\)/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const frame of window\.frames\)/)
-    })
-
-    test("should NOT transform arrow function without braces (expression body)", () => {
-      const input = `
+  test("arrow function without braces", () => {
+    const result = transform(`
     document.querySelectorAll('.item').forEach(item => item.remove());
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip arrow function without braces")
+    assert.match(result.code, /forEach\(item => item\.remove\(\)\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(item => item\.remove\(\)\)/)
-    })
-
-    test("should NOT transform with index parameter", () => {
-      const input = `
+  test("with index parameter", () => {
+    const result = transform(`
     document.querySelectorAll('.item').forEach((item, index) => {
       console.log(item, index);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip forEach with index parameter")
+    assert.match(result.code, /forEach\(\(item, index\) =>/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(\(item, index\) =>/)
-    })
-
-    test("should NOT transform with array parameter", () => {
-      const input = `
+  test("with array parameter", () => {
+    const result = transform(`
     document.querySelectorAll('.item').forEach((item, index, array) => {
       console.log(item, index, array);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip forEach with array parameter")
+    assert.match(result.code, /forEach\(\(item, index, array\) =>/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(\(item, index, array\) =>/)
-    })
-
-    test("should NOT transform with non-inline callback (reference)", () => {
-      const input = `
+  test("non-inline callback", () => {
+    const result = transform(`
     document.querySelectorAll('.item').forEach(handleItem);
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip forEach with non-inline callback")
+    assert.match(result.code, /forEach\(handleItem\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(handleItem\)/)
-    })
-
-    test("should NOT transform without callback", () => {
-      const input = `
+  test("without callback", () => {
+    const result = transform(`
     document.querySelectorAll('.item').forEach();
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip forEach without callback")
+    assert.match(result.code, /forEach\(\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach\(\)/)
-    })
-
-    test("should NOT transform unknown methods", () => {
-      const input = `
+  test("unknown methods", () => {
+    const result = transform(`
     document.querySomething('.item').forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip unknown methods")
+    assert.match(result.code, /querySomething/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /querySomething/)
-    })
-
-    test("should NOT transform non-document objects with querySelectorAll", () => {
-      const input = `
+  test("non-document objects with querySelectorAll", () => {
+    const result = transform(`
     myObject.querySelectorAll('.item').forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip non-document objects with querySelectorAll")
+    assert.match(result.code, /myObject\.querySelectorAll/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /myObject\.querySelectorAll/)
-    })
-
-    test("should NOT transform window methods not in allowed list", () => {
-      const input = `
+  test("window methods not in allowed list", () => {
+    const result = transform(`
     window.querySelectorAll('.item').forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip window methods not in allowed list")
+    assert.match(result.code, /window\.querySelectorAll/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /window\.querySelectorAll/)
-    })
-
-    test("transforms with function expression", () => {
-      const input = `
+  test("with function expression", () => {
+    const result = transform(`
     document.querySelectorAll('button').forEach(function(btn) {
       btn.disabled = true;
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform with function expression")
+    assert.match(
+      result.code,
+      /for \(const btn of document\.querySelectorAll\(['"]button['"]\)\)/,
+    )
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const btn of document\.querySelectorAll\(['"]button['"]\)\)/,
-      )
-    })
-
-    test("tracks line numbers correctly", () => {
-      const input = `// Line 1
+  test("tracks line numbers", () => {
+    const result = transform(`// Line 1
 document.querySelectorAll('.item').forEach(item => {
   console.log(item);
-});`
+});`)
 
-      const result = transform(input)
+    assert(result.modified, "tracks line numbers")
+    assert.equal(result.changes.length, 1)
+    assert.equal(result.changes[0].type, "iterableForEachToForOf")
+    assert.equal(result.changes[0].line, 2)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.strictEqual(result.changes.length, 1)
-      assert.strictEqual(result.changes[0].type, "iterableForEachToForOf")
-      assert.strictEqual(result.changes[0].line, 2)
-    })
-
-    test("handles complex selector strings", () => {
-      const input = `
+  test("complex selector strings", () => {
+    const result = transform(`
     document.querySelectorAll('[data-toggle="modal"]').forEach(el => {
       el.addEventListener('click', handleClick);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform with complex selector strings")
+    assert.match(
+      result.code,
+      /for \(const el of document\.querySelectorAll\(['"]\[data-toggle="modal"\]['"]\)\)/,
+    )
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const el of document\.querySelectorAll\(['"]\[data-toggle="modal"\]['"]\)\)/,
-      )
-    })
-
-    test("preserves multiline function bodies", () => {
-      const input = `
+  test("preserves multiline function bodies", () => {
+    const result = transform(`
     document.querySelectorAll('.item').forEach(item => {
       const value = item.value;
       console.log(value);
       item.classList.add('processed');
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform and preserve multiline function bodies")
+    assert.match(result.code, /for \(const item of/)
+    assert.match(result.code, /const value = item\.value/)
+    assert.match(result.code, /console\.log\(value\)/)
+    assert.match(result.code, /item\.classList\.add/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const item of/)
-      assert.match(result.code, /const value = item\.value/)
-      assert.match(result.code, /console\.log\(value\)/)
-      assert.match(result.code, /item\.classList\.add/)
-    })
-
-    test("should NOT transform element variables with getElementsByTagName", () => {
-      const input = `
+  test("element variables with getElementsByTagName", () => {
+    const result = transform(`
     container.getElementsByTagName('input').forEach(input => {
       input.value = '';
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip element variables with getElementsByTagName")
+    assert.match(result.code, /container\.getElementsByTagName/)
+  })
 
-      // Should not transform because container is not from document chain
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /container\.getElementsByTagName/)
-    })
-
-    test("should NOT transform element variables with getElementsByClassName", () => {
-      const input = `
+  test("element variables with getElementsByClassName", () => {
+    const result = transform(`
     section.getElementsByClassName('warning').forEach(warning => {
       warning.style.display = 'none';
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip element variables with getElementsByClassName")
+    assert.match(result.code, /section\.getElementsByClassName/)
+  })
 
-      // Should not transform because section is not from document chain
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /section\.getElementsByClassName/)
-    })
-
-    test("should NOT transform window.querySelectorAll (not in allowed methods)", () => {
-      const input = `
+  test("window.querySelectorAll not in allowed", () => {
+    const result = transform(`
     window.querySelectorAll('.item').forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip window.querySelectorAll")
+    assert.match(result.code, /window\.querySelectorAll/)
+  })
 
-      // Should not transform because querySelectorAll is not a window method
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /window\.querySelectorAll/)
-    })
-
-    test("should NOT transform property access on unknown objects", () => {
-      const input = `
+  test("property access on unknown objects", () => {
+    const result = transform(`
     customObject.frames.forEach(frame => {
       frame.postMessage('test', '*');
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip property access on unknown objects")
+    assert.match(result.code, /customObject\.frames/)
+  })
 
-      // Should not transform because customObject is not window
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /customObject\.frames/)
-    })
-
-    test("should NOT transform when method callee is not a member expression", () => {
-      const input = `
-    getSomething().forEach(item => {
-      console.log(item);
-    });
-  `
-
-      const result = transform(input)
-
-      // Should not transform because callee is not a member expression
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /getSomething\(\)\.forEach/)
-    })
-
-    test("should NOT transform when method name cannot be extracted (computed property)", () => {
-      const input = `
-    document['querySelectorAll']('.item').forEach(item => {
-      console.log(item);
-    });
-  `
-
-      const result = transform(input)
-
-      // Should not transform because method name is computed (string literal, not identifier)
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /document\['querySelectorAll'\]/)
-    })
-
-    test("should NOT transform unknown document methods", () => {
-      const input = `
-    document.customMethod().forEach(item => {
-      console.log(item);
-    });
-  `
-
-      const result = transform(input)
-
-      // Should not transform because customMethod is not in allowed list
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /document\.customMethod/)
-    })
-
-    test("should NOT transform chained call from non-document origin", () => {
-      const input = `
-    element.querySelector('div').querySelectorAll('span').forEach(span => {
-      span.remove();
-    });
-  `
-
-      const result = transform(input)
-
-      // Should not transform because chain doesn't start with document
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /element\.querySelector/)
-    })
-
-    test("should NOT transform chained call with unknown method", () => {
-      const input = `
-    document.getElementById('x').customMethod().forEach(item => {
-      console.log(item);
-    });
-  `
-
-      const result = transform(input)
-
-      // Should not transform because customMethod is not in document methods
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /customMethod/)
-    })
-
-    test("should NOT transform when caller object is neither identifier nor member/call expression", () => {
-      const input = `
-    (() => { return document; })().querySelectorAll('.item').forEach(item => {
-      console.log(item);
-    });
-  `
-
-      const result = transform(input)
-
-      // Should not transform because caller is a function expression
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /forEach/)
-    })
-
-    test("should NOT transform when caller object is ThisExpression", () => {
-      const input = `
-    this.querySelectorAll('.item').forEach(item => {
-      console.log(item);
-    });
-  `
-
-      const result = transform(input)
-
-      // Should not transform because caller is this, not document
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /this\.querySelectorAll/)
-    })
-
-    test("should NOT transform when forEach object is neither MemberExpression nor CallExpression", () => {
-      const input = `
+  test("object not a member expression", () => {
+    const result = transform(`
     items.forEach(item => {
       console.log(item);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when forEach object is not a member expression")
+    assert.match(result.code, /items\.forEach/)
+  })
 
-      // Should not transform because items is just an identifier, not a method call or property
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /items\.forEach/)
-    })
+  test("method name computed property", () => {
+    const result = transform(`
+    document['querySelectorAll']('.item').forEach(item => {
+      console.log(item);
+    });
+  `)
 
-    test("deeply nested document chain should transform", () => {
-      const input = `
+    assert(!result.modified, "skip when method name is computed")
+    assert.match(result.code, /document\['querySelectorAll'\]/)
+  })
+
+  test("unknown document methods", () => {
+    const result = transform(`
+    document.customMethod().forEach(item => {
+      console.log(item);
+    });
+  `)
+
+    assert(!result.modified, "skip unknown document methods")
+    assert.match(result.code, /document\.customMethod/)
+  })
+
+  test("chained call from non-document origin", () => {
+    const result = transform(`
+    element.querySelector('div').querySelectorAll('span').forEach(span => {
+      span.remove();
+    });
+  `)
+
+    assert(!result.modified, "skip chained call from non-document origin")
+    assert.match(result.code, /element\.querySelector/)
+  })
+
+  test("chained call with unknown method", () => {
+    const result = transform(`
+    document.getElementById('x').customMethod().forEach(item => {
+      console.log(item);
+    });
+  `)
+
+    assert(!result.modified, "skip chained call with unknown method")
+    assert.match(result.code, /customMethod/)
+  })
+
+  test("caller neither identifier nor member/call expression", () => {
+    const result = transform(`
+    (() => { return document; })().querySelectorAll('.item').forEach(item => {
+      console.log(item);
+    });
+  `)
+
+    assert(!result.modified, "skip when caller is a function expression")
+    assert.match(result.code, /forEach/)
+  })
+
+  test("caller is ThisExpression", () => {
+    const result = transform(`
+    this.querySelectorAll('.item').forEach(item => {
+      console.log(item);
+    });
+  `)
+
+    assert(!result.modified, "skip when caller is this")
+    assert.match(result.code, /this\.querySelectorAll/)
+  })
+
+  test("object neither MemberExpression nor CallExpression", () => {
+    const result = transform(`
+    items.forEach(item => {
+      console.log(item);
+    });
+  `)
+
+    assert(!result.modified, "skip when forEach object is just an identifier")
+    assert.match(result.code, /items\.forEach/)
+  })
+
+  test("deeply nested document chain", () => {
+    const result = transform(`
     document.getElementById('a').querySelector('b').querySelectorAll('c').forEach(item => {
       item.remove();
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform deeply nested document chain")
+    assert.match(
+      result.code,
+      /for \(const item of document\.getElementById\(['"]a['"]\)\.querySelector\(['"]b['"]\)\.querySelectorAll\(['"]c['"]\)\)/,
+    )
+  })
 
-      // Should transform because it chains from document
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /for \(const item of document\.getElementById\(['"]a['"]\)\.querySelector\(['"]b['"]\)\.querySelectorAll\(['"]c['"]\)\)/,
-      )
-    })
+  test("callerObject is complex expression", () => {
+    const result = transform(`
+    (1 + 2).querySelectorAll('.item').forEach(item => {
+      console.log(item);
+    });
+  `)
 
-    test("should NOT transform when callee in chain is not a member expression", () => {
-      const input = `
+    assert(!result.modified, "skip when callerObject is a binary expression")
+    assert.match(result.code, /forEach/)
+  })
+
+  test("CallExpression with non-MemberExpression callee", () => {
+    const result = transform(`
+    getElements().forEach(item => {
+      console.log(item);
+    });
+  `)
+
+    assert(
+      !result.modified,
+      "skip when forEach object is CallExpression with Identifier callee",
+    )
+    assert.match(result.code, /getElements\(\)\.forEach/)
+  })
+
+  test("chain starts with function call", () => {
+    const result = transform(`
     getDocument().querySelectorAll('span').forEach(item => {
       item.textContent = 'test';
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip when chain starts with function call")
+    assert.match(result.code, /getDocument\(\)\.querySelectorAll/)
+  })
 
-      // Should NOT transform - chain starts with function call, not document
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /getDocument\(\)\.querySelectorAll/)
-    })
-
-    test("should transform document property access with querySelectorAll", () => {
-      const input = `
+  test("document property access with querySelectorAll", () => {
+    const result = transform(`
     document.body.querySelectorAll('div').forEach(div => {
       div.remove();
     });
-  `
+  `)
 
-      const result = transform(input)
-
-      // Should transform - chains from document through property access
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const div of document\.body\.querySelectorAll/)
-    })
+    assert(result.modified, "transform document property access with querySelectorAll")
+    assert.match(result.code, /for \(const div of document\.body\.querySelectorAll/)
   })
+})
 
-  describe("arrow functions", () => {
-    test("should transform simple anonymous function to arrow function", () => {
-      const input = `
+describe("functionToArrow", () => {
+  test("simple anonymous function", () => {
+    const result = transform(`
     const greet = function(name) {
       return "Hello " + name;
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform simple anonymous function")
+    assert.match(result.code, /const greet = name =>/)
+    assert.match(result.code, /return/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      // Single parameter arrow functions don't need parentheses
-      assert.match(result.code, /const greet = name =>/)
-      assert.match(result.code, /return/)
-    })
-
-    test("should transform anonymous function with multiple parameters", () => {
-      const input = `
+  test("multiple parameters", () => {
+    const result = transform(`
     const add = function(a, b) {
       return a + b;
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform anonymous function with multiple parameters")
+    assert.match(result.code, /const add = \(a, b\) =>/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /const add = \(a, b\) =>/)
-    })
-
-    test("should transform anonymous function with no parameters", () => {
-      const input = `
+  test("no parameters", () => {
+    const result = transform(`
     const getValue = function() {
       return 42;
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform anonymous function with no parameters")
+    assert.match(result.code, /const getValue = \(\) =>/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /const getValue = \(\) =>/)
-    })
+  test("callback function", () => {
+    const result = transform(`[1, 2, 3].map(function(x) { return x * 2; });`)
 
-    test("should transform callback function", () => {
-      const input = `[1, 2, 3].map(function(x) { return x * 2; });`
+    assert(result.modified, "transform callback function")
+    assert.match(result.code, /\[1, 2, 3\]\.map\(x =>/)
+  })
 
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Single parameter doesn't need parentheses
-      assert.match(result.code, /\[1, 2, 3\]\.map\(x =>/)
-    })
-
-    test("should NOT transform function using 'this'", () => {
-      const input = `
+  test("using 'this'", () => {
+    const result = transform(`
     const obj = {
       method: function() {
         return this.value;
       }
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip function using 'this'")
+    assert.match(result.code, /method: function\(\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /method: function\(\)/)
-    })
-
-    test("should NOT transform function using 'this' in nested code", () => {
-      const input = `
+  test("using 'this' in nested code", () => {
+    const result = transform(`
     const handler = function() {
       if (true) {
         console.log(this.name);
       }
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip function using 'this' in nested code")
+    assert.match(result.code, /const handler = function\(\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /const handler = function\(\)/)
-    })
-
-    test("should NOT transform function using 'arguments'", () => {
-      const input = `
+  test("using 'arguments'", () => {
+    const result = transform(`
     const sum = function() {
-      return Array.from(arguments).reduce((a, b) => a + b, 0);
+      return [...arguments].reduce((a, b) => a + b, 0);
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip function using 'arguments'")
+    assert.match(result.code, /const sum = function\(\)/)
+    assert.doesNotMatch(result.code, /const sum = \(\) =>/)
+    assert.doesNotMatch(result.code, /const sum = =>/)
+  })
 
-      // The function itself should NOT be transformed to an arrow function
-      // (other transformations like Array.from -> spread may still happen)
-      assert.match(result.code, /const sum = function\(\)/)
-      // Ensure it's not an arrow function
-      assert.doesNotMatch(result.code, /const sum = \(\) =>/)
-      assert.doesNotMatch(result.code, /const sum = =>/)
-    })
-
-    test("should NOT transform generator function", () => {
-      const input = `
+  test("generator function", () => {
+    const result = transform(`
     const gen = function*() {
       yield 1;
       yield 2;
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip generator function")
+    assert.match(result.code, /const gen = function\*\(\)/)
+  })
 
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /const gen = function\*\(\)/)
-    })
-
-    test("should transform nested function that doesn't use 'this'", () => {
-      const input = `
+  test("nested function without 'this'", () => {
+    const result = transform(`
     const outer = function(x) {
       return function(y) {
         return x + y;
       };
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform nested function that doesn't use 'this'")
+    assert.match(result.code, /const outer = x =>/)
+    assert.match(result.code, /return y =>/)
+  })
 
-      // Both functions should be transformed
-      assert.strictEqual(result.modified, true)
-      // Single parameters don't need parentheses
-      assert.match(result.code, /const outer = x =>/)
-      // The inner function should also be transformed
-      assert.match(result.code, /return y =>/)
-    })
-
-    test("should NOT transform outer function but transform inner when outer uses 'this'", () => {
-      const input = `
+  test("outer uses 'this', inner does not", () => {
+    const result = transform(`
     const outer = function() {
       this.value = 10;
       return function(x) {
         return x * 2;
       };
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform inner function when outer uses 'this'")
+    assert.match(result.code, /const outer = function\(\)/)
+    assert.match(result.code, /return x =>/)
+  })
 
-      // Only inner function should be transformed
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /const outer = function\(\)/)
-      // Single parameter doesn't need parentheses
-      assert.match(result.code, /return x =>/)
-    })
-
-    test("should transform async function", () => {
-      const input = `
+  test("async function", () => {
+    const result = transform(`
     const fetchData = async function(url) {
       const response = await fetch(url);
       return response.json();
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform async function")
+    assert.match(result.code, /const fetchData = async url =>/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      // Single parameter doesn't need parentheses
-      assert.match(result.code, /const fetchData = async url =>/)
-    })
-
-    test("should transform function with complex body", () => {
-      const input = `
+  test("complex body", () => {
+    const result = transform(`
     const process = function(data) {
       const result = [];
       for (const item of data) {
@@ -1878,244 +1540,223 @@ document.querySelectorAll('.item').forEach(item => {
       }
       return result;
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform function with complex body")
+    assert.match(result.code, /const process = data =>/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      // Single parameter doesn't need parentheses
-      assert.match(result.code, /const process = data =>/)
-    })
-
-    test("should handle multiple transformations in same code", () => {
-      const input = `
+  test("multiple transformations", () => {
+    const result = transform(`
     const fn1 = function(x) { return x + 1; };
     const fn2 = function(y) { return y * 2; };
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform multiple functions")
+    assert.match(result.code, /const fn1 = x =>/)
+    assert.match(result.code, /const fn2 = y =>/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      // Single parameters don't need parentheses
-      assert.match(result.code, /const fn1 = x =>/)
-      assert.match(result.code, /const fn2 = y =>/)
-    })
-
-    test("should NOT transform when 'this' is in nested function scope", () => {
-      const input = `
+  test("'this' in nested function scope", () => {
+    const result = transform(`
     const outer = function(x) {
       return function() {
         return this.value + x;
       };
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(
+      result.modified,
+      "transform outer function, not inner when 'this' is in nested scope",
+    )
+    assert.match(result.code, /const outer = x =>/)
+    assert.match(result.code, /return function\(\)/)
+  })
 
-      // Outer should transform, inner should not
-      assert.strictEqual(result.modified, true)
-      // Single parameter doesn't need parentheses
-      assert.match(result.code, /const outer = x =>/)
-      assert.match(result.code, /return function\(\)/)
-    })
-
-    test("should transform event handlers without 'this'", () => {
-      const input = `
+  test("event handlers without 'this'", () => {
+    const result = transform(`
     button.addEventListener('click', function(event) {
       console.log('Clicked', event.target);
     });
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform event handlers without 'this'")
+    assert.match(result.code, /button\.addEventListener\('click', event =>/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      // Single parameter doesn't need parentheses
-      assert.match(result.code, /button\.addEventListener\('click', event =>/)
-    })
-
-    test("should transform IIFE without 'this'", () => {
-      const input = `
+  test("IIFE without 'this'", () => {
+    const result = transform(`
     (function() {
       console.log('IIFE executed');
     })();
-  `
+  `)
 
-      const result = transform(input)
+    assert(result.modified, "transform IIFE without 'this'")
+    assert.match(result.code, /\(\(\) =>/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\(\(\) =>/)
-    })
-
-    test("should NOT transform named function expression", () => {
-      // Named function expressions should be kept as-is for stack traces and recursion
-      const input = `
+  test("named function expression", () => {
+    const result = transform(`
     const factorial = function fact(n) {
       return n <= 1 ? 1 : n * fact(n - 1);
     };
-  `
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "skip named function expression")
+    assert.match(result.code, /function fact\(n\)/)
+  })
+})
 
-      // Named function expressions should not be transformed
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /function fact\(n\)/)
-    })
+describe("arrayConcatToSpread", () => {
+  test("[].concat(other)", () => {
+    const result = transform(`const result = [1, 2].concat(other);`)
+
+    assert(result.modified, "transform [].concat(other)")
+    assert.match(result.code, /\[\.\..\[1, 2\], \.\.\.other\]/)
   })
 
-  describe("Array.concat() to spread", () => {
-    test("[].concat(other) to [...[], ...other]", () => {
-      const input = `const result = [1, 2].concat(other);`
+  test("[].concat([1, 2, 3])", () => {
+    const result = transform(`const result = [].concat([1, 2, 3]);`)
 
-      const result = transform(input)
+    assert(result.modified, "transform [].concat() with array literal")
+    assert.match(result.code, /\[\.\..\[\], \.\.\.\[1, 2, 3\]\]/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\..\[1, 2\], \.\.\.other\]/)
-    })
+  test("[].concat(item1, item2, item3)", () => {
+    const result = transform(`const result = [].concat(other1, other2, other3);`)
 
-    test("[].concat([1, 2, 3]) with array literal", () => {
-      const input = `const result = [].concat([1, 2, 3]);`
+    assert(result.modified, "transform [].concat() with multiple arguments")
+    assert.match(result.code, /\[\.\..\[\], \.\.\.other1, \.\.\.other2, \.\.\.other3\]/)
+  })
 
-      const result = transform(input)
+  test("in expression", () => {
+    const result = transform(`const length = [].concat(other).length;`)
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\..\[\], \.\.\.\[1, 2, 3\]\]/)
-    })
+    assert(result.modified, "transform concat in expression")
+    assert.match(result.code, /\[\.\..\[\], \.\.\.other\]\.length/)
+  })
 
-    test("[].concat(item1, item2, item3) with multiple arguments", () => {
-      const input = `const result = [].concat(other1, other2, other3);`
+  test("with method call result", () => {
+    const result = transform(`const result = [].concat(getItems());`)
 
-      const result = transform(input)
+    assert(result.modified, "transform concat with method call result")
+    assert.match(result.code, /\[\.\..\[\], \.\.\.getItems\(\)\]/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(
-        result.code,
-        /\[\.\..\[\], \.\.\.other1, \.\.\.other2, \.\.\.other3\]/,
-      )
-    })
+  test("no arguments", () => {
+    const result = transform(`const copy = arr.concat();`)
 
-    test("concat in expression", () => {
-      const input = `const length = [].concat(other).length;`
+    assert(!result.modified, "skip concat with no arguments")
+    assert.match(result.code, /arr\.concat\(\)/)
+  })
 
-      const result = transform(input)
+  test("tracks line numbers", () => {
+    const result = transform(`// Line 1
+const result = [1, 2].concat(other);`)
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\..\[\], \.\.\.other\]\.length/)
-    })
+    assert(result.modified, "tracks line numbers")
+    assert.equal(result.changes.length, 1)
+    assert.equal(result.changes[0].type, "arrayConcatToSpread")
+    assert.equal(result.changes[0].line, 2)
+  })
 
-    test("concat with method call result", () => {
-      const input = `const result = [].concat(getItems());`
+  test("in arrow function", () => {
+    const result = transform(`const fn = (arr, other) => [1, 2].concat(other);`)
 
-      const result = transform(input)
+    assert(result.modified, "transform concat in arrow function")
+    assert.match(result.code, /\[\.\..\[1, 2\], \.\.\.other\]/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\..\[\], \.\.\.getItems\(\)\]/)
-    })
+  test("nested array", () => {
+    const result = transform(`const result = [[1, 2]].concat([[3, 4]]);`)
 
-    test("should NOT transform concat with no arguments", () => {
-      const input = `const copy = arr.concat();`
+    assert(result.modified, "transform nested array with concat")
+    assert.match(result.code, /\[\.\..\[\[1, 2\]\], \.\.\.\[\[3, 4\]\]\]/)
+  })
 
-      const result = transform(input)
+  test("string.concat()", () => {
+    const result = transform(`const result = str.concat("hello");`)
 
-      // concat() with no args is just a shallow copy, but we don't transform it
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /arr\.concat\(\)/)
-    })
+    assert(!result.modified, "skip string.concat()")
+    assert.match(result.code, /str\.concat/)
+  })
 
-    test("concat tracks line numbers", () => {
-      const input = `// Line 1
-const result = [1, 2].concat(other);`
+  test("unknown identifier", () => {
+    const result = transform(`const result = arr.concat(other);`)
 
-      const result = transform(input)
+    assert(!result.modified, "skip concat on unknown identifier")
+    assert.match(result.code, /arr\.concat/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.strictEqual(result.changes.length, 1)
-      assert.strictEqual(result.changes[0].type, "arrayConcatToSpread")
-      assert.strictEqual(result.changes[0].line, 2)
-    })
+  test("array literal", () => {
+    const result = transform(`const result = [1, 2, 3].concat([4, 5, 6]);`)
 
-    test("concat in arrow function", () => {
-      const input = `const fn = (arr, other) => [1, 2].concat(other);`
+    assert(result.modified, "transform concat on array literal")
+    assert.match(result.code, /\[\.\..\[1, 2, 3\], \.\.\.\[4, 5, 6\]\]/)
+  })
 
-      const result = transform(input)
+  test("Array.from()", () => {
+    const result = transform(`const result = Array.from(items).concat(more);`)
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\..\[1, 2\], \.\.\.other\]/)
-    })
+    assert(result.modified, "transform concat on Array.from()")
+    assert.match(result.code, /\[\.\..\[\.\.\.items\], \.\.\.more\]/)
+  })
 
-    test("nested array with concat", () => {
-      const input = `const result = [[1, 2]].concat([[3, 4]]);`
+  test("String.slice() result", () => {
+    const result = transform(`const result = "lorem ipsum".slice(0, 10).concat(more);`)
 
-      const result = transform(input)
+    assert(result.modified, "transform concat on String.slice() result")
+    assert.match(result.code, /\[\.\.\."lorem ipsum"\.slice\(0, 10\), \.\.\.more\]/)
+  })
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\..\[\[1, 2\]\], \.\.\.\[\[3, 4\]\]\]/)
-    })
+  test("String.split() result", () => {
+    const result = transform(`const result = "foo,bar".split(',').concat(more);`)
 
-    test("should NOT transform string.concat()", () => {
-      const input = `const result = str.concat("hello");`
+    assert(result.modified, "transform concat on String.split() result")
+    assert.match(result.code, /\[\.\.\."foo,bar"\.split\(','\), \.\.\.more\]/)
+  })
 
-      const result = transform(input)
+  test("new Array()", () => {
+    const result = transform(`const result = new Array(5).concat(more);`)
 
-      // Should not transform - str is not verifiably an array
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /str\.concat/)
-    })
+    assert(result.modified, "transform concat on new Array()")
+    assert.match(result.code, /\[\.\.\.new Array\(5\), \.\.\.more\]/)
+  })
+})
 
-    test("should NOT transform concat on unknown identifier", () => {
-      const input = `const result = arr.concat(other);`
+describe("general", () => {
+  test("no changes", () => {
+    const result = transform(`
+    const x = 1;
+    const y = 2;
+  `)
 
-      const result = transform(input)
+    assert(!result.modified, "no changes needed")
+  })
 
-      // Should not transform - arr is just an identifier, not verifiably an array
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /arr\.concat/)
-    })
+  test("complex transformation", () => {
+    const result = transform(`
+    var userName = 'Alice';
+    var greeting = 'Hello ' + userName;
+  `)
 
-    test("should transform concat on array literal", () => {
-      const input = `const result = [1, 2, 3].concat([4, 5, 6]);`
+    assert(result.modified, "perform complex transformation")
+    assert.match(result.code, /const userName/)
+    assert.match(result.code, /`Hello \$\{userName\}`/)
+  })
 
-      const result = transform(input)
+  test("baseline widely-available", () => {
+    const result = transform(`var x = 1;`)
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\..\[1, 2, 3\], \.\.\.\[4, 5, 6\]\]/)
-    })
+    assert(result.modified, "transform with baseline widely-available")
+    assert.match(result.code, /const x = 1/)
+  })
 
-    test("should transform concat on Array.from()", () => {
-      const input = `const result = Array.from(items).concat(more);`
+  test("baseline newly-available", () => {
+    const result = transform(`var x = 1;`, "newly-available")
 
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      // Both arrayFromToSpread and arrayConcatToSpread run
-      // Array.from(items) -> [...items], then [...items].concat(more) -> [...[...items], ...more]
-      assert.match(result.code, /\[\.\..\[\.\.\.items\], \.\.\.more\]/)
-    })
-
-    test("should transform concat on String.slice() result", () => {
-      const input = `const result = "lorem ipsum".slice(0, 10).concat(more);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\."lorem ipsum"\.slice\(0, 10\), \.\.\.more\]/)
-    })
-
-    test("should transform concat on String.split() result", () => {
-      const input = `const result = "foo,bar".split(',').concat(more);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\."foo,bar"\.split\(','\), \.\.\.more\]/)
-    })
-
-    test("should transform concat on new Array()", () => {
-      const input = `const result = new Array(5).concat(more);`
-
-      const result = transform(input)
-
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /\[\.\.\.new Array\(5\), \.\.\.more\]/)
-    })
+    assert(result.modified, "transform with baseline newly-available")
+    assert.match(result.code, /const x = 1/)
   })
 })
