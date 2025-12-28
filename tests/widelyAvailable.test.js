@@ -557,6 +557,38 @@ var x = 1;`
       assert.strictEqual(result.modified, true)
       assert.match(result.code, /`start\$\{getValue\(\)\}end`/)
     })
+
+    test("should preserve escape sequences in regex patterns", () => {
+      const input = `const id_regex = new RegExp("(" + prefix + "-(\\\\d+|__prefix__))");`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Should preserve the double backslash for \d
+      assert.match(result.code, /`\(\$\{prefix\}-\(\\\\d\+\|__prefix__\)\)`/)
+      // Verify backslashes are not lost
+      assert.ok(result.code.includes("\\\\d"), "Should preserve \\\\d escape sequence")
+    })
+
+    test("should preserve newline escape sequences", () => {
+      const input = `const str = "Line 1\\\\n" + "Line 2";`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Should preserve the double backslash for \n
+      assert.ok(result.code.includes("\\\\n"), "Should preserve \\\\n escape sequence")
+    })
+
+    test("should preserve tab escape sequences", () => {
+      const input = `const str = "Tab\\\\t" + value + "\\\\t";`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Should preserve the double backslash for \t
+      assert.ok(result.code.includes("\\\\t"), "Should preserve \\\\t escape sequence")
+    })
   })
 
   describe("object spread", () => {
