@@ -127,7 +127,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +const copy = { ...original };
 ```
 
-#### `.concat()` → \[Array spread [...]\] [mdn-spread]
+#### `.concat()` → [Array spread [...]][mdn-spread]
 
 ```diff
 -const combined = arr1.concat(arr2, arr3);
