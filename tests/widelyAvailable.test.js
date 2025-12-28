@@ -43,7 +43,7 @@ describe("widely-available", () => {
     })
 
     test("forEach should NOT transform plain identifiers with function expression", () => {
-      const input = `numbers.forEach(function(n) { console.log(n); });`
+      const input = `numbers.forEach((n) => { console.log(n); });`
 
       const result = transform(input)
 
@@ -1585,7 +1585,7 @@ document.querySelectorAll('.item').forEach(item => {
 
     test("should NOT transform when caller object is neither identifier nor member/call expression", () => {
       const input = `
-    (function() { return document; })().querySelectorAll('.item').forEach(item => {
+    (() => { return document; })().querySelectorAll('.item').forEach(item => {
       console.log(item);
     });
   `
@@ -1668,6 +1668,266 @@ document.querySelectorAll('.item').forEach(item => {
       // Should transform - chains from document through property access
       assert.strictEqual(result.modified, true)
       assert.match(result.code, /for \(const div of document\.body\.querySelectorAll/)
+    })
+  })
+
+  describe("arrow functions", () => {
+    test("should transform simple anonymous function to arrow function", () => {
+      const input = `
+    const greet = function(name) {
+      return "Hello " + name;
+    };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Single parameter arrow functions don't need parentheses
+      assert.match(result.code, /const greet = name =>/)
+      assert.match(result.code, /return/)
+    })
+
+    test("should transform anonymous function with multiple parameters", () => {
+      const input = `
+    const add = function(a, b) {
+      return a + b;
+    };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /const add = \(a, b\) =>/)
+    })
+
+    test("should transform anonymous function with no parameters", () => {
+      const input = `
+    const getValue = function() {
+      return 42;
+    };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /const getValue = \(\) =>/)
+    })
+
+    test("should transform callback function", () => {
+      const input = `[1, 2, 3].map(function(x) { return x * 2; });`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Single parameter doesn't need parentheses
+      assert.match(result.code, /\[1, 2, 3\]\.map\(x =>/)
+    })
+
+    test("should NOT transform function using 'this'", () => {
+      const input = `
+    const obj = {
+      method: function() {
+        return this.value;
+      }
+    };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /method: function\(\)/)
+    })
+
+    test("should NOT transform function using 'this' in nested code", () => {
+      const input = `
+    const handler = function() {
+      if (true) {
+        console.log(this.name);
+      }
+    };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /const handler = function\(\)/)
+    })
+
+    test("should NOT transform function using 'arguments'", () => {
+      const input = `
+    const sum = function() {
+      return Array.from(arguments).reduce((a, b) => a + b, 0);
+    };
+  `
+
+      const result = transform(input)
+
+      // The function itself should NOT be transformed to an arrow function
+      // (other transformations like Array.from -> spread may still happen)
+      assert.match(result.code, /const sum = function\(\)/)
+      // Ensure it's not an arrow function
+      assert.doesNotMatch(result.code, /const sum = \(\) =>/)
+      assert.doesNotMatch(result.code, /const sum = =>/)
+    })
+
+    test("should NOT transform generator function", () => {
+      const input = `
+    const gen = function*() {
+      yield 1;
+      yield 2;
+    };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /const gen = function\*\(\)/)
+    })
+
+    test("should transform nested function that doesn't use 'this'", () => {
+      const input = `
+    const outer = function(x) {
+      return function(y) {
+        return x + y;
+      };
+    };
+  `
+
+      const result = transform(input)
+
+      // Both functions should be transformed
+      assert.strictEqual(result.modified, true)
+      // Single parameters don't need parentheses
+      assert.match(result.code, /const outer = x =>/)
+      // The inner function should also be transformed
+      assert.match(result.code, /return y =>/)
+    })
+
+    test("should NOT transform outer function but transform inner when outer uses 'this'", () => {
+      const input = `
+    const outer = function() {
+      this.value = 10;
+      return function(x) {
+        return x * 2;
+      };
+    };
+  `
+
+      const result = transform(input)
+
+      // Only inner function should be transformed
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /const outer = function\(\)/)
+      // Single parameter doesn't need parentheses
+      assert.match(result.code, /return x =>/)
+    })
+
+    test("should transform async function", () => {
+      const input = `
+    const fetchData = async function(url) {
+      const response = await fetch(url);
+      return response.json();
+    };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Single parameter doesn't need parentheses
+      assert.match(result.code, /const fetchData = async url =>/)
+    })
+
+    test("should transform function with complex body", () => {
+      const input = `
+    const process = function(data) {
+      const result = [];
+      for (const item of data) {
+        result.push(item * 2);
+      }
+      return result;
+    };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Single parameter doesn't need parentheses
+      assert.match(result.code, /const process = data =>/)
+    })
+
+    test("should handle multiple transformations in same code", () => {
+      const input = `
+    const fn1 = function(x) { return x + 1; };
+    const fn2 = function(y) { return y * 2; };
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Single parameters don't need parentheses
+      assert.match(result.code, /const fn1 = x =>/)
+      assert.match(result.code, /const fn2 = y =>/)
+    })
+
+    test("should NOT transform when 'this' is in nested function scope", () => {
+      const input = `
+    const outer = function(x) {
+      return function() {
+        return this.value + x;
+      };
+    };
+  `
+
+      const result = transform(input)
+
+      // Outer should transform, inner should not
+      assert.strictEqual(result.modified, true)
+      // Single parameter doesn't need parentheses
+      assert.match(result.code, /const outer = x =>/)
+      assert.match(result.code, /return function\(\)/)
+    })
+
+    test("should transform event handlers without 'this'", () => {
+      const input = `
+    button.addEventListener('click', function(event) {
+      console.log('Clicked', event.target);
+    });
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Single parameter doesn't need parentheses
+      assert.match(result.code, /button\.addEventListener\('click', event =>/)
+    })
+
+    test("should transform IIFE without 'this'", () => {
+      const input = `
+    (function() {
+      console.log('IIFE executed');
+    })();
+  `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\(\(\) =>/)
+    })
+
+    test("should NOT transform named function expression", () => {
+      // Named function expressions are FunctionExpression but might be kept
+      // as-is for stack traces - but our transformer transforms them
+      const input = `
+    const factorial = function fact(n) {
+      return n <= 1 ? 1 : n * fact(n - 1);
+    };
+  `
+
+      const result = transform(input)
+
+      // This will transform because it's still a FunctionExpression
+      // and doesn't use 'this' or 'arguments'
+      assert.strictEqual(result.modified, true)
     })
   })
 })

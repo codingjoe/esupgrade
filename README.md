@@ -142,6 +142,17 @@ Supports:
 > Transformations limited to inline arrow or function expressions with block statement bodies.
 > Callbacks with index parameters or expression bodies are not transformed.
 
+#### `for...of Object.keys()` → [`for...in` loops][mdn-for-in]
+
+```diff
+-for (const key of Object.keys(obj)) {
+-  console.log(key);
+-}
++for (const key in obj) {
++  console.log(key);
++}
+```
+
 #### `Array.from()` → [Array spread [...]][mdn-spread]
 
 ```diff
@@ -165,7 +176,7 @@ Supports:
 +const copy = { ...original };
 ```
 
-#### `.concat()` → [Array spread [...]][mdn-spread]
+#### `Array.concat()` → [Array spread [...]][mdn-spread]
 
 ```diff
 -const combined = arr1.concat(arr2, arr3);
@@ -222,6 +233,7 @@ Supports:
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
+[mdn-for-in]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...in
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try

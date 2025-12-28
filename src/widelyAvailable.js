@@ -796,3 +796,162 @@ export function iterableForEachToForOf(j, root) {
 
   return { modified, changes }
 }
+
+/**
+ * Transform anonymous function expressions to arrow functions
+ * Does not transform if the function uses 'this', 'arguments', or is a generator
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+ */
+export function anonymousFunctionToArrow(j, root) {
+  let modified = false
+  const changes = []
+
+  // Helper to check if a node or its descendants use 'this'
+  const usesThis = (node) => {
+    let found = false
+
+    const checkNode = (astNode) => {
+      if (!astNode || typeof astNode !== "object" || found) return
+
+      // Found 'this' identifier
+      if (astNode.type === "ThisExpression") {
+        found = true
+        return
+      }
+
+      // Don't traverse into nested function declarations or expressions
+      // as they have their own 'this' context
+      if (
+        astNode.type === "FunctionDeclaration" ||
+        astNode.type === "FunctionExpression" ||
+        astNode.type === "ArrowFunctionExpression"
+      ) {
+        return
+      }
+
+      // Traverse all properties
+      for (const key in astNode) {
+        if (
+          key === "loc" ||
+          key === "start" ||
+          key === "end" ||
+          key === "tokens" ||
+          key === "comments"
+        )
+          continue
+        const value = astNode[key]
+        if (Array.isArray(value)) {
+          value.forEach(checkNode)
+        } else if (value && typeof value === "object") {
+          checkNode(value)
+        }
+      }
+    }
+
+    checkNode(node)
+    return found
+  }
+
+  // Helper to check if a node or its descendants use 'arguments'
+  const usesArguments = (node) => {
+    let found = false
+
+    const visit = (n) => {
+      if (!n || typeof n !== "object" || found) return
+
+      // If we encounter a nested function, don't traverse into it
+      // as it has its own 'arguments' binding
+      if (n.type === "FunctionExpression" || n.type === "FunctionDeclaration") {
+        return
+      }
+
+      // Check if this is an 'arguments' identifier
+      if (n.type === "Identifier" && n.name === "arguments") {
+        found = true
+        return
+      }
+
+      // Traverse all child nodes
+      for (const key in n) {
+        if (
+          key === "loc" ||
+          key === "start" ||
+          key === "end" ||
+          key === "tokens" ||
+          key === "comments" ||
+          key === "type"
+        ) {
+          continue
+        }
+        const value = n[key]
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            visit(item)
+            if (found) return
+          }
+        } else if (value && typeof value === "object") {
+          visit(value)
+        }
+      }
+    }
+
+    // Start visiting from the function body's child nodes
+    // Don't check the body node itself, check its contents
+    // Note: FunctionExpression.body is always a BlockStatement
+    if (node.type === "BlockStatement" && node.body) {
+      for (const statement of node.body) {
+        visit(statement)
+        if (found) break
+      }
+    }
+
+    return found
+  }
+
+  root
+    .find(j.FunctionExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Skip if it's a generator function
+      if (node.generator) {
+        return false
+      }
+
+      // Skip if it uses 'this'
+      if (usesThis(node.body)) {
+        return false
+      }
+
+      // Skip if it uses 'arguments'
+      const hasArguments = usesArguments(node.body)
+      if (hasArguments) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+
+      // Create arrow function with same params and body
+      const arrowFunction = j.arrowFunctionExpression(node.params, node.body, false)
+
+      // Preserve async property
+      if (node.async) {
+        arrowFunction.async = true
+      }
+
+      j(path).replaceWith(arrowFunction)
+
+      modified = true
+      if (node.loc) {
+        changes.push({
+          type: "anonymousFunctionToArrow",
+          line: node.loc.start.line,
+        })
+      }
+    })
+
+  return { modified, changes }
+}
