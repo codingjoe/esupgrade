@@ -924,8 +924,7 @@ export function anonymousFunctionToArrow(j, root) {
       // as it has its own 'super' binding context
       if (
         n.type === "FunctionExpression" ||
-        n.type === "FunctionDeclaration" ||
-        n.type === "ArrowFunctionExpression"
+        n.type === "FunctionDeclaration"
       ) {
         return
       }
@@ -960,7 +959,16 @@ export function anonymousFunctionToArrow(j, root) {
       }
     }
 
-    visit(node)
+    // Start visiting from the function body's child nodes
+    // Don't check the body node itself, check its contents
+    // Note: FunctionExpression.body is always a BlockStatement
+    if (node.type === "BlockStatement" && node.body) {
+      for (const statement of node.body) {
+        visit(statement)
+        if (found) break
+      }
+    }
+
     return found
   }
 
