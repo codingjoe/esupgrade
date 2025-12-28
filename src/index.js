@@ -518,6 +518,12 @@ function promiseTry(j, root) {
         return false
       }
 
+      // Skip if this Promise is being awaited
+      // Check if parent is an AwaitExpression
+      if (path.parent && j.AwaitExpression.check(path.parent.node)) {
+        return false
+      }
+
       // Check if there's one argument that's a function
       if (node.arguments.length !== 1) {
         return false

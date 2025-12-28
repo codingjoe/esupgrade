@@ -199,6 +199,19 @@ test("Promise.try with function passed to resolve", () => {
   assert.doesNotMatch(result.code, /resolve/)
 })
 
+test("Promise.try should not transform when awaited", () => {
+  const input = `async function foo() {
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+}`
+
+  const result = transform(input, { baseline: "newly-available" })
+
+  // Should NOT transform awaited Promises
+  assert.strictEqual(result.modified, false)
+  assert.match(result.code, /await new Promise/)
+  assert.doesNotMatch(result.code, /Promise\.try/)
+})
+
 test("Array.from().forEach() with array destructuring", () => {
   const input = `
     Array.from(Object.entries(obj)).forEach(([key, value]) => {
