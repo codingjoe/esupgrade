@@ -231,6 +231,143 @@ for (const key of Object.keys(obj)) {
       assert.match(result.code, /for \(const \[a, b\] of items\)/)
     })
   })
+
+  describe("Array.from() to spread", () => {
+    test("Array.from().map() to [...].map()", () => {
+      const input = `const doubled = Array.from(numbers).map(n => n * 2);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.numbers\]\.map/)
+      assert.doesNotMatch(result.code, /Array\.from/)
+    })
+
+    test("Array.from().filter() to [...].filter()", () => {
+      const input = `const filtered = Array.from(items).filter(x => x > 5);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.items\]\.filter/)
+    })
+
+    test("Array.from().some() to [...].some()", () => {
+      const input = `const hasValue = Array.from(collection).some(item => item.active);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.collection\]\.some/)
+    })
+
+    test("Array.from().every() to [...].every()", () => {
+      const input = `const allValid = Array.from(items).every(x => x.valid);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.items\]\.every/)
+    })
+
+    test("Array.from().find() to [...].find()", () => {
+      const input = `const found = Array.from(elements).find(el => el.id === 'target');`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.elements\]\.find/)
+    })
+
+    test("Array.from().reduce() to [...].reduce()", () => {
+      const input = `const sum = Array.from(values).reduce((a, b) => a + b, 0);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.values\]\.reduce/)
+    })
+
+    test("Array.from() standalone to [...]", () => {
+      const input = `const arr = Array.from(iterable);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /const arr = \[\.\.\.iterable\]/)
+    })
+
+    test("Array.from() with property access", () => {
+      const input = `const length = Array.from(items).length;`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.items\]\.length/)
+    })
+
+    test("Array.from().forEach() should NOT be transformed (handled by other transformer)", () => {
+      const input = `Array.from(items).forEach(item => console.log(item));`
+
+      const result = transform(input)
+
+      // Should be transformed by arrayFromForEachToForOf, not arrayFromToSpread
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /for \(const item of items\)/)
+      assert.doesNotMatch(result.code, /\[\.\.\./)
+    })
+
+    test("Array.from() with mapping function should NOT be transformed", () => {
+      const input = `const doubled = Array.from(numbers, n => n * 2);`
+
+      const result = transform(input)
+
+      // Should not transform because there's a mapping function
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /Array\.from\(numbers, n => n \* 2\)/)
+    })
+
+    test("Array.from() with thisArg should NOT be transformed", () => {
+      const input = `const result = Array.from(items, function(x) { return x * this.multiplier; }, context);`
+
+      const result = transform(input)
+
+      // Should not transform because there are 3 arguments
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /Array\.from/)
+    })
+
+    test("Array.from() chained methods", () => {
+      const input = `const result = Array.from(set).map(x => x * 2).filter(x => x > 10);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.set\]\.map/)
+    })
+
+    test("Array.from() with complex iterable", () => {
+      const input = `const arr = Array.from(document.querySelectorAll('.item'));`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.document\.querySelectorAll\('\.item'\)\]/)
+    })
+
+    test("Array.from() tracks line numbers", () => {
+      const input = `// Line 1
+const result = Array.from(items).map(x => x * 2);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.strictEqual(result.changes.length, 1)
+      assert.strictEqual(result.changes[0].type, "arrayFromToSpread")
+      assert.strictEqual(result.changes[0].line, 2)
+    })
+  })
+
   describe("const and let", () => {
     test("var to const when not reassigned", () => {
       const input = `
