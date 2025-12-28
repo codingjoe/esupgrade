@@ -98,50 +98,52 @@ function processFile(filePath, options) {
 
     if (result.modified) {
       if (options.check) {
-        console.log(`✗ ${filePath}`)
+        // Group changes by type for summary
+        const changesByType = {}
         if (result.changes && result.changes.length > 0) {
-          // Group changes by type
-          const changesByType = {}
-
           for (const change of result.changes) {
             if (!changesByType[change.type]) {
-              changesByType[change.type] = []
+              changesByType[change.type] = 0
             }
-            changesByType[change.type].push(change.line)
+            changesByType[change.type]++
           }
+        }
 
-          for (const [type, lines] of Object.entries(changesByType)) {
-            const uniqueLines = [...new Set(lines)].sort((a, b) => a - b)
+        const transformations = Object.keys(changesByType)
+          .map((type) => {
             const displayName = type
               .replace(/([A-Z])/g, " $1")
               .trim()
               .toLowerCase()
-            console.log(
-              `  - ${displayName} (line${uniqueLines.length > 1 ? "s" : ""}: ${uniqueLines.join(", ")})`,
-            )
-          }
+            return displayName
+          })
+          .join(", ")
+
+        console.log(`✗ ${filePath}`)
+        if (transformations) {
+          console.log(`  ${transformations}`)
         }
       }
 
       if (options.write) {
         fs.writeFileSync(filePath, result.code, "utf8")
         if (!options.check) {
-          console.log(`✓ Upgraded: ${filePath}`)
+          console.log(`✓ ${filePath}`)
         } else {
-          console.log(`  ✓ Changes written to file`)
+          console.log(`  ✓ written`)
         }
       }
 
-      return true
+      return { modified: true, changes: result.changes }
     } else {
       if (!options.check) {
-        console.log(`  No changes: ${filePath}`)
+        console.log(`  ${filePath}`)
       }
-      return false
+      return { modified: false, changes: [] }
     }
   } catch (error) {
-    console.error(`Error processing ${filePath}: ${error.message}`)
-    return false
+    console.error(`✗ Error: ${filePath}: ${error.message}`)
+    return { modified: false, changes: [] }
   }
 }
 
@@ -153,27 +155,42 @@ function processFiles(patterns, options) {
     process.exit(0)
   }
 
-  console.log(`Processing ${files.length} file(s) with baseline: ${options.baseline}\n`)
-
   let modifiedCount = 0
+  const allChanges = []
+
   for (const file of files) {
-    if (processFile(file, options)) {
+    const result = processFile(file, options)
+    if (result.modified) {
       modifiedCount++
+      allChanges.push(...result.changes)
     }
   }
 
   // Summary
-  console.log("")
-  if (modifiedCount > 0) {
-    if (options.write && options.check) {
-      console.log(`Summary: ${modifiedCount} file(s) upgraded`)
-    } else if (options.write) {
-      console.log(`Summary: ${modifiedCount} file(s) upgraded`)
+  if (options.check) {
+    console.log("")
+    if (modifiedCount > 0) {
+      // Count unique transformation types
+      const transformTypes = new Set(allChanges.map((c) => c.type))
+      const typeCount = transformTypes.size
+      const totalChanges = allChanges.length
+
+      console.log(
+        `${modifiedCount} file(s) need upgrading (${totalChanges} change${totalChanges !== 1 ? "s" : ""}, ${typeCount} type${typeCount !== 1 ? "s" : ""})`,
+      )
+      if (options.write) {
+        console.log("Changes have been written")
+      }
     } else {
-      console.log(`Summary: ${modifiedCount} file(s) need upgrading`)
+      console.log("All files are up to date")
     }
   } else {
-    console.log("Summary: All files are already modern")
+    console.log("")
+    if (modifiedCount > 0) {
+      console.log(`✓ ${modifiedCount} file(s) upgraded`)
+    } else {
+      console.log("All files are up to date")
+    }
   }
 
   // Exit with code 1 if --check specified and there were changes
