@@ -188,6 +188,17 @@ test("Promise.try not in widely-available", () => {
   assert.doesNotMatch(result.code, /Promise\.try/)
 })
 
+test("Promise.try with function passed to resolve", () => {
+  const input = `const p = new Promise((resolve) => setTimeout(resolve));`
+
+  const result = transform(input, { baseline: "newly-available" })
+
+  assert.strictEqual(result.modified, true)
+  // Should transform to Promise.try(setTimeout) not Promise.try(() => setTimeout(resolve))
+  assert.match(result.code, /Promise\.try\(setTimeout\)/)
+  assert.doesNotMatch(result.code, /resolve/)
+})
+
 test("Array.from().forEach() with array destructuring", () => {
   const input = `
     Array.from(Object.entries(obj)).forEach(([key, value]) => {

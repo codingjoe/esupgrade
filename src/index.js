@@ -539,9 +539,31 @@ function promiseTry(j, root) {
       // Check if body is a block with single resolve() call or expression body
       const body = executor.body
 
-      // For arrow functions with expression body: (resolve) => someFunc()
+      // For arrow functions with expression body: (resolve) => expr
       if (!j.BlockStatement.check(body)) {
-        return true
+        // Check if expression is resolve(something) or func(resolve)
+        if (j.CallExpression.check(body)) {
+          const callExpr = body
+          // Pattern: (resolve) => resolve(expr)
+          if (
+            j.Identifier.check(callExpr.callee) &&
+            j.Identifier.check(executor.params[0]) &&
+            callExpr.callee.name === executor.params[0].name &&
+            callExpr.arguments.length > 0
+          ) {
+            return true
+          }
+          // Pattern: (resolve) => func(resolve) - resolve must be the ONLY argument
+          if (
+            callExpr.arguments.length === 1 &&
+            j.Identifier.check(callExpr.arguments[0]) &&
+            j.Identifier.check(executor.params[0]) &&
+            callExpr.arguments[0].name === executor.params[0].name
+          ) {
+            return true
+          }
+        }
+        return false
       }
 
       // For functions with block body containing single resolve(expr) call
@@ -562,25 +584,54 @@ function promiseTry(j, root) {
       const node = path.node
       const executor = node.arguments[0]
       const body = executor.body
+      const resolveParam = executor.params[0]
 
       let expression
+      let tryArg
 
       // Extract the expression
       if (!j.BlockStatement.check(body)) {
         // Arrow function with expression body: (resolve) => expr
         expression = body
+        
+        // Check if expression is resolve(something)
+        if (
+          j.CallExpression.check(expression) &&
+          j.Identifier.check(expression.callee) &&
+          j.Identifier.check(resolveParam) &&
+          expression.callee.name === resolveParam.name &&
+          expression.arguments.length > 0
+        ) {
+          // Extract the argument from resolve(arg)
+          expression = expression.arguments[0]
+        }
+        
+        // Check if expression is a call where resolve is passed as the only argument
+        // e.g., (resolve) => setTimeout(resolve) should become Promise.try(setTimeout)
+        if (
+          j.CallExpression.check(expression) &&
+          expression.arguments.length === 1 &&
+          j.Identifier.check(expression.arguments[0]) &&
+          j.Identifier.check(resolveParam) &&
+          expression.arguments[0].name === resolveParam.name
+        ) {
+          // Use the callee directly (e.g., setTimeout)
+          tryArg = expression.callee
+        } else {
+          // Wrap expression in arrow function
+          tryArg = j.arrowFunctionExpression([], expression)
+        }
       } else if (body.body.length === 1 && j.ExpressionStatement.check(body.body[0])) {
         // Block with resolve(expr) call
         const callExpr = body.body[0].expression
         if (j.CallExpression.check(callExpr) && callExpr.arguments.length > 0) {
           expression = callExpr.arguments[0]
+          // Wrap expression in arrow function for Promise.try
+          tryArg = j.arrowFunctionExpression([], expression)
         }
       }
 
-      if (expression) {
-        // Wrap expression in arrow function for Promise.try
-        const tryArg = j.arrowFunctionExpression([], expression)
-
+      if (tryArg) {
         // Create Promise.try(fn)
         const promiseTryCall = j.callExpression(
           j.memberExpression(j.identifier("Promise"), j.identifier("try")),
