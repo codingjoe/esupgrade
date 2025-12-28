@@ -151,7 +151,7 @@ describe("CLI", () => {
     assert.strictEqual(result.status, 0)
   })
 
-  test("should handle files with no changes needed", () => {
+  test("should skip node_modules and .git directories", () => {
     const nodeModules = path.join(tempDir, "node_modules")
     const gitDir = path.join(tempDir, ".git")
     fs.mkdirSync(nodeModules)
