@@ -335,3 +335,44 @@ export function arrayFromToSpread(j, root) {
 
   return { modified, changes }
 }
+
+/**
+ * Transform Math.pow() to exponentiation operator (**)
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
+ */
+export function mathPowToExponentiation(j, root) {
+  let modified = false
+  const changes = []
+
+  root
+    .find(j.CallExpression, {
+      callee: {
+        type: "MemberExpression",
+        object: { name: "Math" },
+        property: { name: "pow" },
+      },
+    })
+    .filter((path) => {
+      // Must have exactly 2 arguments (base and exponent)
+      return path.node.arguments.length === 2
+    })
+    .forEach((path) => {
+      const node = path.node
+      const [base, exponent] = node.arguments
+
+      // Create exponentiation expression
+      const expExpression = j.binaryExpression("**", base, exponent)
+
+      j(path).replaceWith(expExpression)
+
+      modified = true
+      if (node.loc) {
+        changes.push({
+          type: "mathPowToExponentiation",
+          line: node.loc.start.line,
+        })
+      }
+    })
+
+  return { modified, changes }
+}

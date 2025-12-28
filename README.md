@@ -136,6 +136,15 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +const withItem = [...array, item];
 ```
 
+#### `Math.pow()` → [Exponentiation operator \*\*][mdn-exponentiation]
+
+```diff
+-const result = Math.pow(2, 3);
+-const area = Math.PI * Math.pow(radius, 2);
++const result = 2 ** 3;
++const area = Math.PI * radius ** 2;
+```
+
 #### Function expressions → [Arrow functions][mdn-arrow-functions]
 
 ```diff
@@ -174,6 +183,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 [baseline]: https://web.dev/baseline/
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+[mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try

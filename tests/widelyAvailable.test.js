@@ -521,6 +521,77 @@ var x = 1;`
     })
   })
 
+  describe("Math.pow() to exponentiation operator", () => {
+    test("Math.pow() to **", () => {
+      const input = `const result = Math.pow(2, 3);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /2 \*\* 3/)
+    })
+
+    test("Math.pow() with variables", () => {
+      const input = `const power = Math.pow(base, exponent);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /base \*\* exponent/)
+    })
+
+    test("Math.pow() with complex expressions", () => {
+      const input = `const result = Math.pow(x + 1, y * 2);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\(x \+ 1\) \*\* \(y \* 2\)/)
+    })
+
+    test("Math.pow() in expressions", () => {
+      const input = `const area = Math.PI * Math.pow(radius, 2);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /Math\.PI \* radius \*\* 2/)
+    })
+
+    test("Math.pow() should not transform with wrong number of arguments", () => {
+      const input = `const result = Math.pow(2);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /Math\.pow\(2\)/)
+    })
+
+    test("Math.pow() nested calls", () => {
+      const input = `const result = Math.pow(Math.pow(2, 3), 4);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Only the outer Math.pow is transformed in a single pass
+      assert.match(result.code, /Math\.pow\(2, 3\) \*\* 4/)
+    })
+
+    test("Math.pow() tracks line numbers", () => {
+      const input = `// Line 1
+const result = Math.pow(2, 3);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      const mathPowChanges = result.changes.filter(
+        (c) => c.type === "mathPowToExponentiation",
+      )
+      assert.strictEqual(mathPowChanges.length, 1)
+      assert.strictEqual(mathPowChanges[0].line, 2)
+    })
+  })
+
   test("no changes needed", () => {
     const input = `
     const x = 1;
