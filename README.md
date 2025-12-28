@@ -75,6 +75,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### `var` → `let`/`const`
 
+[MDN: const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) | [MDN: let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let)
+
 ```diff
 -var x = 1;
 -var y = 2;
@@ -86,6 +88,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### String concatenation → Template literals
 
+[MDN: Template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals)
+
 ```diff
 -const greeting = 'Hello ' + name + '!';
 -const message = 'You have ' + count + ' items';
@@ -94,6 +98,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 ```
 
 #### `Array.from().forEach()` → `for...of` loops
+
+[MDN: for...of](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of)
 
 ```diff
 -Array.from(items).forEach(item => {
@@ -106,6 +112,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### `Object.assign({}, ...)` → Object spread
 
+[MDN: Spread syntax](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
+
 ```diff
 -const obj = Object.assign({}, obj1, obj2);
 -const copy = Object.assign({}, original);
@@ -115,6 +123,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 #### `.concat()` → Array spread
 
+[MDN: Spread syntax](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
+
 ```diff
 -const combined = arr1.concat(arr2, arr3);
 -const withItem = array.concat([item]);
@@ -123,6 +133,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 ```
 
 #### Function expressions → Arrow functions
+
+[MDN: Arrow functions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions)
 
 ```diff
 -const fn = function(x) { return x * 2; };
@@ -146,6 +158,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 > These transformations are mainly to harden code for future releases and should be used with caution.
 
 #### `new Promise((resolve) => { ... })` → `Promise.try(() => { ... })`
+
+[MDN: Promise.try()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try)
 
 ```diff
 -new Promise((resolve) => {
