@@ -119,6 +119,29 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +}
 ```
 
+#### DOM `forEach()` → [`for...of` loops][mdn-for-of]
+
+```diff
+-document.querySelectorAll('.item').forEach(item => {
+-  item.classList.add('active');
+-});
++for (const item of document.querySelectorAll('.item')) {
++  item.classList.add('active');
++}
+```
+
+Supports:
+
+- `document.querySelectorAll()`
+- `document.getElementsByTagName()`
+- `document.getElementsByClassName()`
+- `document.getElementsByName()`
+- `window.frames`
+
+> [!NOTE]
+> Transformations limited to inline arrow or function expressions with block statement bodies.
+> Callbacks with index parameters or expression bodies are not transformed.
+
 #### `Array.from()` → [Array spread [...]][mdn-spread]
 
 ```diff
