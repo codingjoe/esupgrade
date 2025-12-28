@@ -2,7 +2,7 @@
 
 import fs from "fs"
 import path from "path"
-import { Command } from "commander"
+import { Command, Option } from "commander"
 import { transform } from "../src/index.js"
 
 /**
@@ -14,12 +14,11 @@ const program = new Command()
 program
   .name("esupgrade")
   .description("Auto-upgrade your JavaScript syntax")
-  .version("0.1.0")
   .argument("[files...]", "Files or directories to process")
-  .option(
-    "--baseline <level>",
-    "Set baseline level: widely-available (default) or newly-available",
-    "widely-available",
+  .addOption(
+    new Option("--baseline <level>", "Set baseline level for transformations")
+      .choices(["widely-available", "newly-available"])
+      .default("widely-available"),
   )
   .option("--check", "Report which files need upgrading and exit with code 1 if any do")
   .option(
@@ -102,7 +101,7 @@ function walkDirectory(dir) {
 function processFile(filePath, options) {
   try {
     const code = fs.readFileSync(filePath, "utf8")
-    const result = transform(code, { baseline: options.baseline })
+    const result = transform(code, options.baseline)
 
     if (result.modified) {
       if (options.check) {

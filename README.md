@@ -142,6 +142,9 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 ### Newly available
 
+> [!CATION]
+> These transformations are mainly to harden code for future releases and should be used with caution.
+
 #### `new Promise((resolve) => { ... })` → `Promise.try(() => { ... })`
 
 ```diff
@@ -153,19 +156,6 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +  return doSomething();
 +});
 ```
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-limited-word-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-limited-word.svg">
-  <img alt="Baseline: Limited availability" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-limited-word.svg" height="32" align="right">
-</picture>
-
-### Limited availability
-
-> [!WARNING]
-> These transformations are mainly to harden code for future releases and should be used with caution.
-
-None yet.
 
 [baseline]: https://web.dev/baseline/
 [pre-commit]: https://pre-commit.com/
