@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" font-family="Segoe UI, system-ui, sans-serif" viewBox="0 0 1280 640">
   <circle cx="260" cy="320" r="200" fill="#f7df1e"/>
-  <path fill="none" stroke="#191919" stroke-width="48" d="m175 405 95-95 95 95m415 50"/>
-  <path fill="none" stroke="#191919" stroke-width="48" d="m175 315 95-95 95 95m415 50"/>
-  <text x="241" y="148" font-size="92" font-weight="bold" transform="matrix(1.6 0 0 1.6 120 120)" fill="#C9D1D9">
+  <path fill="none" stroke="#191919" stroke-width="48" d="m167 409 95-95 95 95m-190 -95 95-95 95 95m415 50"/>
+  <text x="241" y="148" fill="#c9d1d9" font-size="92" font-weight="bold" transform="matrix(1.6 0 0 1.6 120 120)">
     esupgrade
   </text>
-  <text x="241" y="192" font-size="28" font-style="italic" transform="matrix(1.6 0 0 1.6 120 120)" fill="#C9D1D9">
+  <text x="241" y="192" fill="#c9d1d9" font-size="28" font-style="italic" transform="matrix(1.6 0 0 1.6 120 120)">
     Auto-upgrade your JavaScript syntax
   </text>
 </svg>
