@@ -162,6 +162,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 > [!NOTE]
 > There are currently no transformations that are limited in availability. This section will be updated once such transformations are supported.
+
 ### Limited availability
 
 [baseline]: https://web.dev/baseline/
