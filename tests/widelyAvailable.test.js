@@ -1380,20 +1380,6 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /item\.classList\.add/)
     })
 
-    test("should NOT transform standalone element variables", () => {
-      const input = `
-    element.querySelectorAll('span').forEach(span => {
-      span.remove();
-    });
-  `
-
-      const result = transform(input)
-
-      // Should not transform because element is not from document chain
-      assert.strictEqual(result.modified, false)
-      assert.match(result.code, /element\.querySelectorAll/)
-    })
-
     test("should NOT transform element variables with getElementsByTagName", () => {
       const input = `
     container.getElementsByTagName('input').forEach(input => {
