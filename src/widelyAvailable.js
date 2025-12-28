@@ -68,17 +68,32 @@ export function concatToTemplateLiteral(j, root) {
         return false
       }
 
-      const addStringPart = (value) => {
+      // Helper to get the raw value of a string literal (preserving escape sequences)
+      const getRawStringValue = (node) => {
+        // In string literals, backslashes are used for escape sequences
+        // In template literals, backslashes in the raw value also need escaping
+        // So we need to double the backslashes: \\ -> \\\\
+        // Note: node.extra.rawValue is always defined for string literals with the current parser
+        return node.extra.rawValue.replace(/\\/g, "\\\\")
+      }
+
+      const addStringPart = (stringNode) => {
+        // Store both the raw and cooked values
+        const rawValue = getRawStringValue(stringNode)
+        const cookedValue = stringNode.value
+
         if (parts.length === 0 || expressions.length >= parts.length) {
-          parts.push(value)
+          parts.push({ raw: rawValue, cooked: cookedValue })
         } else {
-          parts[parts.length - 1] += value
+          const lastPart = parts[parts.length - 1]
+          lastPart.raw += rawValue
+          lastPart.cooked += cookedValue
         }
       }
 
       const addExpression = (expr) => {
         if (parts.length === 0) {
-          parts.push("")
+          parts.push({ raw: "", cooked: "" })
         }
         expressions.push(expr)
       }
@@ -103,8 +118,8 @@ export function concatToTemplateLiteral(j, root) {
               // Left is also a + expression - recurse
               flatten(node.left, stringContext)
             } else if (isStringLiteral(node.left)) {
-              // Left is a string literal
-              addStringPart(node.left.value)
+              // Left is a string literal - use raw value to preserve escape sequences
+              addStringPart(node.left)
             } else {
               // Left is some other expression
               addExpression(node.left)
@@ -121,8 +136,8 @@ export function concatToTemplateLiteral(j, root) {
                 flatten(node.right, rightInStringContext)
               }
             } else if (isStringLiteral(node.right)) {
-              // Right is a string literal
-              addStringPart(node.right.value)
+              // Right is a string literal - use raw value to preserve escape sequences
+              addStringPart(node.right)
             } else {
               // Right is some other expression
               addExpression(node.right)
@@ -135,12 +150,15 @@ export function concatToTemplateLiteral(j, root) {
 
       // Ensure we have the right number of quasis (one more than expressions)
       while (parts.length <= expressions.length) {
-        parts.push("")
+        parts.push({ raw: "", cooked: "" })
       }
 
       // Create template literal
       const quasis = parts.map((part, i) =>
-        j.templateElement({ raw: part, cooked: part }, i === parts.length - 1),
+        j.templateElement(
+          { raw: part.raw, cooked: part.cooked },
+          i === parts.length - 1,
+        ),
       )
 
       const templateLiteral = j.templateLiteral(quasis, expressions)
@@ -913,62 +931,6 @@ export function anonymousFunctionToArrow(j, root) {
     return found
   }
 
-  // Helper to check if a node or its descendants use 'super'
-  const usesSuper = (node) => {
-    let found = false
-
-    const visit = (n) => {
-      if (!n || typeof n !== "object" || found) return
-
-      // If we encounter a nested function, don't traverse into it
-      // as it has its own 'super' binding context
-      if (n.type === "FunctionExpression" || n.type === "FunctionDeclaration") {
-        return
-      }
-
-      // Check if this is a 'super' node
-      if (n.type === "Super") {
-        found = true
-        return
-      }
-
-      // Traverse all child nodes
-      for (const key in n) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments" ||
-          key === "type"
-        ) {
-          continue
-        }
-        const value = n[key]
-        if (Array.isArray(value)) {
-          for (const item of value) {
-            visit(item)
-            if (found) return
-          }
-        } else if (value && typeof value === "object") {
-          visit(value)
-        }
-      }
-    }
-
-    // Start visiting from the function body's child nodes
-    // Don't check the body node itself, check its contents
-    // Note: FunctionExpression.body is always a BlockStatement
-    if (node.type === "BlockStatement" && node.body) {
-      for (const statement of node.body) {
-        visit(statement)
-        if (found) break
-      }
-    }
-
-    return found
-  }
-
   root
     .find(j.FunctionExpression)
     .filter((path) => {
@@ -996,10 +958,8 @@ export function anonymousFunctionToArrow(j, root) {
         return false
       }
 
-      // Skip if it uses 'super'
-      if (usesSuper(node.body)) {
-        return false
-      }
+      // Note: We don't need to check for 'super' because using super in a
+      // function expression is a syntax error and will never parse successfully
 
       return true
     })
