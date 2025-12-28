@@ -84,8 +84,8 @@ export function concatToTemplateLiteral(j, root) {
       }
 
       const flatten = (node, stringContext = false) => {
-        // Note: node is always a BinaryExpression when called, as we handle
-        // other node types inline in the parent logic
+        // Note: node is always a BinaryExpression when called, as non-BinaryExpression
+        // nodes are handled inline before recursing into flatten
         if (j.BinaryExpression.check(node) && node.operator === "+") {
           // Check if this entire binary expression contains any string literal
           const hasString = containsStringLiteral(node)
@@ -113,7 +113,7 @@ export function concatToTemplateLiteral(j, root) {
             // Process right side - it's in string context if left had a string
             const rightInStringContext = stringContext || leftHasString
             if (j.BinaryExpression.check(node.right) && node.right.operator === "+") {
-              // If right is a + expression but has no strings, keep it as a unit
+              // If right is a + expression with no strings and we're in string context, keep it as a unit
               if (!containsStringLiteral(node.right) && rightInStringContext) {
                 addExpression(node.right)
               } else {
