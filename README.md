@@ -104,6 +104,20 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +}
 ```
 
+#### `Array.from()` → [Array spread syntax](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
+
+```diff
+-const doubled = Array.from(numbers).map(n => n * 2);
+-const filtered = Array.from(items).filter(x => x > 5);
+-const arr = Array.from(iterable);
++const doubled = [...numbers].map(n => n * 2);
++const filtered = [...items].filter(x => x > 5);
++const arr = [...iterable];
+```
+
+> [!NOTE]
+> `Array.from()` with a mapping function or thisArg is not converted.
+
 #### `Object.assign({}, ...)` → Object spread
 
 ```diff
