@@ -73,9 +73,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 ### Widely available
 
-#### `var` → `let`/`const`
-
-[MDN: const][mdn-const] | [MDN: let][mdn-let]
+#### `var` → [const][mdn-const] & [let][mdn-let]
 
 ```diff
 -var x = 1;
@@ -86,9 +84,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +y = 3;
 ```
 
-#### String concatenation → Template literals
-
-[MDN: Template literals][mdn-template-literals]
+#### String concatenation → [Template literals][mdn-template-literals]
 
 ```diff
 -const greeting = 'Hello ' + name + '!';
@@ -97,9 +93,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +const message = `You have ${count} items`;
 ```
 
-#### `Array.from().forEach()` → `for...of` loops
-
-[MDN: for...of][mdn-for-of]
+#### `Array.from().forEach()` → [`for...of` loops][mdn-for-of]
 
 ```diff
 -Array.from(items).forEach(item => {
@@ -110,7 +104,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +}
 ```
 
-#### `Array.from()` → [Array spread syntax](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
+#### `Array.from()` → [Array spread [...]][mdn-spread]
 
 ```diff
 -const doubled = Array.from(numbers).map(n => n * 2);
@@ -124,9 +118,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 > [!NOTE]
 > `Array.from()` with a mapping function or thisArg is not converted.
 
-#### `Object.assign({}, ...)` → Object spread
-
-[MDN: Spread syntax][mdn-spread]
+#### `Object.assign({}, ...)` → [Object spread {...}]
 
 ```diff
 -const obj = Object.assign({}, obj1, obj2);
@@ -135,9 +127,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +const copy = { ...original };
 ```
 
-#### `.concat()` → Array spread
-
-[MDN: Spread syntax][mdn-spread]
+#### `.concat()` → \[Array spread [...]\] [mdn-spread]
 
 ```diff
 -const combined = arr1.concat(arr2, arr3);
@@ -146,9 +136,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +const withItem = [...array, item];
 ```
 
-#### Function expressions → Arrow functions
-
-[MDN: Arrow functions][mdn-arrow-functions]
+#### Function expressions → [Arrow functions][mdn-arrow-functions]
 
 ```diff
 -const fn = function(x) { return x * 2; };
@@ -171,9 +159,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 > [!CAUTION]
 > These transformations are mainly to harden code for future releases and should be used with caution.
 
-#### `new Promise((resolve) => { ... })` → `Promise.try(() => { ... })`
-
-[MDN: Promise.try()][mdn-promise-try]
+#### `new Promise((resolve) => { ... })` → [Promise.try][mdn-promise-try]
 
 ```diff
 -new Promise((resolve) => {
@@ -186,11 +172,11 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 ```
 
 [baseline]: https://web.dev/baseline/
-[pre-commit]: https://pre-commit.com/
-[mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
-[mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
-[mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
-[mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
-[mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+[mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+[mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
+[mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
+[mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+[mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+[pre-commit]: https://pre-commit.com/
