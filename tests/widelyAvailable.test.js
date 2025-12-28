@@ -902,7 +902,7 @@ for (let i = 0; items.length; i++) {
 
     test("should NOT transform when test operator is not <", () => {
       const input = `
-for (let i = 0; i < items.length; i++) {
+for (let i = 0; i <= items.length; i++) {
   const item = items[i];
   console.log(item);
 }
@@ -910,8 +910,7 @@ for (let i = 0; i < items.length; i++) {
 
       const result = transform(input)
 
-      assert.strictEqual(result.modified, true)
-      assert.match(result.code, /for \(const item of items\)/)
+      assert.strictEqual(result.modified, false)
     })
 
     test("should NOT transform when test left is not the index variable", () => {
