@@ -31,13 +31,6 @@ program
       program.help()
     }
 
-    // Validate baseline option
-    if (!["widely-available", "newly-available"].includes(options.baseline)) {
-      console.error(`Error: Invalid baseline level '${options.baseline}'`)
-      console.error(`Must be 'widely-available' or 'newly-available'`)
-      process.exit(1)
-    }
-
     // Handle check/write options - they are not mutually exclusive
     // Default: write is true unless ONLY --check is specified (no --write)
     const shouldWrite = options.write !== undefined ? options.write : !options.check
@@ -153,13 +146,7 @@ function processFile(filePath, options) {
 }
 
 function processFiles(patterns, options) {
-  let files = []
-  try {
-    files = findFiles(patterns)
-  } catch (error) {
-    console.error(`Error finding files: ${error.message}`)
-    process.exit(1)
-  }
+  const files = findFiles(patterns)
 
   if (files.length === 0) {
     console.log("No JavaScript files found")

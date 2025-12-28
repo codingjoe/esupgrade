@@ -87,12 +87,6 @@ export function concatToTemplateLiteral(j, root) {
       j(path).replaceWith(templateLiteral)
 
       modified = true
-      if (path.node.loc) {
-        changes.push({
-          type: "concatToTemplateLiteral",
-          line: path.node.loc.start.line,
-        })
-      }
     })
 
   return { modified, changes }
@@ -127,12 +121,6 @@ export function objectAssignToSpread(j, root) {
       j(path).replaceWith(objectExpression)
 
       modified = true
-      if (path.node.loc) {
-        changes.push({
-          type: "objectAssignToSpread",
-          line: path.node.loc.start.line,
-        })
-      }
     })
 
   return { modified, changes }

@@ -119,10 +119,8 @@ export function promiseTry(j, root) {
           // Extract the argument from resolve(arg) and wrap in arrow function
           expression = expression.arguments[0]
           tryArg = j.arrowFunctionExpression([], expression)
-        } else {
-          // Wrap expression in arrow function
-          tryArg = j.arrowFunctionExpression([], expression)
         }
+        // Note: No else needed - filter ensures only the above patterns reach here
       } else if (body.body.length === 1 && j.ExpressionStatement.check(body.body[0])) {
         // Block with resolve(expr) call
         const callExpr = body.body[0].expression
