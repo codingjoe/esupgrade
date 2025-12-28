@@ -1,5 +1,7 @@
 /**
  * Transform var to const
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
  */
 export function varToConst(j, root) {
   let modified = false
@@ -21,6 +23,7 @@ export function varToConst(j, root) {
 
 /**
  * Transform string concatenation to template literals
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
  */
 export function concatToTemplateLiteral(j, root) {
   let modified = false
@@ -94,6 +97,7 @@ export function concatToTemplateLiteral(j, root) {
 
 /**
  * Transform Object.assign({}, ...) to object spread
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
  */
 export function objectAssignToSpread(j, root) {
   let modified = false
@@ -128,6 +132,7 @@ export function objectAssignToSpread(j, root) {
 
 /**
  * Transform Array.from().forEach() to for...of
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
  */
 export function arrayFromForEachToForOf(j, root) {
   let modified = false
@@ -215,6 +220,7 @@ export function arrayFromForEachToForOf(j, root) {
 
 /**
  * Transform for...of Object.keys() loops to for...in
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...in
  */
 export function forOfKeysToForIn(j, root) {
   let modified = false
