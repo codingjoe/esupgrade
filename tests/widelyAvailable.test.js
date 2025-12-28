@@ -108,7 +108,7 @@ describe("widely-available transformations", () => {
   test("baseline option - widely-available", () => {
     const input = `var x = 1;`
 
-    const result = transform(input, { baseline: "widely-available" })
+    const result = transform(input)
 
     assert.strictEqual(result.modified, true)
     assert.match(result.code, /const x = 1/)
@@ -117,7 +117,7 @@ describe("widely-available transformations", () => {
   test("baseline option - newly-available", () => {
     const input = `var x = 1;`
 
-    const result = transform(input, { baseline: "newly-available" })
+    const result = transform(input, "newly-available")
 
     assert.strictEqual(result.modified, true)
     assert.match(result.code, /const x = 1/)
