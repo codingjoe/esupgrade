@@ -480,6 +480,83 @@ var x = 1;`
       assert.strictEqual(result.modified, true)
       assert.match(result.code, /`/)
     })
+
+    test("numeric addition followed by string concatenation", () => {
+      const input = `cal_box.style.left = findPosX(cal_link) + 17 + 'px';`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Should treat (findPosX(cal_link) + 17) as a single numeric expression
+      assert.match(result.code, /`\$\{findPosX\(cal_link\) \+ 17\}px`/)
+    })
+
+    test("multiple numeric additions followed by string concatenation", () => {
+      const input = `const result = a + b + c + 'd';`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Should treat (a + b + c) as a single numeric expression
+      assert.match(result.code, /`\$\{a \+ b \+ c\}d`/)
+    })
+
+    test("string concatenation followed by numeric addition", () => {
+      const input = `const result = 'Value: ' + x + y;`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // After first string, all subsequent + are string concatenation
+      assert.match(result.code, /`Value: \$\{x\}\$\{y\}`/)
+    })
+
+    test("numeric addition in middle of string concatenations", () => {
+      const input = `const result = 'start' + (a + b) + 'end';`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Parenthesized numeric expression should be preserved
+      // jscodeshift may add parentheses around binary expressions in template literals
+      assert.match(result.code, /`start\$\{(\()?a \+ b(\))?\}end`/)
+    })
+
+    test("consecutive string literals should be merged", () => {
+      const input = `const msg = 'Hello' + ' ' + 'world';`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /`Hello world`/)
+    })
+
+    test("string literal followed by non-binary expression", () => {
+      const input = `const msg = 'Value: ' + getValue();`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /`Value: \$\{getValue\(\)\}`/)
+    })
+
+    test("expression followed by string literal", () => {
+      const input = `const msg = getValue() + ' is the value';`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /`\$\{getValue\(\)\} is the value`/)
+    })
+
+    test("non-binary expression in the middle", () => {
+      const input = `const msg = 'start' + getValue() + 'end';`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /`start\$\{getValue\(\)\}end`/)
+    })
   })
 
   describe("object spread", () => {

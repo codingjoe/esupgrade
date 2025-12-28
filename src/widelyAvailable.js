@@ -51,26 +51,83 @@ export function concatToTemplateLiteral(j, root) {
       const parts = []
       const expressions = []
 
-      const flatten = (node) => {
-        if (j.BinaryExpression.check(node) && node.operator === "+") {
-          flatten(node.left)
-          flatten(node.right)
-        } else if (
+      // Helper to check if a node is a string literal
+      const isStringLiteral = (node) => {
+        return (
           j.StringLiteral.check(node) ||
           (j.Literal.check(node) && typeof node.value === "string")
-        ) {
-          // Add string literal value
-          if (parts.length === 0 || expressions.length >= parts.length) {
-            parts.push(node.value)
-          } else {
-            parts[parts.length - 1] += node.value
-          }
+        )
+      }
+
+      // Helper to check if a node contains any string literal
+      const containsStringLiteral = (node) => {
+        if (isStringLiteral(node)) return true
+        if (j.BinaryExpression.check(node) && node.operator === "+") {
+          return containsStringLiteral(node.left) || containsStringLiteral(node.right)
+        }
+        return false
+      }
+
+      const addStringPart = (value) => {
+        if (parts.length === 0 || expressions.length >= parts.length) {
+          parts.push(value)
         } else {
-          // Add expression
-          if (parts.length === 0) {
-            parts.push("")
+          parts[parts.length - 1] += value
+        }
+      }
+
+      const addExpression = (expr) => {
+        if (parts.length === 0) {
+          parts.push("")
+        }
+        expressions.push(expr)
+      }
+
+      const flatten = (node, stringContext = false) => {
+        // Note: node is always a BinaryExpression when called, as we handle
+        // other node types inline in the parent logic
+        if (j.BinaryExpression.check(node) && node.operator === "+") {
+          // Check if this entire binary expression contains any string literal
+          const hasString = containsStringLiteral(node)
+
+          if (!hasString && !stringContext) {
+            // This is pure numeric addition (no strings anywhere), keep as expression
+            addExpression(node)
+          } else {
+            // This binary expression is part of string concatenation
+            // Check each operand
+            const leftHasString = containsStringLiteral(node.left)
+
+            // Process left side
+            if (j.BinaryExpression.check(node.left) && node.left.operator === "+") {
+              // Left is also a + expression - recurse
+              flatten(node.left, stringContext)
+            } else if (isStringLiteral(node.left)) {
+              // Left is a string literal
+              addStringPart(node.left.value)
+            } else {
+              // Left is some other expression
+              addExpression(node.left)
+            }
+
+            // Process right side - it's in string context if left had a string
+            const rightInStringContext = stringContext || leftHasString
+            if (j.BinaryExpression.check(node.right) && node.right.operator === "+") {
+              // If right is a + expression but has no strings, keep it as a unit
+              if (!containsStringLiteral(node.right) && rightInStringContext) {
+                addExpression(node.right)
+              } else {
+                // Right has strings or we need to flatten it
+                flatten(node.right, rightInStringContext)
+              }
+            } else if (isStringLiteral(node.right)) {
+              // Right is a string literal
+              addStringPart(node.right.value)
+            } else {
+              // Right is some other expression
+              addExpression(node.right)
+            }
           }
-          expressions.push(node)
         }
       }
 
