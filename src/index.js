@@ -255,7 +255,7 @@ function arrayFromForEachToForOf(j, root) {
 
 /**
  * Helper function to check if an expression is definitively an array or iterable
- * 
+ *
  * This function is conservative - it only returns true for expressions that we can
  * statically determine are iterable. This prevents transforming forEach calls on
  * objects that implement forEach but are not iterable (like jscodeshift's Collection).
@@ -346,8 +346,11 @@ function isDefinitelyArrayOrIterable(j, node) {
       const constructorName = node.callee.name
       // Set, Map, Array, WeakSet - all iterable
       // Note: Map has different forEach signature (value, key), so it's handled separately
-      if (constructorName === "Set" || constructorName === "Array" ||
-          constructorName === "WeakSet") {
+      if (
+        constructorName === "Set" ||
+        constructorName === "Array" ||
+        constructorName === "WeakSet"
+      ) {
         return true
       }
     }
@@ -599,7 +602,7 @@ function promiseTry(j, root) {
       if (!j.BlockStatement.check(body)) {
         // Arrow function with expression body: (resolve) => expr
         expression = body
-        
+
         // Check if expression is a call where resolve is passed as the only argument
         // e.g., (resolve) => setTimeout(resolve) should become Promise.try(setTimeout)
         if (
