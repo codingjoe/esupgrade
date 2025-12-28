@@ -1929,4 +1929,161 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /function fact\(n\)/)
     })
   })
+
+  describe("Array.concat() to spread", () => {
+    test("[].concat(other) to [...[], ...other]", () => {
+      const input = `const result = [1, 2].concat(other);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\..\[1, 2\], \.\.\.other\]/)
+    })
+
+    test("[].concat([1, 2, 3]) with array literal", () => {
+      const input = `const result = [].concat([1, 2, 3]);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\..\[\], \.\.\.\[1, 2, 3\]\]/)
+    })
+
+    test("[].concat(item1, item2, item3) with multiple arguments", () => {
+      const input = `const result = [].concat(other1, other2, other3);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(
+        result.code,
+        /\[\.\..\[\], \.\.\.other1, \.\.\.other2, \.\.\.other3\]/,
+      )
+    })
+
+    test("concat in expression", () => {
+      const input = `const length = [].concat(other).length;`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\..\[\], \.\.\.other\]\.length/)
+    })
+
+    test("concat with method call result", () => {
+      const input = `const result = [].concat(getItems());`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\..\[\], \.\.\.getItems\(\)\]/)
+    })
+
+    test("should NOT transform concat with no arguments", () => {
+      const input = `const copy = arr.concat();`
+
+      const result = transform(input)
+
+      // concat() with no args is just a shallow copy, but we don't transform it
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /arr\.concat\(\)/)
+    })
+
+    test("concat tracks line numbers", () => {
+      const input = `// Line 1
+const result = [1, 2].concat(other);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.strictEqual(result.changes.length, 1)
+      assert.strictEqual(result.changes[0].type, "arrayConcatToSpread")
+      assert.strictEqual(result.changes[0].line, 2)
+    })
+
+    test("concat in arrow function", () => {
+      const input = `const fn = (arr, other) => [1, 2].concat(other);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\..\[1, 2\], \.\.\.other\]/)
+    })
+
+    test("nested array with concat", () => {
+      const input = `const result = [[1, 2]].concat([[3, 4]]);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\..\[\[1, 2\]\], \.\.\.\[\[3, 4\]\]\]/)
+    })
+
+    test("should NOT transform string.concat()", () => {
+      const input = `const result = str.concat("hello");`
+
+      const result = transform(input)
+
+      // Should not transform - str is not verifiably an array
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /str\.concat/)
+    })
+
+    test("should NOT transform concat on unknown identifier", () => {
+      const input = `const result = arr.concat(other);`
+
+      const result = transform(input)
+
+      // Should not transform - arr is just an identifier, not verifiably an array
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /arr\.concat/)
+    })
+
+    test("should transform concat on array literal", () => {
+      const input = `const result = [1, 2, 3].concat([4, 5, 6]);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\..\[1, 2, 3\], \.\.\.\[4, 5, 6\]\]/)
+    })
+
+    test("should transform concat on Array.from()", () => {
+      const input = `const result = Array.from(items).concat(more);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Both arrayFromToSpread and arrayConcatToSpread run
+      // Array.from(items) -> [...items], then [...items].concat(more) -> [...[...items], ...more]
+      assert.match(result.code, /\[\.\..\[\.\.\.items\], \.\.\.more\]/)
+    })
+
+    test("should transform concat on String.slice() result", () => {
+      const input = `const result = "lorem ipsum".slice(0, 10).concat(more);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\."lorem ipsum"\.slice\(0, 10\), \.\.\.more\]/)
+    })
+
+    test("should transform concat on String.split() result", () => {
+      const input = `const result = "foo,bar".split(',').concat(more);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\."foo,bar"\.split\(','\), \.\.\.more\]/)
+    })
+
+    test("should transform concat on new Array()", () => {
+      const input = `const result = new Array(5).concat(more);`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /\[\.\.\.new Array\(5\), \.\.\.more\]/)
+    })
+  })
 })

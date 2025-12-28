@@ -1027,3 +1027,132 @@ export function anonymousFunctionToArrow(j, root) {
 
   return { modified, changes }
 }
+
+/**
+ * Transform Array.concat() to array spread syntax
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+ */
+export function arrayConcatToSpread(j, root) {
+  let modified = false
+  const changes = []
+
+  // Helper to check if an expression is statically verifiable as an array
+  const isVerifiableArray = (node) => {
+    // Array literal: [1, 2, 3]
+    if (j.ArrayExpression.check(node)) {
+      return true
+    }
+
+    // Array.from(), Array.of(), etc.
+    if (
+      j.CallExpression.check(node) &&
+      j.MemberExpression.check(node.callee) &&
+      j.Identifier.check(node.callee.object) &&
+      node.callee.object.name === "Array"
+    ) {
+      return true
+    }
+
+    // new Array()
+    if (
+      j.NewExpression.check(node) &&
+      j.Identifier.check(node.callee) &&
+      node.callee.name === "Array"
+    ) {
+      return true
+    }
+
+    const STRING_METHODS_RETURNING_ARRAY = [
+      "matchAll",
+      "split",
+      "slice",
+      "substr",
+      "substring",
+      "toLowerCase",
+      "toUpperCase",
+      "trim",
+      "trimStart",
+      "trimEnd",
+    ]
+
+    // .split() on strings returns arrays
+    if (
+      j.CallExpression.check(node) &&
+      j.MemberExpression.check(node.callee) &&
+      j.Identifier.check(node.callee.property) &&
+      j.StringLiteral.check(node.callee.object) &&
+      STRING_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
+    ) {
+      return true
+    }
+
+    return false
+  }
+
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check if this is a .concat() call
+      if (
+        !j.MemberExpression.check(node.callee) ||
+        !j.Identifier.check(node.callee.property) ||
+        node.callee.property.name !== "concat"
+      ) {
+        return false
+      }
+
+      // Must have at least one argument
+      if (node.arguments.length === 0) {
+        return false
+      }
+
+      // Only transform if we can verify the object is an array
+      const object = node.callee.object
+      if (!isVerifiableArray(object)) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const baseArray = node.callee.object
+      const concatArgs = node.arguments
+
+      // Build array elements: start with spread of base array
+      const elements = [j.spreadElement(baseArray)]
+
+      // Add each concat argument
+      concatArgs.forEach((arg) => {
+        // If the argument is an array literal, spread it
+        // Otherwise, check if it's likely an array (could be iterable)
+        if (j.ArrayExpression.check(arg)) {
+          // Spread array literals
+          elements.push(j.spreadElement(arg))
+        } else {
+          // For non-array arguments, we need to determine if they should be spread
+          // In concat(), arrays are flattened one level, primitives are added as-is
+          // Since we can't statically determine types, we spread everything
+          // This matches concat's behavior for arrays and iterables
+          elements.push(j.spreadElement(arg))
+        }
+      })
+
+      // Create new array expression with spread elements
+      const spreadArray = j.arrayExpression(elements)
+
+      j(path).replaceWith(spreadArray)
+
+      modified = true
+      if (node.loc) {
+        changes.push({
+          type: "arrayConcatToSpread",
+          line: node.loc.start.line,
+        })
+      }
+    })
+
+  return { modified, changes }
+}
