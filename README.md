@@ -118,7 +118,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 > [!NOTE]
 > `Array.from()` with a mapping function or thisArg is not converted.
 
-#### `Object.assign({}, ...)` → [Object spread {...}]
+#### `Object.assign({}, ...)` → [Object spread {...}][mdn-spread]
 
 ```diff
 -const obj = Object.assign({}, obj1, obj2);
