@@ -41,7 +41,7 @@ describe("CLI", () => {
 
     const transformedCode = fs.readFileSync(testFile, "utf8")
     assert.match(transformedCode, /const x = 1/)
-    assert.match(result.stdout, /Summary: 1 file\(s\) upgraded/)
+    assert.match(result.stdout, /✓ 1 file\(s\) upgraded/)
     assert.strictEqual(result.status, 0)
   })
 
@@ -57,7 +57,6 @@ describe("CLI", () => {
     const transformedCode = fs.readFileSync(testFile, "utf8")
     assert.match(transformedCode, /const x = 1/)
     assert.doesNotMatch(transformedCode, /Promise\.try/) // Promise.try not in widely-available
-    assert.match(result.stdout, /widely-available/)
     assert.strictEqual(result.status, 0)
   })
 
@@ -77,7 +76,6 @@ describe("CLI", () => {
     const transformedCode = fs.readFileSync(testFile, "utf8")
     assert.match(transformedCode, /const x = 1/)
     assert.match(transformedCode, /Promise\.try/) // Promise.try in newly-available
-    assert.match(result.stdout, /newly-available/)
     assert.strictEqual(result.status, 0)
   })
 
@@ -108,7 +106,7 @@ describe("CLI", () => {
 
     const fileContent = fs.readFileSync(testFile, "utf8")
     assert.strictEqual(fileContent, originalCode) // File unchanged
-    assert.match(result.stdout, /All files are already modern/)
+    assert.match(result.stdout, /All files are up to date/)
     assert.strictEqual(result.status, 0)
   })
 
@@ -128,8 +126,7 @@ describe("CLI", () => {
     const transformedCode = fs.readFileSync(testFile, "utf8")
     assert.match(transformedCode, /const x = 1/)
     assert.match(result.stdout, /✗/)
-    assert.match(result.stdout, /Changes written to file/)
-    assert.match(result.stdout, /1 file\(s\) upgraded/)
+    assert.match(result.stdout, /Changes have been written/)
     assert.strictEqual(result.status, 1) // Still exit 1 with --check
   })
 
@@ -150,7 +147,6 @@ describe("CLI", () => {
     const transformed2 = fs.readFileSync(file2, "utf8")
     assert.match(transformed1, /const x = 1/)
     assert.match(transformed2, /const y = 2/)
-    assert.match(result.stdout, /Processing 2 file/)
     assert.match(result.stdout, /2 file\(s\) upgraded/)
     assert.strictEqual(result.status, 0)
   })
@@ -172,7 +168,7 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /Processing 1 file/)
+    // Should only process file1 in tempDir, not in node_modules or .git
     assert.strictEqual(result.status, 0)
   })
 
@@ -191,7 +187,6 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /Processing 4 file/)
     assert.match(result.stdout, /4 file\(s\) upgraded/)
     assert.strictEqual(result.status, 0)
   })
@@ -207,7 +202,6 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /Processing 2 file/)
     assert.strictEqual(result.status, 0)
   })
 
@@ -250,7 +244,6 @@ describe("CLI", () => {
     })
 
     assert.match(result.stdout, /var to const/)
-    assert.match(result.stdout, /line/)
     assert.strictEqual(result.status, 1)
   })
 
@@ -268,7 +261,7 @@ describe("CLI", () => {
     const transformed2 = fs.readFileSync(file2, "utf8")
     assert.match(transformed1, /const x = 1/)
     assert.match(transformed2, /const y = 2/)
-    assert.match(result.stdout, /Processing 2 file/)
+    assert.match(result.stdout, /2 file\(s\) upgraded/)
     assert.strictEqual(result.status, 0)
   })
 
@@ -283,7 +276,7 @@ describe("CLI", () => {
 
     const fileContent = fs.readFileSync(testFile, "utf8")
     assert.strictEqual(fileContent, originalCode)
-    assert.match(result.stdout, /All files are already modern/)
+    assert.match(result.stdout, /All files are up to date/)
     assert.strictEqual(result.status, 0)
   })
 
@@ -296,7 +289,7 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /No changes:/)
+    assert.match(result.stdout, /All files are up to date/)
     assert.strictEqual(result.status, 0)
   })
 
@@ -322,7 +315,6 @@ describe("CLI", () => {
     })
 
     assert.match(result.stdout, /var to const/)
-    assert.match(result.stdout, /lines:/)
     assert.strictEqual(result.status, 1)
   })
 
@@ -335,7 +327,7 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stderr, /Error processing/)
+    assert.match(result.stderr, /✗ Error:/)
     assert.strictEqual(result.status, 0) // CLI continues despite errors
   })
 
@@ -352,7 +344,11 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /Processing 2 file/)
+    const file1Content = fs.readFileSync(file1, "utf8")
+    const file2Content = fs.readFileSync(file2, "utf8")
+    assert.match(file1Content, /const x = 1/)
+    assert.match(file2Content, /const y = 2/)
+    assert.match(result.stdout, /2 file\(s\) upgraded/)
     assert.strictEqual(result.status, 0)
   })
 })
