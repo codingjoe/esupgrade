@@ -93,6 +93,21 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +const message = `You have ${count} items`;
 ```
 
+#### Traditional `for` loops → [`for...of` loops][mdn-for-of]
+
+```diff
+-for (let i = 0; i < items.length; i++) {
+-  const item = items[i];
+-  console.log(item);
+-}
++for (const item of items) {
++  console.log(item);
++}
+```
+
+> [!NOTE]
+> Transformations are limited to loops that start at 0, increment by 1, and where the index variable is not used in the loop body.
+
 #### `Array.from().forEach()` → [`for...of` loops][mdn-for-of]
 
 ```diff

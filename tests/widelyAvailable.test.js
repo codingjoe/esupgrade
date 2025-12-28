@@ -633,4 +633,480 @@ const result = Math.pow(2, 3);`
     assert.strictEqual(result.modified, true)
     assert.match(result.code, /const x = 1/)
   })
+
+  describe("traditional for loop to for...of", () => {
+    test("basic for loop with array indexing", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /for \(const item of items\)/)
+      assert.match(result.code, /console\.log\(item\)/)
+      assert.doesNotMatch(result.code, /items\[i\]/)
+    })
+
+    test("for loop with const variable", () => {
+      const input = `
+for (let i = 0; i < arr.length; i++) {
+  const element = arr[i];
+  process(element);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /for \(const element of arr\)/)
+    })
+
+    test("for loop with let variable", () => {
+      const input = `
+for (let i = 0; i < arr.length; i++) {
+  let element = arr[i];
+  element = transform(element);
+  console.log(element);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /for \(let element of arr\)/)
+    })
+
+    test("for loop with var variable", () => {
+      const input = `
+for (let i = 0; i < arr.length; i++) {
+  var element = arr[i];
+  console.log(element);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      // Note: var is also converted to const by the varToConst transformer
+      assert.match(result.code, /for \(const element of arr\)/)
+    })
+
+    test("should NOT transform when index is used in body", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = items[i];
+  console.log(item, i);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /for \(let i = 0; i < items\.length; i\+\+\)/)
+    })
+
+    test("should NOT transform when no array access statement", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  console.log(i);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /for \(let i = 0/)
+    })
+
+    test("should NOT transform when body is empty", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when using different increment", () => {
+      const input = `
+for (let i = 0; i < items.length; i += 2) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /i \+= 2/)
+    })
+
+    test("should NOT transform when starting from non-zero", () => {
+      const input = `
+for (let i = 1; i < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /let i = 1/)
+    })
+
+    test("should NOT transform when using <= instead of <", () => {
+      const input = `
+for (let i = 0; i <= items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /i <= items\.length/)
+    })
+
+    test("should NOT transform when accessing different array", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = otherArray[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /otherArray\[i\]/)
+    })
+
+    test("should NOT transform when first statement is not variable declaration", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  console.log(items[i]);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /for \(let i = 0/)
+    })
+
+    test("should NOT transform when using different index variable", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = items[j];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should transform with ++i (prefix increment)", () => {
+      const input = `
+for (let i = 0; i < items.length; ++i) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /for \(const item of items\)/)
+    })
+
+    test("multiple statements after array access", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+  process(item);
+  cleanup();
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /for \(const item of items\)/)
+      assert.match(result.code, /console\.log\(item\)/)
+      assert.match(result.code, /process\(item\)/)
+      assert.match(result.code, /cleanup\(\)/)
+    })
+
+    test("should NOT transform when init is not a variable declaration", () => {
+      const input = `
+for (i = 0; i < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when init has multiple declarations", () => {
+      const input = `
+for (let i = 0, j = 0; i < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when init id is not an identifier", () => {
+      const input = `
+for (let [i] = [0]; i < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when test is not a binary expression", () => {
+      const input = `
+for (let i = 0; items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when test operator is not <", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      assert.match(result.code, /for \(const item of items\)/)
+    })
+
+    test("should NOT transform when test left is not the index variable", () => {
+      const input = `
+for (let i = 0; j < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when test right is not a member expression", () => {
+      const input = `
+for (let i = 0; i < 10; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when test right property is not 'length'", () => {
+      const input = `
+for (let i = 0; i < items.size; i++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when test right object is not an identifier", () => {
+      const input = `
+for (let i = 0; i < getItems().length; i++) {
+  const item = getItems()[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when update is not an update expression", () => {
+      const input = `
+for (let i = 0; i < items.length; i = i + 1) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when update argument is not the index variable", () => {
+      const input = `
+for (let i = 0; i < items.length; j++) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when update operator is not ++", () => {
+      const input = `
+for (let i = 0; i < items.length; i--) {
+  const item = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when body is not a block statement", () => {
+      const input = `
+for (let i = 0; i < items.length; i++)
+  console.log(items[i]);
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when first statement has multiple declarations", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = items[i], other = null;
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when first statement id is not an identifier", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const [item] = items[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when first statement init is not a member expression", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = getItem(i);
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when member expression object name doesn't match", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = other[i];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when member expression property doesn't match index", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = items[j];
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("should NOT transform when member expression is not computed", () => {
+      const input = `
+for (let i = 0; i < items.length; i++) {
+  const item = items.i;
+  console.log(item);
+}
+      `
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, false)
+    })
+
+    test("tracks line numbers for forLoopToForOf", () => {
+      const input = `// Line 1
+for (let i = 0; i < items.length; i++) {
+  const item = items[i];
+  console.log(item);
+}`
+
+      const result = transform(input)
+
+      assert.strictEqual(result.modified, true)
+      const forLoopChanges = result.changes.filter((c) => c.type === "forLoopToForOf")
+      assert.strictEqual(forLoopChanges.length, 1)
+      assert.strictEqual(forLoopChanges[0].line, 2)
+    })
+  })
 })
