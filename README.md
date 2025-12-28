@@ -160,10 +160,12 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
   <img alt="Baseline: Limited availability" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-limited-word.svg" height="32" align="right">
 </picture>
 
-> [!NOTE]
-> There are currently no transformations that are limited in availability. This section will be updated once such transformations are supported.
-
 ### Limited availability
+
+> [!WARNING]
+> These transformations are mainly to harden code for future releases and should be used with caution.
+
+None yet.
 
 [baseline]: https://web.dev/baseline/
 [pre-commit]: https://pre-commit.com/
