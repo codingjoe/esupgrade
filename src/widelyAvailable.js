@@ -799,7 +799,12 @@ export function iterableForEachToForOf(j, root) {
 
 /**
  * Transform anonymous function expressions to arrow functions
- * Does not transform if the function uses 'this', 'arguments', or is a generator
+ * Does not transform if the function:
+ * - is a named function expression (useful for stack traces and recursion)
+ * - uses 'this' (arrow functions don't have their own 'this')
+ * - uses 'arguments' (arrow functions don't have 'arguments' object)
+ * - uses 'super' (defensive check, though this would be a syntax error in function expressions)
+ * - is a generator function (arrow functions cannot be generators)
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
  */
 export function anonymousFunctionToArrow(j, root) {
@@ -908,10 +913,75 @@ export function anonymousFunctionToArrow(j, root) {
     return found
   }
 
+  // Helper to check if a node or its descendants use 'super'
+  const usesSuper = (node) => {
+    let found = false
+
+    const visit = (n) => {
+      if (!n || typeof n !== "object" || found) return
+
+      // If we encounter a nested function, don't traverse into it
+      // as it has its own 'super' binding context
+      if (
+        n.type === "FunctionExpression" ||
+        n.type === "FunctionDeclaration"
+      ) {
+        return
+      }
+
+      // Check if this is a 'super' node
+      if (n.type === "Super") {
+        found = true
+        return
+      }
+
+      // Traverse all child nodes
+      for (const key in n) {
+        if (
+          key === "loc" ||
+          key === "start" ||
+          key === "end" ||
+          key === "tokens" ||
+          key === "comments" ||
+          key === "type"
+        ) {
+          continue
+        }
+        const value = n[key]
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            visit(item)
+            if (found) return
+          }
+        } else if (value && typeof value === "object") {
+          visit(value)
+        }
+      }
+    }
+
+    // Start visiting from the function body's child nodes
+    // Don't check the body node itself, check its contents
+    // Note: FunctionExpression.body is always a BlockStatement
+    if (node.type === "BlockStatement" && node.body) {
+      for (const statement of node.body) {
+        visit(statement)
+        if (found) break
+      }
+    }
+
+    return found
+  }
+
   root
     .find(j.FunctionExpression)
     .filter((path) => {
       const node = path.node
+
+      // Skip if it's a named function expression
+      // Named functions are useful for stack traces and recursion
+      if (node.id) {
+        return false
+      }
 
       // Skip if it's a generator function
       if (node.generator) {
@@ -926,6 +996,11 @@ export function anonymousFunctionToArrow(j, root) {
       // Skip if it uses 'arguments'
       const hasArguments = usesArguments(node.body)
       if (hasArguments) {
+        return false
+      }
+
+      // Skip if it uses 'super'
+      if (usesSuper(node.body)) {
         return false
       }
 
