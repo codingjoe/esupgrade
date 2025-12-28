@@ -922,10 +922,7 @@ export function anonymousFunctionToArrow(j, root) {
 
       // If we encounter a nested function, don't traverse into it
       // as it has its own 'super' binding context
-      if (
-        n.type === "FunctionExpression" ||
-        n.type === "FunctionDeclaration"
-      ) {
+      if (n.type === "FunctionExpression" || n.type === "FunctionDeclaration") {
         return
       }
 
