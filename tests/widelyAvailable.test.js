@@ -1915,8 +1915,7 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("should NOT transform named function expression", () => {
-      // Named function expressions are FunctionExpression but might be kept
-      // as-is for stack traces - but our transformer transforms them
+      // Named function expressions should be kept as-is for stack traces and recursion
       const input = `
     const factorial = function fact(n) {
       return n <= 1 ? 1 : n * fact(n - 1);
@@ -1925,9 +1924,9 @@ document.querySelectorAll('.item').forEach(item => {
 
       const result = transform(input)
 
-      // This will transform because it's still a FunctionExpression
-      // and doesn't use 'this' or 'arguments'
-      assert.strictEqual(result.modified, true)
+      // Named function expressions should not be transformed
+      assert.strictEqual(result.modified, false)
+      assert.match(result.code, /function fact\(n\)/)
     })
   })
 })
