@@ -1,0 +1,7 @@
+- id: esupgrade
+  name: esupgrade
+  entry: npx esupgrade --check
+  args: [--write]
+  language: system
+  types: [javascript, jsx, ts, tsx]
+  pass_filenames: true
