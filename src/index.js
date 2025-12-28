@@ -594,18 +594,6 @@ function promiseTry(j, root) {
         // Arrow function with expression body: (resolve) => expr
         expression = body
         
-        // Check if expression is resolve(something)
-        if (
-          j.CallExpression.check(expression) &&
-          j.Identifier.check(expression.callee) &&
-          j.Identifier.check(resolveParam) &&
-          expression.callee.name === resolveParam.name &&
-          expression.arguments.length > 0
-        ) {
-          // Extract the argument from resolve(arg)
-          expression = expression.arguments[0]
-        }
-        
         // Check if expression is a call where resolve is passed as the only argument
         // e.g., (resolve) => setTimeout(resolve) should become Promise.try(setTimeout)
         if (
@@ -617,6 +605,18 @@ function promiseTry(j, root) {
         ) {
           // Use the callee directly (e.g., setTimeout)
           tryArg = expression.callee
+        }
+        // Check if expression is resolve(something)
+        else if (
+          j.CallExpression.check(expression) &&
+          j.Identifier.check(expression.callee) &&
+          j.Identifier.check(resolveParam) &&
+          expression.callee.name === resolveParam.name &&
+          expression.arguments.length > 0
+        ) {
+          // Extract the argument from resolve(arg) and wrap in arrow function
+          expression = expression.arguments[0]
+          tryArg = j.arrowFunctionExpression([], expression)
         } else {
           // Wrap expression in arrow function
           tryArg = j.arrowFunctionExpression([], expression)
