@@ -1,5 +1,6 @@
 /**
  * Transform new Promise((resolve, reject) => { resolve(fn()) }) to Promise.try(fn)
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
  */
 export function promiseTry(j, root) {
   let modified = false
