@@ -12,25 +12,27 @@ export function varToConst(j, root) {
    */
   const isVariableReassigned = (varName) => {
     // Check for AssignmentExpression where left side is the variable
-    const assignmentExists = root
-      .find(j.AssignmentExpression)
-      .filter(
-        (path) =>
-          j.Identifier.check(path.node.left) && path.node.left.name === varName,
-      )
-      .size() > 0
+    const assignmentExists =
+      root
+        .find(j.AssignmentExpression)
+        .filter(
+          (path) =>
+            j.Identifier.check(path.node.left) && path.node.left.name === varName,
+        )
+        .size() > 0
 
     if (assignmentExists) return true
 
     // Check for UpdateExpression (++, --)
-    const updateExists = root
-      .find(j.UpdateExpression)
-      .filter(
-        (path) =>
-          j.Identifier.check(path.node.argument) &&
-          path.node.argument.name === varName,
-      )
-      .size() > 0
+    const updateExists =
+      root
+        .find(j.UpdateExpression)
+        .filter(
+          (path) =>
+            j.Identifier.check(path.node.argument) &&
+            path.node.argument.name === varName,
+        )
+        .size() > 0
 
     return updateExists
   }

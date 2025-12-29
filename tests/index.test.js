@@ -70,7 +70,10 @@ describe("transform", () => {
   test("use widely-available transformers by default", () => {
     const result = transform(`var x = 1;`)
     assert(result.modified, "modified is true")
-    assert(result.changes[0].type === "varToLetOrConst", "first change type is varToConst")
+    assert(
+      result.changes[0].type === "varToLetOrConst",
+      "first change type is varToConst",
+    )
   })
 
   test("include newly-available transformers when specified", () => {
