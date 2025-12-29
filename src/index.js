@@ -11,10 +11,10 @@ import * as newlyAvailable from "./newlyAvailable.js"
  */
 
 /**
- * Transform JavaScript code using the specified transformers
- * @param {string} code - The source code to transform
- * @param {string} baseline - Baseline level ('widely-available' or 'newly-available')
- * @returns {TransformResult} - Object with { code, modified, changes }
+ * Transform JavaScript code using the specified transformers.
+ * @param {string} code - The source code to transform.
+ * @param {string} baseline - Baseline level ('widely-available' or 'newly-available').
+ * @returns {TransformResult} Object with transformed code, modification status, and changes.
  */
 export function transform(code, baseline = "widely-available") {
   const j = jscodeshift.withParser("tsx")
@@ -22,11 +22,14 @@ export function transform(code, baseline = "widely-available") {
 
   let modified = false
   const allChanges = []
-  let transformers = widelyAvailable
-  if (baseline === "newly-available")
-    transformers = { ...widelyAvailable, ...newlyAvailable }
-  for (const name in transformers) {
-    const result = transformers[name](j, root)
+
+  const transformers =
+    baseline === "newly-available"
+      ? { ...widelyAvailable, ...newlyAvailable }
+      : widelyAvailable
+
+  for (const transformer of Object.values(transformers)) {
+    const result = transformer(j, root)
     if (result.modified) {
       modified = true
       allChanges.push(...result.changes)
