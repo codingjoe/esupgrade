@@ -95,18 +95,27 @@ function isAssignmentShadowed(j, varName, declarationPath, usagePath) {
       // Check for var/let/const declarations in this function
       const functionBody = current.node.body
       if (functionBody) {
+        let foundOurDeclaration = false
         const hasLocalDecl = j(functionBody)
           .find(j.VariableDeclarator)
           .some((declPath) => {
             const declParent = declPath.parent.node
             if (declParent === declarationPath.node) {
+              foundOurDeclaration = true
               return false
             }
             return patternContainsIdentifier(j, declPath.node.id, varName)
           })
 
+        // If we found a shadowing declaration (not our own), the assignment is shadowed
         if (hasLocalDecl) {
           return true
+        }
+
+        // If we found our declaration in this scope, stop traversing -
+        // the assignment is not shadowed, it belongs to our declaration
+        if (foundOurDeclaration) {
+          return false
         }
       }
     }

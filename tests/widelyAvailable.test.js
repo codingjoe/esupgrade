@@ -721,6 +721,27 @@ var x = 1;`)
       assert.match(result.code, /let a/)
       assert.match(result.code, /let b/)
     })
+
+    test("inner var shadows outer const and is reassigned", () => {
+      const result = transform(`
+    const pixels = [];
+    const obj = {
+      fadePixels: function () {
+        var pixels;
+        for (var i = 0; i < 10; i++) {
+          pixels = getPixels();
+        }
+      }
+    };
+  `)
+
+      assert(result.modified, "inner var shadowing outer const, reassigned in loop")
+      // The outer const pixels should remain const
+      assert.match(result.code, /const pixels = \[\]/)
+      // The inner var pixels should become let (not const) since it's reassigned
+      assert.match(result.code, /let pixels;/)
+      assert.doesNotMatch(result.code, /const pixels;/)
+    })
   })
 
   describe("stringConcatToTemplate", () => {
