@@ -395,6 +395,61 @@ var x = 1;`)
     assert.match(result.code, /let x = 1/)
     assert.match(result.code, /const y = 2/)
   })
+
+  test("var with destructuring pattern", () => {
+    const result = transform(`
+    var { x, y } = obj;
+  `)
+
+    assert(result.modified, "transform var with destructuring")
+    assert.match(result.code, /const \{ x, y \} = obj/)
+    assert.doesNotMatch(result.code, /var/)
+  })
+
+  test("var with array destructuring", () => {
+    const result = transform(`
+    var [a, b] = arr;
+  `)
+
+    assert(result.modified, "transform var with array destructuring")
+    assert.match(result.code, /const \[a, b\] = arr/)
+    assert.doesNotMatch(result.code, /var/)
+  })
+
+  test("multiple declarators in single var statement", () => {
+    const result = transform(`
+    var x = 1, y = 2, z = 3;
+  `)
+
+    assert(result.modified, "transform multiple declarators")
+    assert.match(result.code, /const x = 1/)
+    assert.match(result.code, /const y = 2/)
+    assert.match(result.code, /const z = 3/)
+    assert.doesNotMatch(result.code, /var/)
+  })
+
+  test("multiple declarators with mixed reassignment", () => {
+    const result = transform(`
+    var x = 1, y = 2;
+    x = 5;
+  `)
+
+    assert(result.modified, "transform multiple declarators with reassignment")
+    assert.match(result.code, /let x = 1/)
+    assert.match(result.code, /const y = 2/)
+    assert.doesNotMatch(result.code, /var/)
+  })
+
+  test("multiple declarators with destructuring", () => {
+    const result = transform(`
+    var x = 1, { y, z } = obj;
+  `)
+
+    assert(result.modified, "transform multiple declarators with destructuring")
+    assert.match(result.code, /const x = 1/)
+    assert.match(result.code, /const \{ y, z \} = obj/)
+    assert.doesNotMatch(result.code, /var/)
+  })
 })
 
 describe("stringConcatToTemplate", () => {

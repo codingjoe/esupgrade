@@ -274,7 +274,11 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /var to let or const/, "shows var to let or const changes")
+    assert.match(
+      result.stdout,
+      /var to let or const/,
+      "shows var to let or const changes",
+    )
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -357,7 +361,11 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /var to let or const/, "shows var to let or const changes")
+    assert.match(
+      result.stdout,
+      /var to let or const/,
+      "shows var to let or const changes",
+    )
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -390,5 +398,35 @@ describe("CLI", () => {
     assert.match(fs.readFileSync(file2, "utf8"), /const y = 2/, "transforms file2")
     assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
+  })
+
+  test("default behavior without flags writes files", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = 1;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile], {
+      encoding: "utf8",
+    })
+
+    assert.match(
+      fs.readFileSync(testFile, "utf8"),
+      /const x = 1/,
+      "transforms var to const by default",
+    )
+    assert.match(result.stdout, /✓/, "shows success indicator")
+    assert.equal(result.status, 0, "exits successfully")
+  })
+
+  test("handle multiple changes of same type", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = 1;\nvar y = 2;\nvar z = 3;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
+
+    assert.match(result.stdout, /var to let or const/, "shows transformation type")
+    assert.match(result.stdout, /3 changes/, "counts multiple changes of same type")
+    assert.equal(result.status, 1, "exits with 1 when changes needed")
   })
 })
