@@ -23,6 +23,9 @@ export function varToConst(j, root) {
       }
     })
 
+    // Return early if already found reassignment
+    if (isReassigned) return true
+
     // Also check for UpdateExpression (++, --)
     root.find(j.UpdateExpression).forEach((updatePath) => {
       if (
@@ -37,25 +40,44 @@ export function varToConst(j, root) {
   }
 
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
-    // Check if any of the declarators in this declaration are reassigned
-    let hasReassignment = false
-    for (const declarator of path.node.declarations) {
+    // If there's only one declarator, we can simply update the kind
+    if (path.node.declarations.length === 1) {
+      const declarator = path.node.declarations[0]
       if (j.Identifier.check(declarator.id)) {
-        if (isVariableReassigned(declarator.id.name)) {
-          hasReassignment = true
-          break
-        }
+        const hasReassignment = isVariableReassigned(declarator.id.name)
+        path.node.kind = hasReassignment ? "let" : "const"
+      } else {
+        // Destructuring or other pattern, use const as default
+        path.node.kind = "const"
       }
-    }
-
-    // Use 'let' if reassigned, 'const' otherwise
-    path.node.kind = hasReassignment ? "let" : "const"
-    modified = true
-    if (path.node.loc) {
-      changes.push({
-        type: "varToConst",
-        line: path.node.loc.start.line,
+      modified = true
+      if (path.node.loc) {
+        changes.push({
+          type: "varToLetOrConst",
+          line: path.node.loc.start.line,
+        })
+      }
+    } else {
+      // Multiple declarators - split into separate declarations
+      // Each gets its own const/let based on reassignment
+      const declarations = path.node.declarations.map((declarator) => {
+        let kind = "const"
+        if (j.Identifier.check(declarator.id)) {
+          kind = isVariableReassigned(declarator.id.name) ? "let" : "const"
+        }
+        return j.variableDeclaration(kind, [declarator])
       })
+
+      // Replace the single declaration with multiple declarations
+      j(path).replaceWith(declarations)
+
+      modified = true
+      if (path.node.loc) {
+        changes.push({
+          type: "varToLetOrConst",
+          line: path.node.loc.start.line,
+        })
+      }
     }
   })
 

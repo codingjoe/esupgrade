@@ -300,7 +300,7 @@ const result = Array.from(items).map(x => x * 2);`)
   })
 })
 
-describe("varToConst", () => {
+describe("varToLetOrConst", () => {
   test("not reassigned", () => {
     const result = transform(`
     var x = 1;
@@ -343,7 +343,7 @@ var x = 1;`)
 
     assert(result.modified, "tracks line numbers")
     assert.equal(result.changes.length, 1)
-    assert.equal(result.changes[0].type, "varToConst")
+    assert.equal(result.changes[0].type, "varToLetOrConst")
     assert.equal(result.changes[0].line, 2)
   })
 

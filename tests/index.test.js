@@ -41,7 +41,7 @@ describe("transform", () => {
     assert(result.modified, "modified is true")
     assert(result.changes.length > 0, "changes length greater than 0")
     const changeTypes = result.changes.map((c) => c.type)
-    assert(changeTypes.includes("varToConst"), "changes include varToConst")
+    assert(changeTypes.includes("varToLetOrConst"), "changes include varToConst")
     assert.match(result.code, /const/, "code contains const")
     assert.match(result.code, /`Hello/, "code contains template literal")
     assert.match(result.code, /\.\.\.data/, "code contains spread")
@@ -70,7 +70,7 @@ describe("transform", () => {
   test("use widely-available transformers by default", () => {
     const result = transform(`var x = 1;`)
     assert(result.modified, "modified is true")
-    assert(result.changes[0].type === "varToConst", "first change type is varToConst")
+    assert(result.changes[0].type === "varToLetOrConst", "first change type is varToConst")
   })
 
   test("include newly-available transformers when specified", () => {
@@ -83,7 +83,7 @@ describe("transform", () => {
     )
     assert(result.modified, "modified is true")
     const changeTypes = result.changes.map((c) => c.type)
-    assert(changeTypes.includes("varToConst"), "changes include varToConst")
+    assert(changeTypes.includes("varToLetOrConst"), "changes include varToConst")
     assert(changeTypes.includes("promiseTry"), "changes include promiseTry")
   })
 
@@ -180,7 +180,7 @@ var y = 2;`)
     )
     assert(result.modified, "modified is true")
     const changeTypes = result.changes.map((c) => c.type)
-    assert(changeTypes.includes("varToConst"), "changes include varToConst")
+    assert(changeTypes.includes("varToLetOrConst"), "changes include varToConst")
     assert(changeTypes.includes("promiseTry"), "changes include promiseTry")
     assert.match(result.code, /const/, "code contains const")
     assert.match(result.code, /\.\.\.data/, "code contains spread")
@@ -223,7 +223,7 @@ var y = 2;`)
 })
 
 describe("transformers", () => {
-  describe("varToConst", () => {
+  describe("varToLetOrConst", () => {
     test("transform var to const", () => {
       assert(transform(`var x = 1;`).modified)
       assert.match(transform(`var x = 1;`).code, /const/)
