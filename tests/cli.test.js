@@ -27,10 +27,10 @@ describe("CLI", () => {
 
     assert.match(
       result.stderr,
-      /Error: No files specified/,
+      /error: missing required argument 'files'/,
       "displays error for no files",
     )
-    assert.equal(result.status, 0, "exits with 0 when showing help")
+    assert.equal(result.status, 1, "exits with 0 when showing help")
   })
 
   test("transform a single file with --write", () => {
