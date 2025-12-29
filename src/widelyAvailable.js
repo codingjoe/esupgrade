@@ -1363,3 +1363,188 @@ export function arrayConcatToSpread(j, root) {
 
   return { modified, changes }
 }
+
+/**
+ * Transform old-school constructor functions with prototype methods to ES6 class syntax
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
+ */
+export function constructorToClass(j, root) {
+  let modified = false
+  const changes = []
+
+  // Helper to check if a function name starts with uppercase (convention for constructors)
+  const isConstructorName = (name) => {
+    return name && name.length > 0 && name[0] === name[0].toUpperCase()
+  }
+
+  // Helper to check if function body only contains this.prop = value assignments
+  const hasSimpleConstructorBody = (functionBody) => {
+    if (!j.BlockStatement.check(functionBody)) {
+      return false
+    }
+
+    // Allow empty body
+    if (functionBody.body.length === 0) {
+      return true
+    }
+
+    // Check that all statements are this.property = value assignments
+    return functionBody.body.every((statement) => {
+      if (!j.ExpressionStatement.check(statement)) {
+        return false
+      }
+
+      const expr = statement.expression
+      if (!j.AssignmentExpression.check(expr)) {
+        return false
+      }
+
+      // Left side must be this.property
+      if (
+        !j.MemberExpression.check(expr.left) ||
+        !j.ThisExpression.check(expr.left.object) ||
+        !j.Identifier.check(expr.left.property)
+      ) {
+        return false
+      }
+
+      return true
+    })
+  }
+
+  // Find all function declarations that look like constructors
+  const constructors = new Map() // Map of constructor name to { declaration, prototypeMethods }
+
+  root.find(j.FunctionDeclaration).forEach((path) => {
+    const node = path.node
+    const functionName = node.id ? node.id.name : null
+
+    if (!functionName || !isConstructorName(functionName)) {
+      return
+    }
+
+    // Check if body is simple constructor pattern
+    if (!hasSimpleConstructorBody(node.body)) {
+      return
+    }
+
+    constructors.set(functionName, {
+      declaration: path,
+      prototypeMethods: [],
+    })
+  })
+
+  // Find all prototype method assignments for our constructors
+  root
+    .find(j.ExpressionStatement)
+    .filter((path) => {
+      const node = path.node
+      if (!j.AssignmentExpression.check(node.expression)) {
+        return false
+      }
+
+      const assignment = node.expression
+      const left = assignment.left
+
+      // Must be ConstructorName.prototype.methodName = ...
+      if (
+        !j.MemberExpression.check(left) ||
+        !j.MemberExpression.check(left.object) ||
+        !j.Identifier.check(left.object.object) ||
+        !j.Identifier.check(left.object.property) ||
+        left.object.property.name !== "prototype" ||
+        !j.Identifier.check(left.property)
+      ) {
+        return false
+      }
+
+      const constructorName = left.object.object.name
+      return constructors.has(constructorName)
+    })
+    .forEach((path) => {
+      const assignment = path.node.expression
+      const left = assignment.left
+      const constructorName = left.object.object.name
+      const methodName = left.property.name
+      const methodValue = assignment.right
+
+      // Only transform if method is a function expression (not arrow function)
+      if (!j.FunctionExpression.check(methodValue)) {
+        return
+      }
+
+      constructors.get(constructorName).prototypeMethods.push({
+        path,
+        methodName,
+        methodValue,
+      })
+    })
+
+  // Transform constructors that have prototype methods
+  constructors.forEach((info, constructorName) => {
+    if (info.prototypeMethods.length === 0) {
+      return
+    }
+
+    const constructorNode = info.declaration.node
+
+    // Create class body with constructor and methods
+    const classBody = []
+
+    // Add constructor method
+    const constructorMethod = j.methodDefinition(
+      "constructor",
+      j.identifier("constructor"),
+      j.functionExpression(
+        null,
+        constructorNode.params,
+        constructorNode.body,
+        constructorNode.generator,
+        constructorNode.async,
+      ),
+      false,
+    )
+    classBody.push(constructorMethod)
+
+    // Add prototype methods
+    info.prototypeMethods.forEach(({ methodName, methodValue }) => {
+      const method = j.methodDefinition(
+        "method",
+        j.identifier(methodName),
+        j.functionExpression(
+          null,
+          methodValue.params,
+          methodValue.body,
+          methodValue.generator,
+          methodValue.async,
+        ),
+        false,
+      )
+      classBody.push(method)
+    })
+
+    // Create the class declaration
+    const classDeclaration = j.classDeclaration(
+      j.identifier(constructorName),
+      j.classBody(classBody),
+    )
+
+    // Replace the constructor function with the class
+    j(info.declaration).replaceWith(classDeclaration)
+
+    // Remove all prototype method assignments
+    info.prototypeMethods.forEach(({ path }) => {
+      j(path).remove()
+    })
+
+    modified = true
+    if (constructorNode.loc) {
+      changes.push({
+        type: "constructorToClass",
+        line: constructorNode.loc.start.line,
+      })
+    }
+  })
+
+  return { modified, changes }
+}

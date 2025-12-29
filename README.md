@@ -212,6 +212,41 @@ Supports:
 > [!NOTE]
 > Functions using `this`, `arguments`, or `super` are not converted to preserve semantics.
 
+#### Constructor functions → [ES6 Classes][mdn-classes]
+
+```diff
+-function Person(name, age) {
+-  this.name = name;
+-  this.age = age;
+-}
+-
+-Person.prototype.greet = function() {
+-  return 'Hello, I am ' + this.name;
+-};
+-
+-Person.prototype.getAge = function() {
+-  return this.age;
+-};
++class Person {
++  constructor(name, age) {
++    this.name = name;
++    this.age = age;
++  }
++
++  greet() {
++    return 'Hello, I am ' + this.name;
++  }
++
++  getAge() {
++    return this.age;
++  }
++}
+```
+
+> [!NOTE]
+> Only transforms functions with capitalized names and simple constructor bodies (only `this.property = value` assignments).
+> Prototype methods must be function expressions, not arrow functions.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -258,6 +293,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [calver]: https://calver.org/
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+[mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-in]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...in
