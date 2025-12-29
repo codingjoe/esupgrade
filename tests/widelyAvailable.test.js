@@ -2347,5 +2347,23 @@ Factory.prototype.process = function() {
       assert.match(result.code, /function Factory/)
       assert.doesNotMatch(result.code, /class Factory/)
     })
+
+    test("skip function expression with method call in constructor", () => {
+      const result = transform(`
+var SomeClass = function (selector) {
+  this.element = document.querySelector(selector);
+  this.init();
+};
+
+SomeClass.prototype = {
+  init: function () {
+    console.log('init');
+  }
+};
+      `)
+
+      // Constructor with method call should not be transformed (not a simple constructor)
+      assert.doesNotMatch(result.code, /class SomeClass/)
+    })
   })
 })
