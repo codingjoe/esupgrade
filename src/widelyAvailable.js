@@ -1374,7 +1374,7 @@ export function constructorToClass(j, root) {
 
   // Helper to check if a function name starts with uppercase (convention for constructors)
   const isConstructorName = (name) => {
-    return name && name.length > 0 && name[0] === name[0].toUpperCase()
+    return name && /^[A-Z]/.test(name)
   }
 
   // Helper to check if function body only contains this.prop = value assignments
