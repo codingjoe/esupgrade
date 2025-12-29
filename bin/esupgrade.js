@@ -282,7 +282,9 @@ class CLIRunner {
     } else {
       // Dry-run mode (no --check, no --write)
       if (modifiedCount > 0) {
-        console.log(this.#formatDetailedSummary(modifiedCount, allChanges, "would be upgraded"))
+        console.log(
+          this.#formatDetailedSummary(modifiedCount, allChanges, "would be upgraded"),
+        )
       } else {
         console.log("All files are up to date")
       }
