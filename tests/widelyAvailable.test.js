@@ -1726,6 +1726,22 @@ const result = [1, 2].concat(other);`)
 })
 
 describe("general", () => {
+  const input = `var x = 1;`
+
+  test("baseline widely-available", () => {
+    const result = transform(input)
+
+    assert(result.modified, "transform with baseline widely-available")
+    assert.match(result.code, /const x = 1/)
+  })
+
+  test("baseline newly-available", () => {
+    const result = transform(input, "newly-available")
+
+    assert(result.modified, "transform with baseline newly-available")
+    assert.match(result.code, /const x = 1/)
+  })
+
   test("no changes", () => {
     const result = transform(`
     const x = 1;
@@ -1744,19 +1760,5 @@ describe("general", () => {
     assert(result.modified, "perform complex transformation")
     assert.match(result.code, /const userName/)
     assert.match(result.code, /`Hello \$\{userName\}`/)
-  })
-
-  test("baseline widely-available", () => {
-    const result = transform(`var x = 1;`)
-
-    assert(result.modified, "transform with baseline widely-available")
-    assert.match(result.code, /const x = 1/)
-  })
-
-  test("baseline newly-available", () => {
-    const result = transform(`var x = 1;`, "newly-available")
-
-    assert(result.modified, "transform with baseline newly-available")
-    assert.match(result.code, /const x = 1/)
   })
 })
