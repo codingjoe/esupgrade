@@ -53,7 +53,7 @@ class FileProcessor {
 
       if (!workerResult.success) {
         console.error(`✗ Error: ${filePath}: ${workerResult.error}`)
-        return { modified: false, changes: [] }
+        return { modified: false, changes: [], error: true }
       }
 
       const result = workerResult.result
@@ -72,16 +72,16 @@ class FileProcessor {
           }
         }
 
-        return { modified: true, changes: result.changes }
+        return { modified: true, changes: result.changes, error: false }
       } else {
         if (!options.check) {
           console.log(`  ${filePath}`)
         }
-        return { modified: false, changes: [] }
+        return { modified: false, changes: [], error: false }
       }
     } catch (error) {
       console.error(`✗ Error: ${filePath}: ${error.message}`)
-      return { modified: false, changes: [] }
+      return { modified: false, changes: [], error: true }
     }
   }
 
@@ -224,9 +224,17 @@ class CLIRunner {
 
   #reportSummary(results, options) {
     let modifiedCount = 0
+    let errorCount = 0
     const allChanges = results.flatMap((result) =>
       result.modified ? (modifiedCount++, result.changes) : [],
     )
+    
+    // Count errors
+    for (const result of results) {
+      if (result.error) {
+        errorCount++
+      }
+    }
 
     console.log("")
 
@@ -254,6 +262,11 @@ class CLIRunner {
     }
 
     if (options.check && modifiedCount > 0) {
+      process.exit(1)
+    }
+    
+    // Exit with error code if any errors occurred
+    if (errorCount > 0) {
       process.exit(1)
     }
   }
