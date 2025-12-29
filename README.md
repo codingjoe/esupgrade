@@ -229,7 +229,28 @@ Supports:
 +});
 ```
 
+## Versioning
+
+esupgrade uses the [calver] `YYYY.MINOR.PATCH` versioning scheme.
+
+The year indicates the baseline version. New transformations are added in minor releases, while patches are reserved for bug fixes.
+
+## Related Projects
+
+Thanks to these projects for inspiring esupgrade:
+
+- @asottile's [pyupgrade] for Python
+- @adamchainz' [django-upgrade] for Django
+
+### Distinction
+
+lebab is a similar project that focuses on ECMAScript 6+ transformations without considering browser support.
+esupgrade is distinct in that it applies transformations that are safe based on Baseline browser support.
+Furthermore, esupgrade supports both JavaScript, TypeScript, and more, while lebab is limited to JavaScript.
+
 [baseline]: https://web.dev/baseline/
+[calver]: https://calver.org/
+[django-upgrade]: https://github.com/adamchainz/django-upgrade
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
@@ -240,3 +261,4 @@ Supports:
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
 [pre-commit]: https://pre-commit.com/
+[pyupgrade]: https://github.com/asottile/pyupgrade
