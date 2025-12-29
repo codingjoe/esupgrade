@@ -176,7 +176,7 @@ function processFiles(patterns, options) {
       const totalChanges = allChanges.length
 
       console.log(
-        `${modifiedCount} file(s) need upgrading (${totalChanges} change${totalChanges !== 1 ? "s" : ""}, ${typeCount} type${typeCount !== 1 ? "s" : ""})`,
+        `${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} need${modifiedCount === 1 ? "s" : ""} upgrading (${totalChanges} change${totalChanges !== 1 ? "s" : ""}, ${typeCount} type${typeCount !== 1 ? "s" : ""})`,
       )
       if (options.write) {
         console.log("Changes have been written")
@@ -187,7 +187,7 @@ function processFiles(patterns, options) {
   } else {
     console.log("")
     if (modifiedCount > 0) {
-      console.log(`✓ ${modifiedCount} file(s) upgraded`)
+      console.log(`✓ ${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} upgraded`)
     } else {
       console.log("All files are up to date")
     }
