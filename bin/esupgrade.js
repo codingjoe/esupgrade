@@ -224,17 +224,11 @@ class CLIRunner {
 
   #reportSummary(results, options) {
     let modifiedCount = 0
-    let errorCount = 0
     const allChanges = results.flatMap((result) =>
       result.modified ? (modifiedCount++, result.changes) : [],
     )
     
-    // Count errors
-    for (const result of results) {
-      if (result.error) {
-        errorCount++
-      }
-    }
+    const errorCount = results.filter((result) => result.error).length
 
     console.log("")
 
@@ -261,7 +255,8 @@ class CLIRunner {
       }
     }
 
-    // Exit with error code if any errors occurred - must be checked first
+    // Errors take precedence over --check flag.
+    // Exit with error code if any file processing errors occurred.
     if (errorCount > 0) {
       process.exit(1)
     }
