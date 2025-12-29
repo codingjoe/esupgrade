@@ -239,6 +239,14 @@ class CLIRunner {
     this.#reportSummary(results, options)
   }
 
+  #formatDetailedSummary(modifiedCount, allChanges, actionVerb) {
+    const transformTypes = new Set(allChanges.map((c) => c.type))
+    const typeCount = transformTypes.size
+    const totalChanges = allChanges.length
+
+    return `${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} ${actionVerb} (${totalChanges} change${totalChanges !== 1 ? "s" : ""}, ${typeCount} type${typeCount !== 1 ? "s" : ""})`
+  }
+
   #reportSummary(results, options) {
     let modifiedCount = 0
     const allChanges = results.flatMap((result) =>
@@ -251,12 +259,12 @@ class CLIRunner {
 
     if (options.check) {
       if (modifiedCount > 0) {
-        const transformTypes = new Set(allChanges.map((c) => c.type))
-        const typeCount = transformTypes.size
-        const totalChanges = allChanges.length
-
         console.log(
-          `${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} need${modifiedCount === 1 ? "s" : ""} upgrading (${totalChanges} change${totalChanges !== 1 ? "s" : ""}, ${typeCount} type${typeCount !== 1 ? "s" : ""})`,
+          this.#formatDetailedSummary(
+            modifiedCount,
+            allChanges,
+            `need${modifiedCount === 1 ? "s" : ""} upgrading`,
+          ),
         )
         if (options.write) {
           console.log("Changes have been written")
@@ -274,13 +282,7 @@ class CLIRunner {
     } else {
       // Dry-run mode (no --check, no --write)
       if (modifiedCount > 0) {
-        const transformTypes = new Set(allChanges.map((c) => c.type))
-        const typeCount = transformTypes.size
-        const totalChanges = allChanges.length
-
-        console.log(
-          `${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} would be upgraded (${totalChanges} change${totalChanges !== 1 ? "s" : ""}, ${typeCount} type${typeCount !== 1 ? "s" : ""})`,
-        )
+        console.log(this.#formatDetailedSummary(modifiedCount, allChanges, "would be upgraded"))
       } else {
         console.log("All files are up to date")
       }
