@@ -11,32 +11,28 @@ export function varToConst(j, root) {
    * Check if a variable is reassigned after its declaration
    */
   const isVariableReassigned = (varName) => {
-    let isReassigned = false
+    // Check for AssignmentExpression where left side is the variable
+    const assignmentExists = root
+      .find(j.AssignmentExpression)
+      .filter(
+        (path) =>
+          j.Identifier.check(path.node.left) && path.node.left.name === varName,
+      )
+      .size() > 0
 
-    // Find all AssignmentExpression where left side is the variable
-    root.find(j.AssignmentExpression).forEach((assignPath) => {
-      if (
-        j.Identifier.check(assignPath.node.left) &&
-        assignPath.node.left.name === varName
-      ) {
-        isReassigned = true
-      }
-    })
+    if (assignmentExists) return true
 
-    // Return early if already found reassignment
-    if (isReassigned) return true
+    // Check for UpdateExpression (++, --)
+    const updateExists = root
+      .find(j.UpdateExpression)
+      .filter(
+        (path) =>
+          j.Identifier.check(path.node.argument) &&
+          path.node.argument.name === varName,
+      )
+      .size() > 0
 
-    // Also check for UpdateExpression (++, --)
-    root.find(j.UpdateExpression).forEach((updatePath) => {
-      if (
-        j.Identifier.check(updatePath.node.argument) &&
-        updatePath.node.argument.name === varName
-      ) {
-        isReassigned = true
-      }
-    })
-
-    return isReassigned
+    return updateExists
   }
 
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
