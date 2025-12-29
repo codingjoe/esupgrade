@@ -46,7 +46,7 @@ describe("CLI", () => {
       /const x = 1/,
       "transforms var to const",
     )
-    assert.match(result.stdout, /✓ 1 file\(s\) upgraded/, "reports 1 file upgraded")
+    assert.match(result.stdout, /✓ 1 file upgraded/, "reports 1 file upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
 
@@ -113,7 +113,7 @@ describe("CLI", () => {
     assert.match(result.stdout, /✗/, "indicates changes needed")
     assert.match(
       result.stdout,
-      /1 file\(s\) need upgrading/,
+      /1 file needs upgrading/,
       "reports 1 file needs upgrading",
     )
     assert.equal(result.status, 1, "exits with 1 when changes needed")
@@ -178,7 +178,7 @@ describe("CLI", () => {
 
     assert.match(fs.readFileSync(file1, "utf8"), /const x = 1/, "transforms file1")
     assert.match(fs.readFileSync(file2, "utf8"), /const y = 2/, "transforms file2")
-    assert.match(result.stdout, /2 file\(s\) upgraded/, "reports 2 files upgraded")
+    assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
 
@@ -215,7 +215,7 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /4 file\(s\) upgraded/, "reports 4 files upgraded")
+    assert.match(result.stdout, /4 files upgraded/, "reports 4 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
 
@@ -290,7 +290,7 @@ describe("CLI", () => {
 
     assert.match(fs.readFileSync(file1, "utf8"), /const x = 1/, "transforms file1")
     assert.match(fs.readFileSync(file2, "utf8"), /const y = 2/, "transforms file2")
-    assert.match(result.stdout, /2 file\(s\) upgraded/, "reports 2 files upgraded")
+    assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
 
@@ -388,7 +388,7 @@ describe("CLI", () => {
 
     assert.match(fs.readFileSync(file1, "utf8"), /const x = 1/, "transforms file1")
     assert.match(fs.readFileSync(file2, "utf8"), /const y = 2/, "transforms file2")
-    assert.match(result.stdout, /2 file\(s\) upgraded/, "reports 2 files upgraded")
+    assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
 })
