@@ -1,5 +1,5 @@
 /**
- * Transform var to const
+ * Transform var to const or let
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
  */
@@ -7,8 +7,49 @@ export function varToConst(j, root) {
   let modified = false
   const changes = []
 
+  /**
+   * Check if a variable is reassigned after its declaration
+   */
+  const isVariableReassigned = (varName) => {
+    let isReassigned = false
+
+    // Find all AssignmentExpression where left side is the variable
+    root.find(j.AssignmentExpression).forEach((assignPath) => {
+      if (
+        j.Identifier.check(assignPath.node.left) &&
+        assignPath.node.left.name === varName
+      ) {
+        isReassigned = true
+      }
+    })
+
+    // Also check for UpdateExpression (++, --)
+    root.find(j.UpdateExpression).forEach((updatePath) => {
+      if (
+        j.Identifier.check(updatePath.node.argument) &&
+        updatePath.node.argument.name === varName
+      ) {
+        isReassigned = true
+      }
+    })
+
+    return isReassigned
+  }
+
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
-    path.node.kind = "const"
+    // Check if any of the declarators in this declaration are reassigned
+    let hasReassignment = false
+    for (const declarator of path.node.declarations) {
+      if (j.Identifier.check(declarator.id)) {
+        if (isVariableReassigned(declarator.id.name)) {
+          hasReassignment = true
+          break
+        }
+      }
+    }
+
+    // Use 'let' if reassigned, 'const' otherwise
+    path.node.kind = hasReassignment ? "let" : "const"
     modified = true
     if (path.node.loc) {
       changes.push({

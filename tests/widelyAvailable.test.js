@@ -318,8 +318,9 @@ describe("varToConst", () => {
   `)
 
     assert(result.modified, "transform var with reassignment")
-    assert.match(result.code, /const x = 1/)
+    assert.match(result.code, /let x = 1/)
     assert.doesNotMatch(result.code, /var x/)
+    assert.doesNotMatch(result.code, /const x/)
   })
 
   test("multiple declarations", () => {
@@ -344,6 +345,55 @@ var x = 1;`)
     assert.equal(result.changes.length, 1)
     assert.equal(result.changes[0].type, "varToConst")
     assert.equal(result.changes[0].line, 2)
+  })
+
+  test("uninitialized var reassigned in loop", () => {
+    const result = transform(`
+    var pixels;
+    for (let i = 0; i < 5; i++) {
+      pixels = getVisiblePixels();
+      pixels[0].hide();
+    }
+  `)
+
+    assert(result.modified, "transform var with loop reassignment")
+    assert.match(result.code, /let pixels/)
+    assert.doesNotMatch(result.code, /const pixels/)
+    assert.doesNotMatch(result.code, /var pixels/)
+  })
+
+  test("var with increment operator", () => {
+    const result = transform(`
+    var counter = 0;
+    counter++;
+  `)
+
+    assert(result.modified, "transform var with increment")
+    assert.match(result.code, /let counter = 0/)
+    assert.doesNotMatch(result.code, /const counter/)
+  })
+
+  test("var with decrement operator", () => {
+    const result = transform(`
+    var counter = 10;
+    counter--;
+  `)
+
+    assert(result.modified, "transform var with decrement")
+    assert.match(result.code, /let counter = 10/)
+    assert.doesNotMatch(result.code, /const counter/)
+  })
+
+  test("multiple vars, some reassigned", () => {
+    const result = transform(`
+    var x = 1;
+    var y = 2;
+    x = 3;
+  `)
+
+    assert(result.modified, "transform multiple vars with partial reassignment")
+    assert.match(result.code, /let x = 1/)
+    assert.match(result.code, /const y = 2/)
   })
 })
 
