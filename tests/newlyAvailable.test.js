@@ -1,8 +1,8 @@
-import { describe, test } from "node:test"
+import { describe, suite, test } from "node:test"
 import assert from "node:assert/strict"
 import { transform } from "../src/index.js"
 
-describe("newly-available", () => {
+suite("newly-available", () => {
   describe("Promise.try", () => {
     test("transforms resolve call with argument", () => {
       const result = transform(

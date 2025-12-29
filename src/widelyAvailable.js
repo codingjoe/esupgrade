@@ -1,20 +1,258 @@
 /**
- * Transform var to const
+ * Check if a pattern (identifier, destructuring, etc.) contains a specific variable name
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').ASTNode | null | undefined} node - The AST node to check
+ * @param {string} varName - The variable name to search for
+ * @returns {boolean} True if the pattern contains the identifier
+ */
+function patternContainsIdentifier(j, node, varName) {
+  if (!node) {
+    return false
+  }
+  if (j.Identifier.check(node)) {
+    return node.name === varName
+  }
+  if (j.ObjectPattern.check(node)) {
+    return node.properties.some(
+      (prop) =>
+        ((j.Property.check(prop) || j.ObjectProperty.check(prop)) &&
+          patternContainsIdentifier(j, prop.value, varName)) ||
+        (j.RestElement.check(prop) &&
+          patternContainsIdentifier(j, prop.argument, varName)),
+    )
+  }
+  if (j.ArrayPattern.check(node)) {
+    return node.elements.some((element) =>
+      patternContainsIdentifier(j, element, varName),
+    )
+  }
+  if (j.AssignmentPattern.check(node)) {
+    return patternContainsIdentifier(j, node.left, varName)
+  }
+  // RestElement is the only remaining valid pattern type
+  return (
+    j.RestElement.check(node) && patternContainsIdentifier(j, node.argument, varName)
+  )
+}
+
+/**
+ * Extract all identifier names from a pattern (handles destructuring)
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').ASTNode | null | undefined} pattern - The pattern node to extract identifiers from
+ * @yields {string} Identifier names found in the pattern
+ * @returns {Generator<string, void, unknown>}
+ */
+function* extractIdentifiersFromPattern(j, pattern) {
+  if (!pattern) return
+
+  if (j.Identifier.check(pattern)) {
+    yield pattern.name
+  } else if (j.ObjectPattern.check(pattern)) {
+    for (const prop of pattern.properties) {
+      if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
+        yield* extractIdentifiersFromPattern(j, prop.value)
+      } else if (j.RestElement.check(prop)) {
+        yield* extractIdentifiersFromPattern(j, prop.argument)
+      }
+    }
+  } else if (j.ArrayPattern.check(pattern)) {
+    for (const element of pattern.elements) {
+      yield* extractIdentifiersFromPattern(j, element)
+    }
+  } else if (j.AssignmentPattern.check(pattern)) {
+    yield* extractIdentifiersFromPattern(j, pattern.left)
+  } else if (j.RestElement.check(pattern)) {
+    yield* extractIdentifiersFromPattern(j, pattern.argument)
+  }
+}
+
+/**
+ * Check if an assignment/update expression is shadowed by a closer variable declaration
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {string} varName - The variable name to check
+ * @param {import('jscodeshift').ASTPath} declarationPath - The path to the original declaration
+ * @param {import('jscodeshift').ASTPath} usagePath - The path to the assignment/update expression
+ * @returns {boolean} True if the assignment is shadowed by a closer declaration
+ */
+function isAssignmentShadowed(j, varName, declarationPath, usagePath) {
+  let current = usagePath.parent
+
+  while (current) {
+    if (
+      j.FunctionDeclaration.check(current.node) ||
+      j.FunctionExpression.check(current.node) ||
+      j.ArrowFunctionExpression.check(current.node)
+    ) {
+      // Check function parameters
+      if (current.node.params) {
+        for (const param of current.node.params) {
+          if (patternContainsIdentifier(j, param, varName)) {
+            return true
+          }
+        }
+      }
+
+      // Check for var/let/const declarations in this function
+      const functionBody = current.node.body
+      if (functionBody) {
+        const hasLocalDecl = j(functionBody)
+          .find(j.VariableDeclarator)
+          .some((declPath) => {
+            const declParent = declPath.parent.node
+            if (declParent === declarationPath.node) {
+              return false
+            }
+            return patternContainsIdentifier(j, declPath.node.id, varName)
+          })
+
+        if (hasLocalDecl) {
+          return true
+        }
+      }
+    }
+
+    current = current.parent
+  }
+
+  return false
+}
+
+/**
+ * Check if a variable is reassigned after its declaration
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @param {string} varName - The variable name to check
+ * @param {import('jscodeshift').ASTPath} declarationPath - The path to the variable declaration
+ * @returns {boolean} True if the variable is reassigned
+ */
+function isVariableReassigned(j, root, varName, declarationPath) {
+  let isReassigned = false
+
+  // Check for AssignmentExpression where left side targets the variable
+  root.find(j.AssignmentExpression).forEach((assignPath) => {
+    if (!patternContainsIdentifier(j, assignPath.node.left, varName)) {
+      return
+    }
+
+    if (isAssignmentShadowed(j, varName, declarationPath, assignPath)) {
+      return
+    }
+
+    isReassigned = true
+  })
+
+  if (isReassigned) return true
+
+  // Check for UpdateExpression (++, --)
+  root.find(j.UpdateExpression).forEach((updatePath) => {
+    if (
+      !j.Identifier.check(updatePath.node.argument) ||
+      updatePath.node.argument.name !== varName
+    ) {
+      return
+    }
+
+    if (isAssignmentShadowed(j, varName, declarationPath, updatePath)) {
+      return
+    }
+
+    isReassigned = true
+  })
+
+  return isReassigned
+}
+
+/**
+ * Determine the appropriate kind (const or let) for a declarator
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @param {import('jscodeshift').VariableDeclarator} declarator - The variable declarator
+ * @param {import('jscodeshift').ASTPath} declarationPath - The path to the variable declaration
+ * @returns {'const' | 'let'} The appropriate variable kind
+ */
+function determineDeclaratorKind(j, root, declarator, declarationPath) {
+  if (j.Identifier.check(declarator.id)) {
+    return isVariableReassigned(j, root, declarator.id.name, declarationPath)
+      ? "let"
+      : "const"
+  }
+
+  // Destructuring pattern - check if any identifier is reassigned
+  for (const varName of extractIdentifiersFromPattern(j, declarator.id)) {
+    if (isVariableReassigned(j, root, varName, declarationPath)) {
+      return "let"
+    }
+  }
+
+  return "const"
+}
+
+/**
+ * Process a single declarator variable declaration
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @param {import('jscodeshift').ASTPath} path - The path to the variable declaration
+ * @returns {{ modified: boolean, change: { type: string, line: number } | null }}
+ */
+function processSingleDeclarator(j, root, path) {
+  const declarator = path.node.declarations[0]
+  const kind = determineDeclaratorKind(j, root, declarator, path)
+
+  path.node.kind = kind
+
+  const change = path.node.loc
+    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
+    : null
+
+  return { modified: true, change }
+}
+
+/**
+ * Process a multiple declarator variable declaration by splitting into separate declarations
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @param {import('jscodeshift').ASTPath} path - The path to the variable declaration
+ * @returns {{ modified: boolean, change: { type: string, line: number } | null }}
+ */
+function processMultipleDeclarators(j, root, path) {
+  const declarations = path.node.declarations.map((declarator) => {
+    const kind = determineDeclaratorKind(j, root, declarator, path)
+    return j.variableDeclaration(kind, [declarator])
+  })
+
+  j(path).replaceWith(declarations)
+
+  const change = path.node.loc
+    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
+    : null
+
+  return { modified: true, change }
+}
+
+/**
+ * Transform var to const or let
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }}
  */
-export function varToConst(j, root) {
+export function varToLetOrConst(j, root) {
   let modified = false
   const changes = []
 
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
-    path.node.kind = "const"
-    modified = true
-    if (path.node.loc) {
-      changes.push({
-        type: "varToConst",
-        line: path.node.loc.start.line,
-      })
+    const isSingleDeclarator = path.node.declarations.length === 1
+
+    const result = isSingleDeclarator
+      ? processSingleDeclarator(j, root, path)
+      : processMultipleDeclarators(j, root, path)
+
+    if (result.modified) {
+      modified = true
+    }
+    if (result.change) {
+      changes.push(result.change)
     }
   })
 

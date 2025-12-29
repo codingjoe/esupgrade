@@ -274,7 +274,11 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /var to const/, "shows var to const changes")
+    assert.match(
+      result.stdout,
+      /var to let or const/,
+      "shows var to let or const changes",
+    )
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -357,7 +361,11 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /var to const/, "shows var to const changes")
+    assert.match(
+      result.stdout,
+      /var to let or const/,
+      "shows var to let or const changes",
+    )
     assert.equal(result.status, 1, "exits with 1")
   })
 
