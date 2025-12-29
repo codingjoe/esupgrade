@@ -178,11 +178,13 @@ function determineDeclaratorKind(j, root, declarator, declarationPath) {
   }
 
   // Destructuring pattern - check if any identifier is reassigned
-  const identifiers = extractIdentifiersFromPattern(j, declarator.id)
-  const hasAnyReassignment = identifiers.some((varName) =>
-    isVariableReassigned(j, root, varName, declarationPath),
-  )
-  return hasAnyReassignment ? "let" : "const"
+  for (const varName of extractIdentifiersFromPattern(j, declarator.id)) {
+    if (isVariableReassigned(j, root, varName, declarationPath)) {
+      return "let"
+    }
+  }
+
+  return "const"
 }
 
 /**
