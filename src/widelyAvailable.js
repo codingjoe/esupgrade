@@ -17,7 +17,7 @@ export function varToConst(j, root) {
     }
     if (j.ObjectPattern.check(node)) {
       return node.properties.some((prop) => {
-        if (j.Property.check(prop)) {
+        if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
           // For properties, the value is the pattern that holds the identifier
           return patternContainsIdentifier(prop.value, varName)
         }
@@ -41,29 +41,120 @@ export function varToConst(j, root) {
     return false
   }
 
-  const isVariableReassigned = (varName) => {
-    // Check for AssignmentExpression where left side targets the variable,
-    // including destructuring patterns.
-    const assignmentExists =
-      root
-        .find(j.AssignmentExpression)
-        .filter((path) => patternContainsIdentifier(path.node.left, varName))
-        .size() > 0
+  const isVariableReassigned = (varName, declarationPath) => {
+    let isReassigned = false
 
-    if (assignmentExists) return true
+    // Check for AssignmentExpression where left side targets the variable
+    root.find(j.AssignmentExpression).forEach((assignPath) => {
+      if (!patternContainsIdentifier(assignPath.node.left, varName)) {
+        return
+      }
+      
+      // Check if this assignment is shadowed by a closer declaration
+      if (isAssignmentShadowed(varName, declarationPath, assignPath)) {
+        return
+      }
+      
+      isReassigned = true
+    })
+
+    if (isReassigned) return true
 
     // Check for UpdateExpression (++, --)
-    const updateExists =
-      root
-        .find(j.UpdateExpression)
-        .filter(
-          (path) =>
-            j.Identifier.check(path.node.argument) &&
-            path.node.argument.name === varName,
-        )
-        .size() > 0
+    root.find(j.UpdateExpression).forEach((updatePath) => {
+      if (
+        !j.Identifier.check(updatePath.node.argument) ||
+        updatePath.node.argument.name !== varName
+      ) {
+        return
+      }
+      
+      // Check if this update is shadowed by a closer declaration
+      if (isAssignmentShadowed(varName, declarationPath, updatePath)) {
+        return
+      }
+      
+      isReassigned = true
+    })
 
-    return updateExists
+    return isReassigned
+  }
+
+  // Check if an assignment/update is shadowed by a closer variable declaration
+  const isAssignmentShadowed = (varName, declarationPath, usagePath) => {
+    // Walk up from usagePath looking for function boundaries
+    // At each function boundary, check if that function or its containing scope
+    // declares a variable with the same name
+    let current = usagePath.parent
+    
+    while (current) {
+      // Check if we're at a function boundary
+      if (
+        j.FunctionDeclaration.check(current.node) ||
+        j.FunctionExpression.check(current.node) ||
+        j.ArrowFunctionExpression.check(current.node)
+      ) {
+        // Check function parameters
+        if (current.node.params) {
+          for (const param of current.node.params) {
+            if (patternContainsIdentifier(param, varName)) {
+              return true // Shadowed by parameter
+            }
+          }
+        }
+        
+        // Check for var/let/const declarations in this function
+        const functionBody = current.node.body
+        if (functionBody) {
+          const hasLocalDecl = j(functionBody)
+            .find(j.VariableDeclarator)
+            .some((declPath) => {
+              // Skip the original declaration we're checking
+              // Compare the VariableDeclarator node itself
+              const declParent = declPath.parent.node
+              if (declParent === declarationPath.node) {
+                return false
+              }
+              return patternContainsIdentifier(declPath.node.id, varName)
+            })
+          
+          if (hasLocalDecl) {
+            return true // Shadowed by local declaration in function
+          }
+        }
+      }
+      
+      current = current.parent
+    }
+    
+    return false
+  }
+
+  // Extract all identifiers from a pattern (for destructuring)
+  const extractIdentifiersFromPattern = (pattern) => {
+    const identifiers = []
+    const traverse = (node) => {
+      if (!node) return
+      if (j.Identifier.check(node)) {
+        identifiers.push(node.name)
+      } else if (j.ObjectPattern.check(node)) {
+        node.properties.forEach((prop) => {
+          if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
+            traverse(prop.value)
+          } else if (j.RestElement.check(prop)) {
+            traverse(prop.argument)
+          }
+        })
+      } else if (j.ArrayPattern.check(node)) {
+        node.elements.forEach((element) => traverse(element))
+      } else if (j.AssignmentPattern.check(node)) {
+        traverse(node.left)
+      } else if (j.RestElement.check(node)) {
+        traverse(node.argument)
+      }
+    }
+    traverse(pattern)
+    return identifiers
   }
 
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
@@ -71,11 +162,15 @@ export function varToConst(j, root) {
     if (path.node.declarations.length === 1) {
       const declarator = path.node.declarations[0]
       if (j.Identifier.check(declarator.id)) {
-        const hasReassignment = isVariableReassigned(declarator.id.name)
+        const hasReassignment = isVariableReassigned(declarator.id.name, path)
         path.node.kind = hasReassignment ? "let" : "const"
       } else {
-        // Destructuring or other pattern, use const as default
-        path.node.kind = "const"
+        // Destructuring or other pattern - check each identifier
+        const identifiers = extractIdentifiersFromPattern(declarator.id)
+        const hasAnyReassignment = identifiers.some((varName) =>
+          isVariableReassigned(varName, path),
+        )
+        path.node.kind = hasAnyReassignment ? "let" : "const"
       }
       modified = true
       if (path.node.loc) {
@@ -90,7 +185,14 @@ export function varToConst(j, root) {
       const declarations = path.node.declarations.map((declarator) => {
         let kind = "const"
         if (j.Identifier.check(declarator.id)) {
-          kind = isVariableReassigned(declarator.id.name) ? "let" : "const"
+          kind = isVariableReassigned(declarator.id.name, path) ? "let" : "const"
+        } else {
+          // Destructuring pattern - check if any identifier is reassigned
+          const identifiers = extractIdentifiersFromPattern(declarator.id)
+          const hasAnyReassignment = identifiers.some((varName) =>
+            isVariableReassigned(varName, path),
+          )
+          kind = hasAnyReassignment ? "let" : "const"
         }
         return j.variableDeclaration(kind, [declarator])
       })

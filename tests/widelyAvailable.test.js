@@ -450,6 +450,68 @@ var x = 1;`)
     assert.match(result.code, /const \{ y, z \} = obj/)
     assert.doesNotMatch(result.code, /var/)
   })
+
+  test("destructured variable reassigned later", () => {
+    const result = transform(`
+    var { x, y } = obj;
+    x = 5;
+  `)
+
+    assert(result.modified, "transform destructured var with reassignment")
+    assert.match(result.code, /let \{ x, y \} = obj/)
+    assert.doesNotMatch(result.code, /const \{ x, y \}/)
+    assert.doesNotMatch(result.code, /var/)
+  })
+
+  test("destructured variable via assignment expression", () => {
+    const result = transform(`
+    var x, y;
+    ({ x, y } = obj);
+  `)
+
+    assert(result.modified, "transform vars reassigned via destructuring")
+    assert.match(result.code, /let x/)
+    assert.match(result.code, /let y/)
+    assert.doesNotMatch(result.code, /const x/)
+    assert.doesNotMatch(result.code, /const y/)
+  })
+
+  test("variable with same name in different scopes", () => {
+    const result = transform(`
+    var x = 1;
+    function foo() {
+      var x = 2;
+      x = 3;
+    }
+  `)
+
+    assert(result.modified, "transform with scoped variables")
+    assert.match(result.code, /const x = 1/)
+    assert.match(result.code, /let x = 2/)
+  })
+
+  test("outer variable not affected by inner scope reassignment", () => {
+    const result = transform(`
+    var x = 1;
+    function bar() {
+      x = 3;
+    }
+  `)
+
+    assert(result.modified, "outer var reassigned in nested scope")
+    assert.match(result.code, /let x = 1/)
+  })
+
+  test("array destructuring with reassignment", () => {
+    const result = transform(`
+    var [a, b] = arr;
+    a = 10;
+  `)
+
+    assert(result.modified, "transform array destructuring with reassignment")
+    assert.match(result.code, /let \[a, b\] = arr/)
+    assert.doesNotMatch(result.code, /const \[a, b\]/)
+  })
 })
 
 describe("stringConcatToTemplate", () => {
