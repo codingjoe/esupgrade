@@ -74,7 +74,8 @@ class FileProcessor {
       const result = workerResult.result
 
       if (result.modified) {
-        if (options.check) {
+        // Report changes if check mode or if not writing (dry-run)
+        if (options.check || !options.write) {
           this.#reportChanges(filePath, result.changes)
         }
 
@@ -89,6 +90,7 @@ class FileProcessor {
 
         return { modified: true, changes: result.changes, error: false }
       } else {
+        // Show unmodified files unless in check-only mode
         if (!options.check) {
           console.log(`  ${filePath}`)
         }
@@ -262,9 +264,23 @@ class CLIRunner {
       } else {
         console.log("All files are up to date")
       }
-    } else {
+    } else if (options.write) {
+      // --write without --check
       if (modifiedCount > 0) {
         console.log(`✓ ${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} upgraded`)
+      } else {
+        console.log("All files are up to date")
+      }
+    } else {
+      // Dry-run mode (no --check, no --write)
+      if (modifiedCount > 0) {
+        const transformTypes = new Set(allChanges.map((c) => c.type))
+        const typeCount = transformTypes.size
+        const totalChanges = allChanges.length
+
+        console.log(
+          `${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} would be upgraded (${totalChanges} change${totalChanges !== 1 ? "s" : ""}, ${typeCount} type${typeCount !== 1 ? "s" : ""})`,
+        )
       } else {
         console.log("All files are up to date")
       }
@@ -296,14 +312,11 @@ program
       .default("widely-available"),
   )
   .option("--check", "Report which files need upgrading and exit with code 1 if any do")
-  .option(
-    "--write",
-    "Write changes to files (default: true unless only --check is specified)",
-  )
+  .option("--write", "Write changes to files")
   .action(async (files, options) => {
     // Handle check/write options - they are not mutually exclusive
-    // Default: write is true unless ONLY --check is specified (no --write)
-    const shouldWrite = options.write !== undefined ? options.write : !options.check
+    // Default: write is false (read-only mode unless --write is specified)
+    const shouldWrite = options.write || false
     const shouldCheck = options.check || false
 
     const processingOptions = {
