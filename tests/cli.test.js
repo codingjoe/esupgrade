@@ -405,6 +405,51 @@ describe("CLI", () => {
     assert.equal(result.status, 1, "exits with 1 on errors without --check")
   })
 
+  test("dry-run mode without flags shows changes but doesn't write", () => {
+    const testFile = path.join(tempDir, "test.js")
+    const originalCode = `var x = 1;`
+    fs.writeFileSync(testFile, originalCode)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile], {
+      encoding: "utf8",
+    })
+
+    assert.equal(
+      fs.readFileSync(testFile, "utf8"),
+      originalCode,
+      "leaves file unchanged",
+    )
+    assert.match(result.stdout, /✗/, "indicates changes would be made")
+    assert.match(
+      result.stdout,
+      /1 file would be upgraded/,
+      "reports 1 file would be upgraded",
+    )
+    assert.equal(result.status, 0, "exits with 0 in dry-run mode")
+  })
+
+  test("dry-run mode exits with 0 when no changes needed", () => {
+    const testFile = path.join(tempDir, "test.js")
+    const originalCode = `const x = 1;`
+    fs.writeFileSync(testFile, originalCode)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile], {
+      encoding: "utf8",
+    })
+
+    assert.equal(
+      fs.readFileSync(testFile, "utf8"),
+      originalCode,
+      "leaves file unchanged",
+    )
+    assert.match(
+      result.stdout,
+      /All files are up to date/,
+      "reports all files up to date",
+    )
+    assert.equal(result.status, 0, "exits with 0")
+  })
+
   test("exit with 1 on errors even with valid files", () => {
     const validFile = path.join(tempDir, "valid.js")
     const invalidFile = path.join(tempDir, "invalid.js")
