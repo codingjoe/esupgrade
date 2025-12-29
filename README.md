@@ -246,7 +246,7 @@ Thanks to these projects for inspiring esupgrade:
 
 lebab is a similar project that focuses on ECMAScript 6+ transformations without considering browser support.
 esupgrade is distinct in that it applies transformations that are safe based on Baseline browser support.
-Furthermore, esupgrade supports both JavaScript, TypeScript, and more, while lebab is limited to JavaScript.
+Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is limited to JavaScript.
 
 [baseline]: https://web.dev/baseline/
 [calver]: https://calver.org/
