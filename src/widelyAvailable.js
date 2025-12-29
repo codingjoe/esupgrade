@@ -10,15 +10,44 @@ export function varToConst(j, root) {
   /**
    * Check if a variable is reassigned after its declaration
    */
+  const patternContainsIdentifier = (node, varName) => {
+    if (!node) return false
+    if (j.Identifier.check(node)) {
+      return node.name === varName
+    }
+    if (j.ObjectPattern.check(node)) {
+      return node.properties.some((prop) => {
+        if (j.Property.check(prop)) {
+          // For properties, the value is the pattern that holds the identifier
+          return patternContainsIdentifier(prop.value, varName)
+        }
+        if (j.RestElement.check(prop)) {
+          return patternContainsIdentifier(prop.argument, varName)
+        }
+        return false
+      })
+    }
+    if (j.ArrayPattern.check(node)) {
+      return node.elements.some((element) =>
+        patternContainsIdentifier(element, varName),
+      )
+    }
+    if (j.AssignmentPattern.check(node)) {
+      return patternContainsIdentifier(node.left, varName)
+    }
+    if (j.RestElement.check(node)) {
+      return patternContainsIdentifier(node.argument, varName)
+    }
+    return false
+  }
+
   const isVariableReassigned = (varName) => {
-    // Check for AssignmentExpression where left side is the variable
+    // Check for AssignmentExpression where left side targets the variable,
+    // including destructuring patterns.
     const assignmentExists =
       root
         .find(j.AssignmentExpression)
-        .filter(
-          (path) =>
-            j.Identifier.check(path.node.left) && path.node.left.name === varName,
-        )
+        .filter((path) => patternContainsIdentifier(path.node.left, varName))
         .size() > 0
 
     if (assignmentExists) return true
