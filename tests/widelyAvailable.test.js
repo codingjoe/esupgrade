@@ -2311,5 +2311,41 @@ Person.prototype.getAge = function() {
       assert.match(result.code, /class Person/)
       assert.match(result.code, /constructor\(name, age\)/)
     })
+
+    test("skip factory pattern with return statement", () => {
+      const result = transform(`
+function Something() {
+  var depth = 0;
+  return {
+    incDepth: function() {
+      depth++;
+    }
+  };
+}
+
+foo = Something();
+      `)
+
+      // Factory pattern should not be transformed to a class
+      assert.match(result.code, /function Something/)
+      assert.doesNotMatch(result.code, /class Something/)
+    })
+
+    test("skip constructor with return statement", () => {
+      const result = transform(`
+function Factory(config) {
+  this.config = config;
+  return this.config;
+}
+
+Factory.prototype.process = function() {
+  return this.config;
+};
+      `)
+
+      // Constructor with return statement should not be transformed
+      assert.match(result.code, /function Factory/)
+      assert.doesNotMatch(result.code, /class Factory/)
+    })
   })
 })
