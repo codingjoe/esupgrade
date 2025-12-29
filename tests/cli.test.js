@@ -370,7 +370,39 @@ describe("CLI", () => {
     })
 
     assert.match(result.stderr, /✗ Error:/, "displays error for syntax issues")
-    assert.equal(result.status, 0, "continues despite errors")
+    assert.equal(result.status, 1, "exits with 1 on errors")
+  })
+
+  test("exit with 1 on parsing errors without --check", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `const a;\na = 'asdf'`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
+
+    assert.match(
+      result.stderr,
+      /Missing initializer in const declaration/,
+      "displays parsing error",
+    )
+    assert.equal(result.status, 1, "exits with 1 on parsing errors")
+  })
+
+  test("exit with 1 on parsing errors with --check", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `const a;\na = 'asdf'`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
+
+    assert.match(
+      result.stderr,
+      /Missing initializer in const declaration/,
+      "displays parsing error",
+    )
+    assert.equal(result.status, 1, "exits with 1 on parsing errors")
   })
 
   test("handle mixed directory and file arguments", () => {

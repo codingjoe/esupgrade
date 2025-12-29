@@ -134,16 +134,16 @@ function processFile(filePath, options) {
         }
       }
 
-      return { modified: true, changes: result.changes }
+      return { modified: true, changes: result.changes, error: false }
     } else {
       if (!options.check) {
         console.log(`  ${filePath}`)
       }
-      return { modified: false, changes: [] }
+      return { modified: false, changes: [], error: false }
     }
   } catch (error) {
     console.error(`✗ Error: ${filePath}: ${error.message}`)
-    return { modified: false, changes: [] }
+    return { modified: false, changes: [], error: true }
   }
 }
 
@@ -156,6 +156,7 @@ function processFiles(patterns, options) {
   }
 
   let modifiedCount = 0
+  let errorCount = 0
   const allChanges = []
 
   for (const file of files) {
@@ -163,6 +164,9 @@ function processFiles(patterns, options) {
     if (result.modified) {
       modifiedCount++
       allChanges.push(...result.changes)
+    }
+    if (result.error) {
+      errorCount++
     }
   }
 
@@ -193,8 +197,8 @@ function processFiles(patterns, options) {
     }
   }
 
-  // Exit with code 1 if --check specified and there were changes
-  if (options.check && modifiedCount > 0) {
+  // Exit with code 1 if errors occurred or if --check specified and there were changes
+  if (errorCount > 0 || (options.check && modifiedCount > 0)) {
     process.exit(1)
   }
 }
