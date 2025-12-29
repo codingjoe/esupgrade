@@ -391,4 +391,33 @@ describe("CLI", () => {
     assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
+
+  test("show individual file markers for mixed results", () => {
+    const file1 = path.join(tempDir, "test1.js")
+    const file2 = path.join(tempDir, "test2.js")
+    fs.writeFileSync(file1, `var x = 1;`)
+    fs.writeFileSync(file2, `const y = 2;`) // Already upgraded
+
+    const result = spawnSync(process.execPath, [CLI_PATH, file1, file2, "--write"], {
+      encoding: "utf8",
+    })
+
+    assert.match(result.stdout, /✓/, "shows check mark for modified file")
+    assert.match(result.stdout, /test2\.js/, "shows unmodified file path")
+    assert.equal(result.status, 0, "exits successfully")
+  })
+
+  test("handle file write errors gracefully", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = 1;`)
+    // Make file read-only to trigger write error
+    fs.chmodSync(testFile, 0o444)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
+
+    assert.match(result.stderr, /✗ Error:/, "displays error for write issues")
+    assert.equal(result.status, 0, "continues despite write errors")
+  })
 })
