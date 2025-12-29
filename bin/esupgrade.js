@@ -261,12 +261,12 @@ class CLIRunner {
       }
     }
 
-    if (options.check && modifiedCount > 0) {
+    // Exit with error code if any errors occurred - must be checked first
+    if (errorCount > 0) {
       process.exit(1)
     }
     
-    // Exit with error code if any errors occurred
-    if (errorCount > 0) {
+    if (options.check && modifiedCount > 0) {
       process.exit(1)
     }
   }

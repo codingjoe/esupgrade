@@ -397,6 +397,25 @@ describe("CLI", () => {
     assert.equal(result.status, 1, "exits with 1 on errors without --check")
   })
 
+  test("exit with 1 on errors even with valid files", () => {
+    const validFile = path.join(tempDir, "valid.js")
+    const invalidFile = path.join(tempDir, "invalid.js")
+    fs.writeFileSync(validFile, `var x = 1;`)
+    fs.writeFileSync(invalidFile, `const a;\na = 'asdf'`)
+
+    const result = spawnSync(
+      process.execPath,
+      [CLI_PATH, validFile, invalidFile, "--check"],
+      {
+        encoding: "utf8",
+      },
+    )
+
+    assert.match(result.stderr, /✗ Error:/, "displays error for invalid file")
+    assert.match(result.stdout, /valid\.js/, "processes valid file")
+    assert.equal(result.status, 1, "exits with 1 when any file has errors")
+  })
+
   test("handle mixed directory and file arguments", () => {
     const subDir = path.join(tempDir, "src")
     fs.mkdirSync(subDir)
