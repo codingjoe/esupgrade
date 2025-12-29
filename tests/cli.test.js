@@ -27,10 +27,10 @@ describe("CLI", () => {
 
     assert.match(
       result.stderr,
-      /Error: No files specified/,
+      /error: missing required argument 'files'/,
       "displays error for no files",
     )
-    assert.equal(result.status, 0, "exits with 0 when showing help")
+    assert.equal(result.status, 1, "exits with 1 when showing help")
   })
 
   test("transform a single file with --write", () => {
@@ -361,7 +361,7 @@ describe("CLI", () => {
     assert.equal(result.status, 1, "exits with 1")
   })
 
-  test("handle syntax errors gracefully", () => {
+  test("exit with 1 on syntax errors", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = {{{;`)
 
@@ -370,7 +370,50 @@ describe("CLI", () => {
     })
 
     assert.match(result.stderr, /✗ Error:/, "displays error for syntax issues")
-    assert.equal(result.status, 0, "continues despite errors")
+    assert.equal(result.status, 1, "exits with 1 on errors")
+  })
+
+  test("exit with 1 on parsing errors with --check", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `const a;\na = 'asdf'`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
+
+    assert.match(result.stderr, /✗ Error:/, "displays error for parsing issues")
+    assert.equal(result.status, 1, "exits with 1 on errors with --check")
+  })
+
+  test("exit with 1 on parsing errors without --check", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `const a;\na = 'asdf'`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile], {
+      encoding: "utf8",
+    })
+
+    assert.match(result.stderr, /✗ Error:/, "displays error for parsing issues")
+    assert.equal(result.status, 1, "exits with 1 on errors without --check")
+  })
+
+  test("exit with 1 on errors even with valid files", () => {
+    const validFile = path.join(tempDir, "valid.js")
+    const invalidFile = path.join(tempDir, "invalid.js")
+    fs.writeFileSync(validFile, `var x = 1;`)
+    fs.writeFileSync(invalidFile, `const a;\na = 'asdf'`)
+
+    const result = spawnSync(
+      process.execPath,
+      [CLI_PATH, validFile, invalidFile, "--check"],
+      {
+        encoding: "utf8",
+      },
+    )
+
+    assert.match(result.stderr, /✗ Error:/, "displays error for invalid file")
+    assert.match(result.stdout, /valid\.js/, "processes valid file")
+    assert.equal(result.status, 1, "exits with 1 when any file has errors")
   })
 
   test("handle mixed directory and file arguments", () => {
@@ -407,7 +450,7 @@ describe("CLI", () => {
     assert.equal(result.status, 0, "exits successfully")
   })
 
-  test("handle file write errors gracefully", () => {
+  test("exit with 1 on file write errors", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = 1;`)
     // Make file read-only to trigger write error
@@ -418,6 +461,6 @@ describe("CLI", () => {
     })
 
     assert.match(result.stderr, /✗ Error:/, "displays error for write issues")
-    assert.equal(result.status, 0, "continues despite write errors")
+    assert.equal(result.status, 1, "exits with 1 on write errors")
   })
 })

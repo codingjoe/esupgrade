@@ -7,6 +7,7 @@ import { Worker } from "worker_threads"
 import { once } from "events"
 import { Command, Option } from "commander"
 import { fileURLToPath } from "url"
+import process from "node:process"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -45,7 +46,21 @@ class FileProcessor {
   }
 
   /**
+   * @typedef {Object} ProcessResult
+   * @property {boolean} modified - Whether the file was modified
+   * @property {Array} changes - List of changes made
+   * @property {boolean} error - Whether an error occurred during processing
+   */
+
+  /**
    * Process a file using a worker thread
+   *
+   * @param {string} filePath - Path to the file to process
+   * @param {Object} options - Processing options
+   * @param {string} options.baseline - Baseline level for transformations
+   * @param {boolean} options.check - Whether to only check for changes
+   * @param {boolean} options.write - Whether to write changes to file
+   * @returns {Promise<ProcessResult>} Result of processing
    */
   async processFile(filePath, options) {
     try {
@@ -53,7 +68,7 @@ class FileProcessor {
 
       if (!workerResult.success) {
         console.error(`✗ Error: ${filePath}: ${workerResult.error}`)
-        return { modified: false, changes: [] }
+        return { modified: false, changes: [], error: true }
       }
 
       const result = workerResult.result
@@ -72,16 +87,16 @@ class FileProcessor {
           }
         }
 
-        return { modified: true, changes: result.changes }
+        return { modified: true, changes: result.changes, error: false }
       } else {
         if (!options.check) {
           console.log(`  ${filePath}`)
         }
-        return { modified: false, changes: [] }
+        return { modified: false, changes: [], error: false }
       }
     } catch (error) {
       console.error(`✗ Error: ${filePath}: ${error.message}`)
-      return { modified: false, changes: [] }
+      return { modified: false, changes: [], error: true }
     }
   }
 
@@ -228,6 +243,8 @@ class CLIRunner {
       result.modified ? (modifiedCount++, result.changes) : [],
     )
 
+    const errorCount = results.filter((result) => result.error).length
+
     console.log("")
 
     if (options.check) {
@@ -253,6 +270,12 @@ class CLIRunner {
       }
     }
 
+    // Errors take precedence over --check flag.
+    // Exit with error code if any file processing errors occurred.
+    if (errorCount > 0) {
+      process.exit(1)
+    }
+
     if (options.check && modifiedCount > 0) {
       process.exit(1)
     }
@@ -266,7 +289,7 @@ const cliRunner = new CLIRunner(path.join(__dirname, "../src/worker.js"))
 program
   .name("esupgrade")
   .description("Auto-upgrade your JavaScript syntax")
-  .argument("[files...]", "Files or directories to process")
+  .argument("<files...>", "Files or directories to process")
   .addOption(
     new Option("--baseline <level>", "Set baseline level for transformations")
       .choices(["widely-available", "newly-available"])
@@ -278,11 +301,6 @@ program
     "Write changes to files (default: true unless only --check is specified)",
   )
   .action(async (files, options) => {
-    if (files.length === 0) {
-      console.error("Error: No files specified")
-      program.help()
-    }
-
     // Handle check/write options - they are not mutually exclusive
     // Default: write is true unless ONLY --check is specified (no --write)
     const shouldWrite = options.write !== undefined ? options.write : !options.check
