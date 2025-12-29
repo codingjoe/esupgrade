@@ -14,5 +14,5 @@ Write docstrings with jsdoc type annotations for all functions, classes, and met
 Docstrings should be written in present tense imperative mood.
 Docstrings must describe the external behavior of the function, class, or method.
 Docstrings should avoid redundant phrases like "This function" or "This method".
-Class docstrings mustn't repeat the class name or start with a verb since they don't do anything themselves.
+Class docstrings must not repeat the class name or start with a verb since they don't do anything themselves.
 Avoid code comments unless they describe behavior of 3rd party code or complex algorithms.
