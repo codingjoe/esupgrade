@@ -3,7 +3,7 @@ import fs from "fs"
 import { transform } from "./index.js"
 
 /**
- * Worker thread to processing files in parallel.
+ * Worker thread for processing files in parallel.
  */
 
 const { filePath, baseline } = workerData
