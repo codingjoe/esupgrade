@@ -1596,7 +1596,6 @@ export function constructorToClass(j, root) {
       if (j.FunctionDeclaration.check(declarationNode)) {
         constructorNode = declarationNode
       } else {
-        // ... existing code ...
         const declarator = declarationNode.declarations.find(
           (decl) => decl.id.name === constructorName,
         )
