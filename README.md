@@ -247,7 +247,7 @@ Supports:
 > Transforms constructor functions (both function declarations and variable declarations) that meet these criteria:
 >
 > - Function name starts with an uppercase letter
-> - Constructor body are limited to simple statements (variable declarations and expression statements)
+> - Constructor bodies are limited to simple statements (variable declarations and expression statements)
 > - No control flow statements (`if`, `for`, `while`, `return`, `throw`, etc.) in constructor body
 > - At least one prototype method is defined
 > - Prototype methods must be function expressions (not arrow functions)

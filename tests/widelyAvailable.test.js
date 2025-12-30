@@ -2273,7 +2273,7 @@ Counter.prototype.increment = function() {
       assert.match(result.code, /increment\(\)/)
     })
 
-    test("skip constructor with non-this assignments in body", () => {
+    test("transform constructor with variable declarations in body", () => {
       const result = transform(`
 function Person(name) {
   this.name = name;
@@ -2541,7 +2541,7 @@ Validator.prototype.validate = function() {
       assert.match(result.code, /function Validator/)
     })
 
-    test("skip constructor with while loop in body", () => {
+    test("transform constructor with only assignment statements", () => {
       const result = transform(`
 function Iterator(items) {
   this.items = items;
