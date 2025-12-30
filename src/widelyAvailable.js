@@ -320,8 +320,9 @@ export function concatToTemplateLiteral(j, root) {
         // In string literals, backslashes are used for escape sequences
         // In template literals, backslashes in the raw value also need escaping
         // So we need to double the backslashes: \\ -> \\\\
+        // Also, backticks need to be escaped in template literals: ` -> \`
         // Note: node.extra.rawValue is always defined for string literals with the current parser
-        return node.extra.rawValue.replace(/\\/g, "\\\\")
+        return node.extra.rawValue.replace(/\\/g, "\\\\").replace(/`/g, "\\`")
       }
 
       const addStringPart = (stringNode) => {

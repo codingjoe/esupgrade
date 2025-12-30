@@ -877,6 +877,34 @@ var x = 1;`)
       assert(result.modified, "transform and preserve tab escapes")
       assert.ok(result.code.includes("\\\\t"), "preserve \\\\t escape sequence")
     })
+
+    test("escapes backticks", () => {
+      const result = transform(`const str = '\`' + myvar + '\` something';`)
+
+      assert(result.modified, "transform and escape backticks")
+      assert.match(result.code, /`\\`\$\{myvar\}\\` something`/)
+    })
+
+    test("escapes backtick at start", () => {
+      const result = transform(`const str = '\`hello' + myvar;`)
+
+      assert(result.modified, "transform and escape backtick at start")
+      assert.match(result.code, /`\\`hello\$\{myvar\}`/)
+    })
+
+    test("escapes backtick at end", () => {
+      const result = transform(`const str = myvar + 'world\`';`)
+
+      assert(result.modified, "transform and escape backtick at end")
+      assert.match(result.code, /`\$\{myvar\}world\\``/)
+    })
+
+    test("escapes multiple backticks", () => {
+      const result = transform(`const str = '\`a\`' + myvar + '\`b\`';`)
+
+      assert(result.modified, "transform and escape multiple backticks")
+      assert.match(result.code, /`\\`a\\`\$\{myvar\}\\`b\\``/)
+    })
   })
 
   describe("objectAssignToSpread", () => {
