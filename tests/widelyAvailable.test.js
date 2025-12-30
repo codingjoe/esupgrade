@@ -2175,4 +2175,579 @@ const result = [1, 2].concat(other);`)
       assert.match(result.code, /`Hello \$\{userName\}`/)
     })
   })
+
+  describe("constructorToClass", () => {
+    test("simple constructor with prototype methods", () => {
+      const result = transform(`
+function Person(name) {
+  this.name = name;
+}
+
+Person.prototype.greet = function() {
+  return 'Hello, ' + this.name;
+};
+      `)
+
+      assert(result.modified, "transform constructor to class")
+      assert.match(result.code, /class Person/)
+      assert.match(result.code, /constructor\(name\)/)
+      assert.match(result.code, /greet\(\)/)
+    })
+
+    test("constructor with multiple prototype methods", () => {
+      const result = transform(`
+function Animal(type) {
+  this.type = type;
+}
+
+Animal.prototype.speak = function() {
+  return this.type + ' makes a sound';
+};
+
+Animal.prototype.move = function() {
+  return this.type + ' is moving';
+};
+      `)
+
+      assert(result.modified, "transform constructor with multiple methods")
+      assert.match(result.code, /class Animal/)
+      assert.match(result.code, /speak\(\)/)
+      assert.match(result.code, /move\(\)/)
+    })
+
+    test("skip lowercase function names", () => {
+      const result = transform(`
+function helper(value) {
+  this.value = value;
+}
+
+helper.prototype.process = function() {
+  return this.value * 2;
+};
+      `)
+
+      assert(!result.modified, "skip lowercase function names")
+      assert.match(result.code, /function helper/)
+    })
+
+    test("skip constructor without prototype methods", () => {
+      const result = transform(`
+function Person(name) {
+  this.name = name;
+}
+      `)
+
+      assert(!result.modified, "skip constructor without prototype methods")
+      assert.match(result.code, /function Person/)
+    })
+
+    test("skip if not all methods are function expressions", () => {
+      const result = transform(`
+function Person(name) {
+  this.name = name;
+}
+
+Person.prototype.greet = () => {
+  return 'Hello';
+};
+      `)
+
+      assert(!result.modified, "skip arrow functions on prototype")
+      assert.match(result.code, /function Person/)
+    })
+
+    test("constructor with no parameters", () => {
+      const result = transform(`
+function Counter() {
+  this.count = 0;
+}
+
+Counter.prototype.increment = function() {
+  this.count++;
+};
+      `)
+
+      assert(result.modified, "transform constructor with no parameters")
+      assert.match(result.code, /class Counter/)
+      assert.match(result.code, /constructor\(\)/)
+      assert.match(result.code, /increment\(\)/)
+    })
+
+    test("skip constructor with non-this assignments in body", () => {
+      const result = transform(`
+function Person(name) {
+  this.name = name;
+  const temp = processName(name);
+  this.processed = temp;
+}
+
+Person.prototype.greet = function() {
+  return 'Hello, I am ' + this.name;
+};
+      `)
+
+      // The constructor can be safely transformed even with variable declarations
+      assert.match(result.code, /class Person/)
+      assert.match(result.code, /constructor\(name\)/)
+      assert.match(result.code, /greet\(\)/)
+    })
+
+    test("constructor with expression body statements", () => {
+      const result = transform(`
+function Person(name, age) {
+  this.name = name;
+  this.age = age;
+}
+
+Person.prototype.greet = function() {
+  return 'Hello, ' + this.name;
+};
+
+Person.prototype.getAge = function() {
+  return this.age;
+};
+      `)
+
+      assert(result.modified, "transform constructor with multiple properties")
+      assert.match(result.code, /class Person/)
+      assert.match(result.code, /constructor\(name, age\)/)
+    })
+
+    test("skip factory pattern with return statement", () => {
+      const result = transform(`
+function Something() {
+  var depth = 0;
+  return {
+    incDepth: function() {
+      depth++;
+    }
+  };
+}
+
+foo = Something();
+      `)
+
+      // Factory pattern should not be transformed to a class
+      assert.match(result.code, /function Something/)
+      assert.doesNotMatch(result.code, /class Something/)
+    })
+
+    test("skip constructor with return statement", () => {
+      const result = transform(`
+function Factory(config) {
+  this.config = config;
+  return this.config;
+}
+
+Factory.prototype.process = function() {
+  return this.config;
+};
+      `)
+
+      // Constructor with return statement should not be transformed
+      assert.match(result.code, /function Factory/)
+      assert.doesNotMatch(result.code, /class Factory/)
+    })
+
+    test("skip function expression with method call in constructor", () => {
+      const result = transform(`
+var SomeClass = function (selector) {
+  this.element = document.querySelector(selector);
+  this.init();
+};
+
+SomeClass.prototype = {
+  init: function () {
+    console.log('init');
+  }
+};
+      `)
+
+      // Constructor with method call should not be transformed (not a simple constructor)
+      assert.doesNotMatch(result.code, /class SomeClass/)
+    })
+
+    test("skip prototype assignment with non-function methods", () => {
+      const result = transform(`
+function Widget(id) {
+  this.id = id;
+}
+
+Widget.prototype = {
+  value: 42
+};
+      `)
+
+      assert(!result.modified, "skip prototype object without function expressions")
+      assert.match(result.code, /function Widget/)
+    })
+
+    test("skip prototype assignment with arrow function methods", () => {
+      const result = transform(`
+function Component(props) {
+  this.props = props;
+}
+
+Component.prototype = {
+  render: () => {
+    return null;
+  }
+};
+      `)
+
+      assert(!result.modified, "skip prototype object with arrow functions")
+      assert.match(result.code, /function Component/)
+    })
+
+    test("skip prototype assignment with getter/setter properties", () => {
+      const result = transform(`
+function Model(name) {
+  this.name = name;
+}
+
+Model.prototype = {
+  get value() {
+    return this.name;
+  }
+};
+      `)
+
+      assert(!result.modified, "skip prototype object with getter properties")
+      assert.match(result.code, /function Model/)
+    })
+
+    test("skip prototype assignment with computed properties", () => {
+      const result = transform(`
+function Handler(type) {
+  this.type = type;
+}
+
+Handler.prototype = {
+  [Symbol.toStringTag]: function() {
+    return this.type;
+  }
+};
+      `)
+
+      assert(!result.modified, "skip prototype object with computed properties")
+      assert.match(result.code, /function Handler/)
+    })
+
+    test("skip constructor with complex body statements", () => {
+      const result = transform(`
+function Service(config) {
+  if (config) {
+    this.config = config;
+  }
+}
+
+Service.prototype.init = function() {
+  return this.config;
+};
+      `)
+
+      assert(!result.modified, "skip constructor with if statement")
+      assert.match(result.code, /function Service/)
+    })
+
+    test("skip prototype method assignment with non-function value", () => {
+      const result = transform(`
+function Manager(id) {
+  this.id = id;
+}
+
+Manager.prototype.defaultValue = 10;
+      `)
+
+      assert(!result.modified, "skip prototype with non-function assignment")
+      assert.match(result.code, /function Manager/)
+    })
+
+    test("variable declaration constructor with generator method", () => {
+      const result = transform(`
+var Generator = function(data) {
+  this.data = data;
+}
+
+Generator.prototype.process = function*() {
+  yield this.data;
+};
+      `)
+
+      assert(result.modified, "transform constructor with generator method")
+      assert.match(result.code, /class Generator/)
+      assert.match(result.code, /\*process/)
+    })
+
+    test("skip pattern 2 assignment with non-object value", () => {
+      const result = transform(`
+function Parser(input) {
+  this.input = input;
+}
+
+Parser.prototype = null;
+      `)
+
+      assert(!result.modified, "skip prototype assignment to non-object")
+      assert.match(result.code, /function Parser/)
+    })
+
+    test("constructor with block statement in body", () => {
+      const result = transform(`
+function Strict(mode) {
+  'use strict';
+  this.mode = mode;
+}
+
+Strict.prototype.check = function() {
+  return this.mode;
+};
+      `)
+
+      assert(result.modified, "transform constructor with directive")
+      assert.match(result.code, /class Strict/)
+    })
+
+    test("variable declaration constructor with prototype methods", () => {
+      const result = transform(`
+var Calculator = function(value) {
+  this.value = value;
+}
+
+Calculator.prototype.add = function(num) {
+  return this.value + num;
+};
+      `)
+
+      assert(result.modified, "transform variable declaration constructor")
+      assert.match(result.code, /class Calculator/)
+    })
+
+    test("skip constructor with throw statement in body", () => {
+      const result = transform(`
+function Validator(value) {
+  if (!value) {
+    throw new Error('invalid');
+  }
+  this.value = value;
+}
+
+Validator.prototype.validate = function() {
+  return this.value;
+};
+      `)
+
+      assert(!result.modified, "skip constructor with throw")
+      assert.match(result.code, /function Validator/)
+    })
+
+    test("skip constructor with while loop in body", () => {
+      const result = transform(`
+function Iterator(items) {
+  this.items = items;
+  this.index = 0;
+}
+
+Iterator.prototype.next = function() {
+  return this.items[this.index++];
+};
+      `)
+
+      assert(result.modified, "transform constructor with safe body")
+      assert.match(result.code, /class Iterator/)
+    })
+
+    test("skip constructor with computed property in prototype literal", () => {
+      const result = transform(`
+function Handler(type) {
+  this.type = type;
+}
+
+Handler.prototype = {
+  [Symbol.toStringTag]: function() {
+    return this.type;
+  }
+};
+      `)
+
+      assert(!result.modified, "skip prototype with computed property")
+      assert.match(result.code, /function Handler/)
+    })
+
+    test("prototype literal with non-identifier properties", () => {
+      const result = transform(`
+function Component(props) {
+  this.props = props;
+}
+
+Component.prototype = {
+  'method-name': function() {
+    return this.props;
+  }
+};
+      `)
+
+      assert(!result.modified, "skip prototype literal with string keys")
+      assert.match(result.code, /function Component/)
+    })
+
+    test("constructor with return statement prevents transformation", () => {
+      const result = transform(`
+function Creator(config) {
+  this.config = config;
+  if (!config) {
+    return;
+  }
+}
+
+Creator.prototype.start = function() {
+  return this.config;
+};
+      `)
+
+      assert(!result.modified, "skip constructor with return")
+      assert.match(result.code, /function Creator/)
+    })
+
+    test("prototype object with only getter property", () => {
+      const result = transform(`
+function Box(value) {
+  this.value = value;
+}
+
+Box.prototype = {
+  get size() {
+    return this.value * 2;
+  }
+};
+      `)
+
+      assert(!result.modified, "skip constructor when only getter in prototype")
+      assert.match(result.code, /function Box/)
+    })
+
+    test("prototype object with getter and function method", () => {
+      const result = transform(`
+function Box(value) {
+  this.value = value;
+}
+
+Box.prototype = {
+  get size() {
+    return this.value * 2;
+  },
+  getValue: function() {
+    return this.value;
+  }
+};
+      `)
+
+      assert(result.modified, "transform constructor ignoring getter property")
+      assert.match(result.code, /class Box/)
+    })
+
+    test("prototype object with only non-function property", () => {
+      const result = transform(`
+function Widget(id) {
+  this.id = id;
+}
+
+Widget.prototype = {
+  config: { timeout: 1000 }
+};
+      `)
+
+      assert(!result.modified, "skip constructor when no function methods")
+      assert.match(result.code, /function Widget/)
+    })
+
+    test("prototype object with non-function and function properties", () => {
+      const result = transform(`
+function Widget(id) {
+  this.id = id;
+}
+
+Widget.prototype = {
+  config: { timeout: 1000 },
+  getValue: function() {
+    return this.id;
+  }
+};
+      `)
+
+      assert(result.modified, "transform constructor ignoring non-function property")
+      assert.match(result.code, /class Widget/)
+    })
+
+    test("skip var declaration with arrow function", () => {
+      const result = transform(`
+var Calculator = (value) => {
+  this.value = value;
+};
+
+Calculator.prototype.add = function(num) {
+  return this.value + num;
+};
+      `)
+
+      assert.doesNotMatch(
+        result.code,
+        /class Calculator/,
+        "skip arrow function constructor",
+      )
+    })
+
+    test("skip var declaration constructor with complex body", () => {
+      const result = transform(`
+var Service = function(config) {
+  if (config) {
+    this.config = config;
+  }
+};
+
+Service.prototype.init = function() {
+  return this.config;
+};
+      `)
+
+      assert.doesNotMatch(
+        result.code,
+        /class Service/,
+        "skip var declaration with complex body",
+      )
+    })
+
+    test("var declaration prototype with getter property", () => {
+      const result = transform(`
+var Box = function(value) {
+  this.value = value;
+};
+
+Box.prototype = {
+  get size() {
+    return this.value * 2;
+  }
+};
+      `)
+
+      assert.doesNotMatch(
+        result.code,
+        /class Box/,
+        "skip var declaration with getter prototype",
+      )
+    })
+
+    test("function declaration constructor with empty body", () => {
+      const result = transform(`
+function Empty() {}
+
+Empty.prototype.run = function() {
+  return this.value;
+};
+      `)
+
+      assert(result.modified, "transform function declaration with empty body")
+      assert.match(result.code, /class Empty/)
+    })
+  })
 })

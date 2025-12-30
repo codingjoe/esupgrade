@@ -1363,3 +1363,307 @@ export function arrayConcatToSpread(j, root) {
 
   return { modified, changes }
 }
+
+/**
+ * Transform old-school constructor functions with prototype methods to ES6 class syntax
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
+ */
+export function constructorToClass(j, root) {
+  /**
+   * Check if a function name follows constructor naming convention.
+   * @param {string} name - The function name to check.
+   * @returns {boolean} True if the name starts with an uppercase letter.
+   */
+  function isConstructorName(name) {
+    return name && /^[A-Z]/.test(name)
+  }
+
+  /**
+   * Check if a function body contains only simple constructor statements.
+   * @param {import('jscodeshift').BlockStatement} functionBody - The function body to check.
+   * @returns {boolean} True if the body contains only allowed statements.
+   */
+  function hasSimpleConstructorBody(functionBody) {
+    if (functionBody.body.length === 0) {
+      return true
+    }
+
+    return functionBody.body.every((statement) => {
+      if (j.VariableDeclaration.check(statement)) {
+        return true
+      }
+
+      if (j.ExpressionStatement.check(statement)) {
+        return true
+      }
+
+      return false
+    })
+  }
+
+  /**
+   * Find all constructor functions in the AST.
+   * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API.
+   * @param {import('jscodeshift').Collection} root - The root AST collection.
+   * @returns {Map<string, { declaration: import('jscodeshift').ASTPath, prototypeMethods: Array<any> }>} Map of constructor names to their info.
+   */
+  function findConstructors(j, root) {
+    const constructors = new Map()
+
+    // Handle function declarations
+    root.find(j.FunctionDeclaration).forEach((path) => {
+      const node = path.node
+      const functionName = node.id ? node.id.name : null
+
+      if (!functionName || !isConstructorName(functionName)) {
+        return
+      }
+
+      if (!hasSimpleConstructorBody(node.body)) {
+        return
+      }
+
+      constructors.set(functionName, {
+        declaration: path,
+        prototypeMethods: [],
+      })
+    })
+
+    // Handle variable declarations with function expressions
+    root.find(j.VariableDeclaration).forEach((path) => {
+      path.node.declarations.forEach((declarator) => {
+        const functionName = declarator.id.name
+
+        if (!isConstructorName(functionName)) {
+          return
+        }
+
+        if (!j.FunctionExpression.check(declarator.init)) {
+          return
+        }
+
+        const functionExpr = declarator.init
+
+        if (!hasSimpleConstructorBody(functionExpr.body)) {
+          return
+        }
+
+        constructors.set(functionName, {
+          declaration: path,
+          prototypeMethods: [],
+        })
+      })
+    })
+
+    return constructors
+  }
+
+  /**
+   * Find and associate prototype methods with constructors.
+   * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API.
+   * @param {import('jscodeshift').Collection} root - The root AST collection.
+   * @param {Map<string, { declaration: import('jscodeshift').ASTPath, prototypeMethods: Array<any> }>} constructors - Map of constructors.
+   */
+  function findPrototypeMethods(j, root, constructors) {
+    // Pattern 1: ConstructorName.prototype.methodName = ...
+    root
+      .find(j.ExpressionStatement)
+      .filter((path) => {
+        const node = path.node
+        if (!j.AssignmentExpression.check(node.expression)) {
+          return false
+        }
+
+        const assignment = node.expression
+        const left = assignment.left
+
+        if (
+          !j.MemberExpression.check(left) ||
+          !j.MemberExpression.check(left.object) ||
+          !j.Identifier.check(left.object.object) ||
+          !j.Identifier.check(left.object.property) ||
+          left.object.property.name !== "prototype" ||
+          !j.Identifier.check(left.property)
+        ) {
+          return false
+        }
+
+        const constructorName = left.object.object.name
+        return constructors.has(constructorName)
+      })
+      .forEach((path) => {
+        const assignment = path.node.expression
+        const left = assignment.left
+        const constructorName = left.object.object.name
+        const methodName = left.property.name
+        const methodValue = assignment.right
+
+        if (!j.FunctionExpression.check(methodValue)) {
+          return
+        }
+
+        constructors.get(constructorName).prototypeMethods.push({
+          path,
+          methodName,
+          methodValue,
+        })
+      })
+
+    // Pattern 2: ConstructorName.prototype = { methodName: function() {...}, ... }
+    root
+      .find(j.ExpressionStatement)
+      .filter((path) => {
+        const node = path.node
+        if (!j.AssignmentExpression.check(node.expression)) {
+          return false
+        }
+
+        const assignment = node.expression
+        const left = assignment.left
+
+        if (
+          !j.MemberExpression.check(left) ||
+          !j.Identifier.check(left.object) ||
+          !j.Identifier.check(left.property) ||
+          left.property.name !== "prototype"
+        ) {
+          return false
+        }
+
+        const constructorName = left.object.name
+        return constructors.has(constructorName)
+      })
+      .forEach((path) => {
+        const assignment = path.node.expression
+        const left = assignment.left
+        const constructorName = left.object.name
+        const methodValue = assignment.right
+
+        if (!j.ObjectExpression.check(methodValue)) {
+          return
+        }
+
+        methodValue.properties.forEach((prop) => {
+          if (!j.Property.check(prop) && !j.ObjectProperty.check(prop)) {
+            return
+          }
+
+          if (prop.computed) {
+            return
+          }
+
+          let methodName
+          if (j.Identifier.check(prop.key)) {
+            methodName = prop.key.name
+          } else {
+            return
+          }
+
+          if (!j.FunctionExpression.check(prop.value)) {
+            return
+          }
+
+          constructors.get(constructorName).prototypeMethods.push({
+            path,
+            methodName,
+            methodValue: prop.value,
+            isObjectLiteral: true,
+          })
+        })
+      })
+  }
+
+  /**
+   * Transform constructors and their prototype methods to class syntax.
+   * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API.
+   * @param {import('jscodeshift').Collection} root - The root AST collection.
+   * @param {Map<string, { declaration: import('jscodeshift').ASTPath, prototypeMethods: Array<any> }>} constructors - Map of constructors.
+   * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }} Transformation result.
+   */
+  function transformConstructorsToClasses(j, root, constructors) {
+    let modified = false
+    const changes = []
+
+    constructors.forEach((info, constructorName) => {
+      if (info.prototypeMethods.length === 0) {
+        return
+      }
+
+      const declarationPath = info.declaration
+      const declarationNode = declarationPath.node
+
+      let constructorNode
+      if (j.FunctionDeclaration.check(declarationNode)) {
+        constructorNode = declarationNode
+      } else {
+        // ... existing code ...
+        const declarator = declarationNode.declarations.find(
+          (decl) => decl.id.name === constructorName,
+        )
+        constructorNode = declarator.init
+      }
+
+      const classBody = []
+
+      const constructorMethod = j.methodDefinition(
+        "constructor",
+        j.identifier("constructor"),
+        j.functionExpression(
+          null,
+          constructorNode.params,
+          constructorNode.body,
+          constructorNode.generator,
+          constructorNode.async,
+        ),
+        false,
+      )
+      classBody.push(constructorMethod)
+
+      info.prototypeMethods.forEach(({ methodName, methodValue }) => {
+        const method = j.methodDefinition(
+          "method",
+          j.identifier(methodName),
+          j.functionExpression(
+            null,
+            methodValue.params,
+            methodValue.body,
+            methodValue.generator,
+            methodValue.async,
+          ),
+          false,
+        )
+        classBody.push(method)
+      })
+
+      const classDeclaration = j.classDeclaration(
+        j.identifier(constructorName),
+        j.classBody(classBody),
+      )
+
+      j(info.declaration).replaceWith(classDeclaration)
+
+      const pathsToRemove = new Set()
+      info.prototypeMethods.forEach(({ path }) => {
+        pathsToRemove.add(path)
+      })
+
+      pathsToRemove.forEach((path) => {
+        j(path).remove()
+      })
+
+      modified = true
+      if (constructorNode.loc) {
+        changes.push({
+          type: "constructorToClass",
+          line: constructorNode.loc.start.line,
+        })
+      }
+    })
+
+    return { modified, changes }
+  }
+
+  const constructors = findConstructors(j, root)
+  findPrototypeMethods(j, root, constructors)
+  return transformConstructorsToClasses(j, root, constructors)
+}
