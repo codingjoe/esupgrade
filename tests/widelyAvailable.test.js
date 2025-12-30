@@ -13,7 +13,7 @@ suite("widely-available", () => {
 
       assert(result.modified, "transform Array.from().forEach()")
       assert.match(result.code, /for \(const item of items\)/)
-      assert.match(result.code, /console\.log\(item\)/)
+      assert.match(result.code, /console\.info\(item\)/)
     })
 
     test("Array.from().forEach() with arrow function expression", () => {
@@ -26,7 +26,7 @@ suite("widely-available", () => {
     test("plain identifier forEach", () => {
       const result = transform(`
     items.forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -35,7 +35,7 @@ suite("widely-available", () => {
     })
 
     test("plain identifier forEach with function expression", () => {
-      const result = transform(`numbers.forEach((n) => { console.log(n); });`)
+      const result = transform(`numbers.forEach((n) => { process(n); });`)
 
       assert(!result.modified, "skip plain identifier forEach")
       assert.match(result.code, /numbers\.forEach/)
@@ -69,7 +69,7 @@ suite("widely-available", () => {
     test("Array.from().forEach() with index parameter", () => {
       const result = transform(`
     Array.from(items).forEach((item, index) => {
-      console.log(item, index);
+      process(item, index);
     });
   `)
 
@@ -80,7 +80,7 @@ suite("widely-available", () => {
     test("forEach with index parameter", () => {
       const result = transform(`
     items.forEach((item, index) => {
-      console.log(item, index);
+      process(item, index);
     });
   `)
 
@@ -91,7 +91,7 @@ suite("widely-available", () => {
     test("forEach on unknown objects", () => {
       const result = transform(`
     myCustomObject.forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -102,7 +102,7 @@ suite("widely-available", () => {
     test("Map.forEach()", () => {
       const result = transform(`
     myMap.forEach((value, key) => {
-      console.log(key, value);
+      process(key, value);
     });
   `)
 
@@ -126,7 +126,7 @@ suite("widely-available", () => {
 
     test("Array.from().forEach() with function expression", () => {
       const result = transform(`Array.from(items).forEach(function(item) {
-        console.log(item);
+        process(item);
       });`)
 
       assert(
@@ -139,7 +139,7 @@ suite("widely-available", () => {
     test("non-Object.keys for...of", () => {
       const result = transform(`
     for (const item of myArray) {
-      console.log(item);
+      process(item);
     }
   `)
 
@@ -150,7 +150,7 @@ suite("widely-available", () => {
     test("Object.keys() without arguments", () => {
       const result = transform(`
     for (const key of Object.keys()) {
-      console.log(key);
+      process(key);
     }
   `)
 
@@ -163,9 +163,13 @@ suite("widely-available", () => {
 Array.from(items).forEach(item => console.log(item));`)
 
       assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 1)
-      assert.equal(result.changes[0].type, "arrayFromForEachToForOf")
-      assert.equal(result.changes[0].line, 2)
+      assert.equal(result.changes.length, 2)
+      // Check that we have both transformations
+      const types = result.changes.map(c => c.type).sort()
+      assert.deepEqual(types, ["arrayFromForEachToForOf", "consoleLogToInfo"])
+      // Check the arrayFromForEachToForOf change is on line 2
+      const forOfChange = result.changes.find(c => c.type === "arrayFromForEachToForOf")
+      assert.equal(forOfChange.line, 2)
     })
 
     test("tracks line numbers for Object.keys()", () => {
@@ -175,9 +179,13 @@ for (const key of Object.keys(obj)) {
 }`)
 
       assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 1)
-      assert.equal(result.changes[0].type, "forOfKeysToForIn")
-      assert.equal(result.changes[0].line, 2)
+      assert.equal(result.changes.length, 2)
+      // Check that we have both transformations
+      const types = result.changes.map(c => c.type).sort()
+      assert.deepEqual(types, ["consoleLogToInfo", "forOfKeysToForIn"])
+      // Check the forOfKeysToForIn change is on line 2
+      const forInChange = result.changes.find(c => c.type === "forOfKeysToForIn")
+      assert.equal(forInChange.line, 2)
     })
 
     test("Array.from().forEach() with destructuring and 2+ params", () => {
@@ -977,7 +985,7 @@ for (let i = 0; i < items.length; i++) {
 
       assert(result.modified, "transform basic array indexing")
       assert.match(result.code, /for \(const item of items\)/)
-      assert.match(result.code, /console\.log\(item\)/)
+      assert.match(result.code, /console\.info\(item\)/)
       assert.doesNotMatch(result.code, /items\[i\]/)
     })
 
@@ -998,7 +1006,7 @@ for (let i = 0; i < arr.length; i++) {
 for (let i = 0; i < arr.length; i++) {
   let element = arr[i];
   element = transform(element);
-  console.log(element);
+  process(element);
 }
       `)
 
@@ -1022,7 +1030,7 @@ for (let i = 0; i < arr.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[i];
-  console.log(item, i);
+  process(item, i);
 }
       `)
 
@@ -1033,7 +1041,7 @@ for (let i = 0; i < items.length; i++) {
     test("no array access statement", () => {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
-  console.log(i);
+  process(i);
 }
       `)
 
@@ -1054,7 +1062,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i += 2) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1066,7 +1074,7 @@ for (let i = 0; i < items.length; i += 2) {
       const result = transform(`
 for (let i = 1; i < items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1078,7 +1086,7 @@ for (let i = 1; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i <= items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1090,7 +1098,7 @@ for (let i = 0; i <= items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = otherArray[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1101,7 +1109,7 @@ for (let i = 0; i < items.length; i++) {
     test("no variable declaration first", () => {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
-  console.log(items[i]);
+  process(items[i]);
 }
       `)
 
@@ -1113,7 +1121,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[j];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1124,7 +1132,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; ++i) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1136,7 +1144,6 @@ for (let i = 0; i < items.length; ++i) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[i];
-  console.log(item);
   process(item);
   cleanup();
 }
@@ -1144,7 +1151,6 @@ for (let i = 0; i < items.length; i++) {
 
       assert(result.modified, "transform with multiple statements")
       assert.match(result.code, /for \(const item of items\)/)
-      assert.match(result.code, /console\.log\(item\)/)
       assert.match(result.code, /process\(item\)/)
       assert.match(result.code, /cleanup\(\)/)
     })
@@ -1153,7 +1159,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (i = 0; i < items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1164,7 +1170,7 @@ for (i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0, j = 0; i < items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1175,7 +1181,7 @@ for (let i = 0, j = 0; i < items.length; i++) {
       const result = transform(`
 for (let [i] = [0]; i < items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1186,7 +1192,7 @@ for (let [i] = [0]; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1197,7 +1203,7 @@ for (let i = 0; items.length; i++) {
       const result = transform(`
 for (let i = 0; i <= items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1208,7 +1214,7 @@ for (let i = 0; i <= items.length; i++) {
       const result = transform(`
 for (let i = 0; j < items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1219,7 +1225,7 @@ for (let i = 0; j < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < 10; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1230,7 +1236,7 @@ for (let i = 0; i < 10; i++) {
       const result = transform(`
 for (let i = 0; i < items.size; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1241,7 +1247,7 @@ for (let i = 0; i < items.size; i++) {
       const result = transform(`
 for (let i = 0; i < getItems().length; i++) {
   const item = getItems()[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1252,7 +1258,7 @@ for (let i = 0; i < getItems().length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i = i + 1) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1263,7 +1269,7 @@ for (let i = 0; i < items.length; i = i + 1) {
       const result = transform(`
 for (let i = 0; i < items.length; j++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1274,7 +1280,7 @@ for (let i = 0; i < items.length; j++) {
       const result = transform(`
 for (let i = 0; i < items.length; i--) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1284,7 +1290,7 @@ for (let i = 0; i < items.length; i--) {
     test("body not block statement", () => {
       const result = transform(`
 for (let i = 0; i < items.length; i++)
-  console.log(items[i]);
+  process(items[i]);
       `)
 
       assert(!result.modified, "skip when body is not block statement")
@@ -1294,7 +1300,7 @@ for (let i = 0; i < items.length; i++)
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[i], other = null;
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1305,7 +1311,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const [item] = items[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1316,7 +1322,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = getItem(i);
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1330,7 +1336,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = other[i];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1341,7 +1347,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items[j];
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1355,7 +1361,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`
 for (let i = 0; i < items.length; i++) {
   const item = items.i;
-  console.log(item);
+  process(item);
 }
       `)
 
@@ -1366,7 +1372,7 @@ for (let i = 0; i < items.length; i++) {
       const result = transform(`// Line 1
 for (let i = 0; i < items.length; i++) {
   const item = items[i];
-  console.log(item);
+  process(item);
 }`)
 
       assert(result.modified, "tracks line numbers")
@@ -1389,7 +1395,7 @@ for (let i = 0; i < items.length; i++) {
         result.code,
         /for \(const item of document\.querySelectorAll\(['"]\.item['"]\)\)/,
       )
-      assert.match(result.code, /console\.log\(item\)/)
+      assert.match(result.code, /console\.info\(item\)/)
     })
 
     test("document.getElementsByTagName()", () => {
@@ -1437,7 +1443,7 @@ for (let i = 0; i < items.length; i++) {
     test("element variable querySelectorAll", () => {
       const result = transform(`
     element.querySelectorAll('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1482,7 +1488,7 @@ for (let i = 0; i < items.length; i++) {
     test("with index parameter", () => {
       const result = transform(`
     document.querySelectorAll('.item').forEach((item, index) => {
-      console.log(item, index);
+      process(item, index);
     });
   `)
 
@@ -1493,7 +1499,7 @@ for (let i = 0; i < items.length; i++) {
     test("with array parameter", () => {
       const result = transform(`
     document.querySelectorAll('.item').forEach((item, index, array) => {
-      console.log(item, index, array);
+      process(item, index, array);
     });
   `)
 
@@ -1522,7 +1528,7 @@ for (let i = 0; i < items.length; i++) {
     test("unknown methods", () => {
       const result = transform(`
     document.querySomething('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1533,7 +1539,7 @@ for (let i = 0; i < items.length; i++) {
     test("non-document objects with querySelectorAll", () => {
       const result = transform(`
     myObject.querySelectorAll('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1544,7 +1550,7 @@ for (let i = 0; i < items.length; i++) {
     test("window methods not in allowed list", () => {
       const result = transform(`
     window.querySelectorAll('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1569,7 +1575,7 @@ for (let i = 0; i < items.length; i++) {
     test("tracks line numbers", () => {
       const result = transform(`// Line 1
 document.querySelectorAll('.item').forEach(item => {
-  console.log(item);
+  process(item);
 });`)
 
       assert(result.modified, "tracks line numbers")
@@ -1596,7 +1602,7 @@ document.querySelectorAll('.item').forEach(item => {
       const result = transform(`
     document.querySelectorAll('.item').forEach(item => {
       const value = item.value;
-      console.log(value);
+      process(value);
       item.classList.add('processed');
     });
   `)
@@ -1604,7 +1610,7 @@ document.querySelectorAll('.item').forEach(item => {
       assert(result.modified, "transform and preserve multiline function bodies")
       assert.match(result.code, /for \(const item of/)
       assert.match(result.code, /const value = item\.value/)
-      assert.match(result.code, /console\.log\(value\)/)
+      assert.match(result.code, /process\(value\)/)
       assert.match(result.code, /item\.classList\.add/)
     })
 
@@ -1633,7 +1639,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("window.querySelectorAll not in allowed", () => {
       const result = transform(`
     window.querySelectorAll('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1655,7 +1661,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("object not a member expression", () => {
       const result = transform(`
     items.forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1666,7 +1672,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("method name computed property", () => {
       const result = transform(`
     document['querySelectorAll']('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1677,7 +1683,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("unknown document methods", () => {
       const result = transform(`
     document.customMethod().forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1699,7 +1705,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("chained call with unknown method", () => {
       const result = transform(`
     document.getElementById('x').customMethod().forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1710,7 +1716,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("caller neither identifier nor member/call expression", () => {
       const result = transform(`
     (() => { return document; })().querySelectorAll('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1721,7 +1727,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("caller is ThisExpression", () => {
       const result = transform(`
     this.querySelectorAll('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1732,7 +1738,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("object neither MemberExpression nor CallExpression", () => {
       const result = transform(`
     items.forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1757,7 +1763,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("callerObject is complex expression", () => {
       const result = transform(`
     (1 + 2).querySelectorAll('.item').forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1768,7 +1774,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("CallExpression with non-MemberExpression callee", () => {
       const result = transform(`
     getElements().forEach(item => {
-      console.log(item);
+      process(item);
     });
   `)
 
@@ -1864,7 +1870,7 @@ document.querySelectorAll('.item').forEach(item => {
       const result = transform(`
     const handler = function() {
       if (true) {
-        console.log(this.name);
+        process(this.name);
       }
     };
   `)
@@ -1985,7 +1991,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("event handlers without 'this'", () => {
       const result = transform(`
     button.addEventListener('click', function(event) {
-      console.log('Clicked', event.target);
+      process('Clicked', event.target);
     });
   `)
 
@@ -1996,7 +2002,7 @@ document.querySelectorAll('.item').forEach(item => {
     test("IIFE without 'this'", () => {
       const result = transform(`
     (function() {
-      console.log('IIFE executed');
+      process('IIFE executed');
     })();
   `)
 
@@ -2358,7 +2364,7 @@ var SomeClass = function (selector) {
 
 SomeClass.prototype = {
   init: function () {
-    console.log('init');
+    process('init');
   }
 };
       `)
@@ -2748,6 +2754,154 @@ Empty.prototype.run = function() {
 
       assert(result.modified, "transform function declaration with empty body")
       assert.match(result.code, /class Empty/)
+    })
+  })
+
+  describe("consoleLogToInfo", () => {
+    test("simple console.log", () => {
+      const result = transform(`console.log('hello');`)
+
+      assert(result.modified, "transform console.log to console.info")
+      assert.match(result.code, /console\.info\('hello'\)/)
+      assert.doesNotMatch(result.code, /console\.log/)
+    })
+
+    test("console.log with multiple arguments", () => {
+      const result = transform(`console.log('User:', user, 'ID:', id);`)
+
+      assert(result.modified, "transform console.log with multiple arguments")
+      assert.match(result.code, /console\.info\('User:', user, 'ID:', id\)/)
+    })
+
+    test("console.log in function body", () => {
+      const result = transform(`
+function debug(msg) {
+  console.log(msg);
+}
+      `)
+
+      assert(result.modified, "transform console.log in function")
+      assert.match(result.code, /console\.info\(msg\)/)
+    })
+
+    test("multiple console.log calls", () => {
+      const result = transform(`
+console.log('start');
+doSomething();
+console.log('end');
+      `)
+
+      assert(result.modified, "transform multiple console.log calls")
+      assert.match(result.code, /console\.info\('start'\)/)
+      assert.match(result.code, /console\.info\('end'\)/)
+      assert.doesNotMatch(result.code, /console\.log/)
+    })
+
+    test("console.log with template literals", () => {
+      const result = transform("console.log(`Value: ${value}`);")
+
+      assert(result.modified, "transform console.log with template literals")
+      assert.match(result.code, /console\.info\(`Value: \$\{value\}`\)/)
+    })
+
+    test("console.log with object", () => {
+      const result = transform(`console.log({ key: 'value' });`)
+
+      assert(result.modified, "transform console.log with object")
+      assert.match(result.code, /console\.info\(\{ key: 'value' \}\)/)
+    })
+
+    test("do not transform console.error", () => {
+      const result = transform(`console.error('error');`)
+
+      assert(!result.modified, "skip console.error")
+      assert.match(result.code, /console\.error\('error'\)/)
+    })
+
+    test("do not transform console.warn", () => {
+      const result = transform(`console.warn('warning');`)
+
+      assert(!result.modified, "skip console.warn")
+      assert.match(result.code, /console\.warn\('warning'\)/)
+    })
+
+    test("do not transform console.info", () => {
+      const result = transform(`console.info('info');`)
+
+      assert(!result.modified, "skip console.info (already explicit)")
+      assert.match(result.code, /console\.info\('info'\)/)
+    })
+
+    test("do not transform console.debug", () => {
+      const result = transform(`console.debug('debug');`)
+
+      assert(!result.modified, "skip console.debug")
+      assert.match(result.code, /console\.debug\('debug'\)/)
+    })
+
+    test("do not transform other console methods", () => {
+      const result = transform(`
+console.table(data);
+console.trace();
+console.assert(condition, 'message');
+      `)
+
+      assert(!result.modified, "skip other console methods")
+      assert.match(result.code, /console\.table/)
+      assert.match(result.code, /console\.trace/)
+      assert.match(result.code, /console\.assert/)
+    })
+
+    test("console.log in arrow function", () => {
+      const result = transform(`const fn = () => console.log('test');`)
+
+      assert(result.modified, "transform console.log in arrow function")
+      assert.match(result.code, /console\.info\('test'\)/)
+    })
+
+    test("console.log in nested scope", () => {
+      const result = transform(`
+if (condition) {
+  console.log('true branch');
+} else {
+  console.log('false branch');
+}
+      `)
+
+      assert(result.modified, "transform console.log in nested scope")
+      assert.match(result.code, /console\.info\('true branch'\)/)
+      assert.match(result.code, /console\.info\('false branch'\)/)
+    })
+
+    test("console.log with spread operator", () => {
+      const result = transform(`console.log(...args);`)
+
+      assert(result.modified, "transform console.log with spread")
+      assert.match(result.code, /console\.info\(\.\.\.args\)/)
+    })
+
+    test("console.log without arguments", () => {
+      const result = transform(`console.log();`)
+
+      assert(result.modified, "transform console.log without arguments")
+      assert.match(result.code, /console\.info\(\)/)
+    })
+
+    test("do not transform non-console log methods", () => {
+      const result = transform(`logger.log('message');`)
+
+      assert(!result.modified, "skip non-console log methods")
+      assert.match(result.code, /logger\.log\('message'\)/)
+    })
+
+    test("do not transform when console is reassigned", () => {
+      const result = transform(`
+const myConsole = { log: () => {} };
+myConsole.log('test');
+      `)
+
+      assert(!result.modified, "skip when object is not console")
+      assert.match(result.code, /myConsole\.log\('test'\)/)
     })
   })
 })

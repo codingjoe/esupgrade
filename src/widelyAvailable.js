@@ -1666,3 +1666,50 @@ export function constructorToClass(j, root) {
   findPrototypeMethods(j, root, constructors)
   return transformConstructorsToClasses(j, root, constructors)
 }
+
+/**
+ * Transform console.log() to console.info()
+ * Provides explicit log level for better semantic clarity.
+ * Note: console.log and console.info are functionally identical in most environments.
+ * This transformation may cause issues in environments where they differ or where
+ * logging frameworks intercept console methods differently.
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/console
+ */
+export function consoleLogToInfo(j, root) {
+  let modified = false
+  const changes = []
+
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+      // Check if this is a console.log() call
+      if (
+        !j.MemberExpression.check(node.callee) ||
+        !j.Identifier.check(node.callee.object) ||
+        node.callee.object.name !== "console" ||
+        !j.Identifier.check(node.callee.property) ||
+        node.callee.property.name !== "log"
+      ) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+
+      // Replace the property name from 'log' to 'info'
+      node.callee.property.name = "info"
+
+      modified = true
+      if (node.loc) {
+        changes.push({
+          type: "consoleLogToInfo",
+          line: node.loc.start.line,
+        })
+      }
+    })
+
+  return { modified, changes }
+}

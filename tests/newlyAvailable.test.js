@@ -82,7 +82,7 @@ suite("newly-available", () => {
 
     test("skip with 0 params", () => {
       const result = transform(
-        `const p = new Promise(() => console.log('test'));`,
+        `const p = new Promise(() => process('test'));`,
         "newly-available",
       )
       assert(!result.modified)
