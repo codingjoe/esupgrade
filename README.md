@@ -148,17 +148,6 @@ Supports:
 > Transformations limited to inline arrow or function expressions with block statement bodies.
 > Callbacks with index parameters or expression bodies are not transformed.
 
-#### `for...of Object.keys()` → [`for...in` loops][mdn-for-in]
-
-```diff
--for (const key of Object.keys(obj)) {
--  console.log(key);
--}
-+for (const key in obj) {
-+  console.log(key);
-+}
-```
-
 #### `Array.from()` → [Array spread [...]][mdn-spread]
 
 ```diff
