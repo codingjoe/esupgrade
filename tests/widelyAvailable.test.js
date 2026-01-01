@@ -905,6 +905,40 @@ var x = 1;`)
       assert(result.modified, "transform and escape multiple backticks")
       assert.match(result.code, /`\\`a\\`\$\{myvar\}\\`b\\``/)
     })
+
+    test("escapes dollar-brace", () => {
+      const result = transform(`const str = 'Price: \${10}' + myvar;`)
+
+      assert(result.modified, "transform and escape dollar-brace")
+      assert.match(result.code, /`Price: \\\$\{10\}\$\{myvar\}`/)
+    })
+
+    test("escapes complex dollar-brace pattern", () => {
+      const result = transform(`const str = 'Template: \${name}' + myvar + ' end';`)
+
+      assert(result.modified, "transform and escape complex dollar-brace")
+      assert.match(result.code, /`Template: \\\$\{name\}\$\{myvar\} end`/)
+    })
+
+    test("preserves dollar sign without brace", () => {
+      const result = transform(`const str = 'Price: $10' + myvar;`)
+
+      assert(result.modified, "transform but don't escape lone dollar")
+      assert.match(result.code, /`Price: \$10\$\{myvar\}`/)
+      assert.doesNotMatch(result.code, /\\\$10/)
+    })
+
+    test("escapes all special characters together", () => {
+      const result = transform(`const str = '\\\\ \` \${x}' + myvar;`)
+
+      assert(result.modified, "transform and escape all special chars")
+      // Input: '\\' (one backslash), '`' (one backtick), '${x}' (dollar-brace)
+      // Output: `\\` (one backslash), `\`` (escaped backtick), `\${x}` (escaped dollar-brace)
+      // In result.code string: \\ (2 chars), \` (2 chars), \${ (3 chars)
+      assert.ok(result.code.includes("\\\\"))
+      assert.ok(result.code.includes("\\`"))
+      assert.ok(result.code.includes("\\${"))
+    })
   })
 
   describe("objectAssignToSpread", () => {
