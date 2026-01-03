@@ -1790,7 +1790,8 @@ export function globalContextToGlobalThis(j, root) {
 
       // Check if parent is a CallExpression calling this NewExpression
       if (!path.parent) {
-        return true
+        // Without parent context, skip to be safe
+        return false
       }
       const parent = path.parent.node
       if (j.CallExpression.check(parent) && parent.callee === node) {
@@ -1831,9 +1832,9 @@ export function globalContextToGlobalThis(j, root) {
     .filter((path) => {
       const node = path.node
       
-      // Null check for parent
+      // Null check for parent - without parent context, skip to be safe
       if (!path.parent) {
-        return true
+        return false
       }
       const parent = path.parent.node
 
@@ -1893,9 +1894,9 @@ export function globalContextToGlobalThis(j, root) {
     .filter((path) => {
       const node = path.node
       
-      // Null check for parent
+      // Null check for parent - without parent context, skip to be safe
       if (!path.parent) {
-        return true
+        return false
       }
       const parent = path.parent.node
 
