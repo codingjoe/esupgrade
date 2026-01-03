@@ -260,6 +260,20 @@ Supports:
 >
 > This transformation provides semantic clarity by using an explicit log level, but review your logging infrastructure before applying.
 
+#### Remove redundant `'use strict'` from [modules][mdn-strict-mode]
+
+```diff
+-'use strict';
+ import { helper } from './utils';
+ 
+ export function main() {
+   return helper();
+ }
+```
+
+> [!NOTE]
+> ES6 modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation only applies to files with `import` or `export` statements.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -314,6 +328,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+[mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
 [pre-commit]: https://pre-commit.com/
 [pyupgrade]: https://github.com/asottile/pyupgrade

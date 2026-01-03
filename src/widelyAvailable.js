@@ -1666,3 +1666,94 @@ export function consoleLogToInfo(j, root) {
 
   return { modified, changes }
 }
+
+/**
+ * Remove 'use strict' directives from modules
+ * Modules are strict by default, making these directives redundant
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }}
+ */
+export function removeUseStrictFromModules(j, root) {
+  let modified = false
+  const changes = []
+
+  // Check if the file is a module by looking for import/export statements
+  const hasImports = root.find(j.ImportDeclaration).length > 0
+  const hasExports =
+    root.find(j.ExportNamedDeclaration).length > 0 ||
+    root.find(j.ExportDefaultDeclaration).length > 0 ||
+    root.find(j.ExportAllDeclaration).length > 0
+
+  const isModule = hasImports || hasExports
+
+  // Only proceed if this is a module
+  if (!isModule) {
+    return { modified, changes }
+  }
+
+  // Find and remove 'use strict' directives
+  root.find(j.Program).forEach((programPath) => {
+    const program = programPath.node
+
+    // Check directives array (Babel/TSX parser stores directives here)
+    if (program.directives && Array.isArray(program.directives)) {
+      let i = 0
+      while (i < program.directives.length) {
+        const directive = program.directives[i]
+        if (
+          directive.value &&
+          directive.value.value === "use strict"
+        ) {
+          // This is a 'use strict' directive - remove it
+          const line = directive.loc ? directive.loc.start.line : null
+          program.directives.splice(i, 1)
+          modified = true
+          if (line) {
+            changes.push({
+              type: "removeUseStrictFromModules",
+              line,
+            })
+          }
+          // Don't increment i since we removed an element
+        } else {
+          i++
+        }
+      }
+    }
+
+    // Also check body for ExpressionStatement with 'use strict' (fallback for other parsers)
+    const body = program.body
+    let i = 0
+    while (i < body.length) {
+      const statement = body[i]
+
+      // Check if this is an ExpressionStatement with a string literal 'use strict'
+      if (
+        j.ExpressionStatement.check(statement) &&
+        (j.StringLiteral.check(statement.expression) ||
+          (j.Literal.check(statement.expression) &&
+            typeof statement.expression.value === "string")) &&
+        statement.expression.value === "use strict"
+      ) {
+        // This is a 'use strict' directive - remove it
+        const line = statement.loc ? statement.loc.start.line : null
+        body.splice(i, 1)
+        modified = true
+        if (line) {
+          changes.push({
+            type: "removeUseStrictFromModules",
+            line,
+          })
+        }
+        // Don't increment i since we removed an element
+      } else {
+        // Stop looking for directives after the first non-directive statement
+        break
+      }
+    }
+  })
+
+  return { modified, changes }
+}
