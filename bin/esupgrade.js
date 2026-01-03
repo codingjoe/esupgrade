@@ -92,7 +92,7 @@ class FileProcessor {
       } else {
         // Show unmodified files unless in check-only mode
         if (!options.check) {
-          console.info(`  ${filePath}`)
+          console.debug(`  ${filePath}`)
         }
         return { modified: false, changes: [], error: false }
       }
@@ -122,9 +122,12 @@ class FileProcessor {
       )
       .join(", ")
 
-    console.info(`✗ ${filePath}`)
     if (transformations) {
-      console.info(`  ${transformations}`)
+      console.group(`✗ ${filePath}`)
+      console.warn(transformations)
+      console.groupEnd()
+    } else {
+      console.warn(`✗ ${filePath}`)
     }
   }
 }
@@ -235,7 +238,10 @@ class CLIRunner {
       process.exit(0)
     }
 
+    console.time("Processing")
     const results = await this.workerPool.processFiles(files, options)
+    console.timeEnd("Processing")
+
     this.#reportSummary(results, options)
   }
 
