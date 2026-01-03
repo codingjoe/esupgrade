@@ -1617,11 +1617,10 @@ export function constructorToClass(j, root) {
 
 /**
  * Transform console.log() to console.info()
- * Provides explicit log level for better semantic clarity.
- * Note: console.log and console.info are functionally identical in most environments.
- * This transformation may cause issues in environments where they differ or where
- * logging frameworks intercept console methods differently.
  * @see https://developer.mozilla.org/en-US/docs/Web/API/console
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }}
  */
 export function consoleLogToInfo(j, root) {
   let modified = false
