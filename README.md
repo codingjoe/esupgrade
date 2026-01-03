@@ -242,6 +242,24 @@ Supports:
 > - Prototype methods must be function expressions (not arrow functions)
 > - Prototype object literals with getters, setters, or computed properties are skipped
 
+#### `console.log()` → [console.info()][mdn-console]
+
+```diff
+-console.log('User logged in:', username);
+-console.log({ userId, action: 'login' });
++console.info('User logged in:', username);
++console.info({ userId, action: 'login' });
+```
+
+> [!CAUTION]
+> While `console.log` and `console.info` are functionally identical in most JavaScript environments, this transformation may cause issues in:
+>
+> - Environments where logging frameworks intercept and handle these methods differently
+> - Custom console implementations that treat log levels differently
+> - Testing environments with mocked console objects that differentiate between methods
+>
+> This transformation provides semantic clarity by using an explicit log level, but review your logging infrastructure before applying.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -289,6 +307,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
+[mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
