@@ -122,11 +122,13 @@ class FileProcessor {
       )
       .join(", ")
 
-    console.group(`✗ ${filePath}`)
     if (transformations) {
+      console.group(`✗ ${filePath}`)
       console.log(transformations)
+      console.groupEnd()
+    } else {
+      console.log(`✗ ${filePath}`)
     }
-    console.groupEnd()
   }
 }
 
