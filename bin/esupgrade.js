@@ -103,32 +103,11 @@ class FileProcessor {
   }
 
   #reportChanges(filePath, changes) {
-    const changesByType = {}
-    if (changes && changes.length > 0) {
-      for (const change of changes) {
-        if (!changesByType[change.type]) {
-          changesByType[change.type] = 0
-        }
-        changesByType[change.type]++
-      }
+    console.group(`✗ ${filePath}`)
+    for (const change of new Set(changes.map((c) => c.type))) {
+      console.debug(change)
     }
-
-    const transformations = Object.keys(changesByType)
-      .map((type) =>
-        type
-          .replace(/([A-Z])/g, " $1")
-          .trim()
-          .toLowerCase(),
-      )
-      .join(", ")
-
-    if (transformations) {
-      console.group(`✗ ${filePath}`)
-      console.debug(transformations)
-      console.groupEnd()
-    } else {
-      console.info(`✗ ${filePath}`)
-    }
+    console.groupEnd()
   }
 }
 
