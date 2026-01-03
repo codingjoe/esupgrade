@@ -1668,6 +1668,38 @@ export function consoleLogToInfo(j, root) {
 }
 
 /**
+ * Check if an identifier is used as a parameter in any containing function
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').ASTPath} path - The path to the identifier
+ * @param {string} identifierName - The name of the identifier to check
+ * @returns {boolean} True if the identifier is a parameter in a containing function
+ */
+function isIdentifierInFunctionParams(j, path, identifierName) {
+  let currentPath = path.parent
+  while (currentPath) {
+    const currentNode = currentPath.node
+    if (
+      j.FunctionDeclaration.check(currentNode) ||
+      j.FunctionExpression.check(currentNode) ||
+      j.ArrowFunctionExpression.check(currentNode)
+    ) {
+      // Check if our identifier is in the params
+      if (
+        currentNode.params &&
+        currentNode.params.some((param) =>
+          patternContainsIdentifier(j, param, identifierName),
+        )
+      ) {
+        return true
+      }
+      break
+    }
+    currentPath = currentPath.parent
+  }
+  return false
+}
+
+/**
  * Transform global context access patterns to globalThis
  * Replaces patterns like Function("return this")(), window, and self with globalThis
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
@@ -1758,7 +1790,7 @@ export function globalContextToGlobalThis(j, root) {
     .forEach((path) => {
       const node = path.node
 
-      // Replace with IIFE that returns globalThis: (function() { return globalThis })()
+      // Replace with IIFE that returns globalThis: function() { return globalThis; }()
       const iife = j.callExpression(
         j.functionExpression(
           null,
@@ -1808,27 +1840,9 @@ export function globalContextToGlobalThis(j, root) {
         return false
       }
 
-      // Skip if this is a parameter name - traverse up to find containing function
-      let currentPath = path.parent
-      while (currentPath) {
-        const currentNode = currentPath.node
-        if (
-          j.FunctionDeclaration.check(currentNode) ||
-          j.FunctionExpression.check(currentNode) ||
-          j.ArrowFunctionExpression.check(currentNode)
-        ) {
-          // Check if our identifier is in the params
-          if (
-            currentNode.params &&
-            currentNode.params.some((param) =>
-              patternContainsIdentifier(j, param, "window"),
-            )
-          ) {
-            return false
-          }
-          break
-        }
-        currentPath = currentPath.parent
+      // Skip if this is a parameter name
+      if (isIdentifierInFunctionParams(j, path, "window")) {
+        return false
       }
 
       // Skip if this is a variable declarator name (left side of assignment)
@@ -1883,27 +1897,9 @@ export function globalContextToGlobalThis(j, root) {
         return false
       }
 
-      // Skip if this is a parameter name - traverse up to find containing function
-      let currentPath = path.parent
-      while (currentPath) {
-        const currentNode = currentPath.node
-        if (
-          j.FunctionDeclaration.check(currentNode) ||
-          j.FunctionExpression.check(currentNode) ||
-          j.ArrowFunctionExpression.check(currentNode)
-        ) {
-          // Check if our identifier is in the params
-          if (
-            currentNode.params &&
-            currentNode.params.some((param) =>
-              patternContainsIdentifier(j, param, "self"),
-            )
-          ) {
-            return false
-          }
-          break
-        }
-        currentPath = currentPath.parent
+      // Skip if this is a parameter name
+      if (isIdentifierInFunctionParams(j, path, "self")) {
+        return false
       }
 
       // Skip if this is a variable declarator name (left side of assignment)
