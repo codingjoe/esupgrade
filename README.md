@@ -274,7 +274,13 @@ Supports:
 ```
 
 > [!NOTE]
-> Only standalone `window` and `self` identifiers are transformed. Property access like `window.document`, `window.setTimeout()`, or `self.postMessage()` is preserved as these access specific APIs rather than the global object itself.
+> Transformations:
+>
+> - `Function("return this")()` and `new Function("return this")()` are always safe to transform
+> - Standalone `window` and `self` identifiers (not property access) are transformed
+> - Property access like `window.document`, `window.setTimeout()`, or `self.postMessage()` is preserved
+> - `window` and `self` used as parameter names or variable names are not transformed
+> - `window` and `self` used as object property keys are not transformed
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">

@@ -1818,9 +1818,12 @@ export function globalContextToGlobalThis(j, root) {
           j.ArrowFunctionExpression.check(currentNode)
         ) {
           // Check if our identifier is in the params
-          if (currentNode.params && currentNode.params.some(param => 
-            patternContainsIdentifier(j, param, "window")
-          )) {
+          if (
+            currentNode.params &&
+            currentNode.params.some((param) =>
+              patternContainsIdentifier(j, param, "window"),
+            )
+          ) {
             return false
           }
           break
@@ -1890,9 +1893,12 @@ export function globalContextToGlobalThis(j, root) {
           j.ArrowFunctionExpression.check(currentNode)
         ) {
           // Check if our identifier is in the params
-          if (currentNode.params && currentNode.params.some(param => 
-            patternContainsIdentifier(j, param, "self")
-          )) {
+          if (
+            currentNode.params &&
+            currentNode.params.some((param) =>
+              patternContainsIdentifier(j, param, "self"),
+            )
+          ) {
             return false
           }
           break
