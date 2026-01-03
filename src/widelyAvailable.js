@@ -1676,8 +1676,17 @@ export function consoleLogToInfo(j, root) {
  */
 function isIdentifierInFunctionParams(j, path, identifierName) {
   let currentPath = path.parent
-  while (currentPath) {
+  let depth = 0
+  const maxDepth = 100 // Prevent infinite loops
+
+  while (currentPath && depth < maxDepth) {
     const currentNode = currentPath.node
+    
+    // Add null check for currentNode
+    if (!currentNode) {
+      break
+    }
+
     if (
       j.FunctionDeclaration.check(currentNode) ||
       j.FunctionExpression.check(currentNode) ||
@@ -1695,6 +1704,7 @@ function isIdentifierInFunctionParams(j, path, identifierName) {
       break
     }
     currentPath = currentPath.parent
+    depth++
   }
   return false
 }
@@ -1779,6 +1789,9 @@ export function globalContextToGlobalThis(j, root) {
       }
 
       // Check if parent is a CallExpression calling this NewExpression
+      if (!path.parent) {
+        return true
+      }
       const parent = path.parent.node
       if (j.CallExpression.check(parent) && parent.callee === node) {
         // Skip - will be handled by Pattern 1
@@ -1791,6 +1804,8 @@ export function globalContextToGlobalThis(j, root) {
       const node = path.node
 
       // Replace with IIFE that returns globalThis: function() { return globalThis; }()
+      // We use an IIFE because `new Function("return this")` returns a function, not the global object.
+      // The IIFE maintains the same behavior - a function that when called returns the global object.
       const iife = j.callExpression(
         j.functionExpression(
           null,
@@ -1815,6 +1830,11 @@ export function globalContextToGlobalThis(j, root) {
     .find(j.Identifier, { name: "window" })
     .filter((path) => {
       const node = path.node
+      
+      // Null check for parent
+      if (!path.parent) {
+        return true
+      }
       const parent = path.parent.node
 
       // Skip if this is a property of a member expression (e.g., window.document)
@@ -1872,6 +1892,11 @@ export function globalContextToGlobalThis(j, root) {
     .find(j.Identifier, { name: "self" })
     .filter((path) => {
       const node = path.node
+      
+      // Null check for parent
+      if (!path.parent) {
+        return true
+      }
       const parent = path.parent.node
 
       // Skip if this is a property of a member expression (e.g., self.postMessage)
