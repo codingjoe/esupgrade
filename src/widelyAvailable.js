@@ -540,8 +540,6 @@ export function arrayFromForEachToForOf(j, root) {
   return { modified, changes }
 }
 
-
-
 /**
  * Transform Array.from(obj) to [...obj] spread syntax
  * This handles cases like Array.from(obj).map(), .filter(), .some(), etc.
