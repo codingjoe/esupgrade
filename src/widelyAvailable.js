@@ -541,58 +541,6 @@ export function arrayFromForEachToForOf(j, root) {
 }
 
 /**
- * Transform for...of Object.keys() loops to for...in
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...in
- */
-export function forOfKeysToForIn(j, root) {
-  let modified = false
-  const changes = []
-
-  root
-    .find(j.ForOfStatement)
-    .filter((path) => {
-      const node = path.node
-      const right = node.right
-
-      // Check if iterating over Object.keys() call
-      if (
-        j.CallExpression.check(right) &&
-        j.MemberExpression.check(right.callee) &&
-        j.Identifier.check(right.callee.object) &&
-        right.callee.object.name === "Object" &&
-        j.Identifier.check(right.callee.property) &&
-        right.callee.property.name === "keys" &&
-        right.arguments.length === 1
-      ) {
-        return true
-      }
-
-      return false
-    })
-    .forEach((path) => {
-      const node = path.node
-      const left = node.left
-      const objectArg = node.right.arguments[0]
-      const body = node.body
-
-      // Create for...in loop
-      const forInLoop = j.forInStatement(left, objectArg, body)
-
-      j(path).replaceWith(forInLoop)
-
-      modified = true
-      if (node.loc) {
-        changes.push({
-          type: "forOfKeysToForIn",
-          line: node.loc.start.line,
-        })
-      }
-    })
-
-  return { modified, changes }
-}
-
-/**
  * Transform Array.from(obj) to [...obj] spread syntax
  * This handles cases like Array.from(obj).map(), .filter(), .some(), etc.
  * that are not covered by the forEach transformer

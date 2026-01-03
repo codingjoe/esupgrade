@@ -41,17 +41,6 @@ suite("widely-available", () => {
       assert.match(result.code, /numbers\.forEach/)
     })
 
-    test("Object.keys() to for...in", () => {
-      const result = transform(`
-    for (const key of Object.keys(obj)) {
-      console.log(key);
-    }
-  `)
-
-      assert(result.modified, "transform Object.keys()")
-      assert.match(result.code, /for \(const key in obj\)/)
-    })
-
     test("Array.from().forEach() with array destructuring", () => {
       const result = transform(`
     Array.from(Object.entries(obj)).forEach(([key, value]) => {
@@ -136,28 +125,6 @@ suite("widely-available", () => {
       assert.match(result.code, /for \(const item of items\)/)
     })
 
-    test("non-Object.keys for...of", () => {
-      const result = transform(`
-    for (const item of myArray) {
-      console.log(item);
-    }
-  `)
-
-      assert(!result.modified, "skip non-Object.keys for...of")
-      assert.match(result.code, /for \(const item of myArray\)/)
-    })
-
-    test("Object.keys() without arguments", () => {
-      const result = transform(`
-    for (const key of Object.keys()) {
-      console.log(key);
-    }
-  `)
-
-      assert(!result.modified, "skip Object.keys() without arguments")
-      assert.match(result.code, /Object\.keys\(\)/)
-    })
-
     test("tracks line numbers for Array.from().forEach()", () => {
       const result = transform(`// Line 1
 Array.from(items).forEach(item => console.log(item));`)
@@ -165,18 +132,6 @@ Array.from(items).forEach(item => console.log(item));`)
       assert(result.modified, "tracks line numbers")
       assert.equal(result.changes.length, 1)
       assert.equal(result.changes[0].type, "arrayFromForEachToForOf")
-      assert.equal(result.changes[0].line, 2)
-    })
-
-    test("tracks line numbers for Object.keys()", () => {
-      const result = transform(`// Line 1
-for (const key of Object.keys(obj)) {
-  console.log(key);
-}`)
-
-      assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 1)
-      assert.equal(result.changes[0].type, "forOfKeysToForIn")
       assert.equal(result.changes[0].line, 2)
     })
 
