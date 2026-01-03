@@ -82,9 +82,9 @@ class FileProcessor {
         if (options.write) {
           fs.writeFileSync(filePath, result.code, "utf8")
           if (!options.check) {
-            console.log(`✓ ${filePath}`)
+            console.info(`✓ ${filePath}`)
           } else {
-            console.log(`  ✓ written`)
+            console.info(`  ✓ written`)
           }
         }
 
@@ -92,7 +92,7 @@ class FileProcessor {
       } else {
         // Show unmodified files unless in check-only mode
         if (!options.check) {
-          console.log(`  ${filePath}`)
+          console.info(`  ${filePath}`)
         }
         return { modified: false, changes: [], error: false }
       }
@@ -122,9 +122,9 @@ class FileProcessor {
       )
       .join(", ")
 
-    console.log(`✗ ${filePath}`)
+    console.info(`✗ ${filePath}`)
     if (transformations) {
-      console.log(`  ${transformations}`)
+      console.info(`  ${transformations}`)
     }
   }
 }
@@ -231,7 +231,7 @@ class CLIRunner {
     const files = [...this.fileFinder.find(patterns)]
 
     if (files.length === 0) {
-      console.log("No JavaScript files found")
+      console.info("No JavaScript files found")
       process.exit(0)
     }
 
@@ -255,11 +255,11 @@ class CLIRunner {
 
     const errorCount = results.filter((result) => result.error).length
 
-    console.log("")
+    console.info("")
 
     if (options.check) {
       if (modifiedCount > 0) {
-        console.log(
+        console.info(
           this.#formatDetailedSummary(
             modifiedCount,
             allChanges,
@@ -267,26 +267,28 @@ class CLIRunner {
           ),
         )
         if (options.write) {
-          console.log("Changes have been written")
+          console.info("Changes have been written")
         }
       } else {
-        console.log("All files are up to date")
+        console.info("All files are up to date")
       }
     } else if (options.write) {
       // --write without --check
       if (modifiedCount > 0) {
-        console.log(`✓ ${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} upgraded`)
+        console.info(
+          `✓ ${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} upgraded`,
+        )
       } else {
-        console.log("All files are up to date")
+        console.info("All files are up to date")
       }
     } else {
       // Dry-run mode (no --check, no --write)
       if (modifiedCount > 0) {
-        console.log(
+        console.info(
           this.#formatDetailedSummary(modifiedCount, allChanges, "would be upgraded"),
         )
       } else {
-        console.log("All files are up to date")
+        console.info("All files are up to date")
       }
     }
 
