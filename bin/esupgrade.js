@@ -238,7 +238,10 @@ class CLIRunner {
       process.exit(0)
     }
 
+    console.time("Processing")
     const results = await this.workerPool.processFiles(files, options)
+    console.timeEnd("Processing")
+    
     this.#reportSummary(results, options)
   }
 
