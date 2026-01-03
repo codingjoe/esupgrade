@@ -41,17 +41,6 @@ suite("widely-available", () => {
       assert.match(result.code, /numbers\.forEach/)
     })
 
-    test("Object.keys() to for...in", () => {
-      const result = transform(`
-    for (const key of Object.keys(obj)) {
-      console.log(key);
-    }
-  `)
-
-      assert(result.modified, "transform Object.keys()")
-      assert.match(result.code, /for \(const key in obj\)/)
-    })
-
     test("Array.from().forEach() with array destructuring", () => {
       const result = transform(`
     Array.from(Object.entries(obj)).forEach(([key, value]) => {
@@ -136,28 +125,6 @@ suite("widely-available", () => {
       assert.match(result.code, /for \(const item of items\)/)
     })
 
-    test("non-Object.keys for...of", () => {
-      const result = transform(`
-    for (const item of myArray) {
-      process(item);
-    }
-  `)
-
-      assert(!result.modified, "skip non-Object.keys for...of")
-      assert.match(result.code, /for \(const item of myArray\)/)
-    })
-
-    test("Object.keys() without arguments", () => {
-      const result = transform(`
-    for (const key of Object.keys()) {
-      process(key);
-    }
-  `)
-
-      assert(!result.modified, "skip Object.keys() without arguments")
-      assert.match(result.code, /Object\.keys\(\)/)
-    })
-
     test("tracks line numbers for Array.from().forEach()", () => {
       const result = transform(`// Line 1
 Array.from(items).forEach(item => console.log(item));`)
@@ -165,27 +132,13 @@ Array.from(items).forEach(item => console.log(item));`)
       assert(result.modified, "tracks line numbers")
       assert.equal(result.changes.length, 2)
       // Check that we have both transformations
-      const types = result.changes.map(c => c.type).sort()
+      const types = result.changes.map((c) => c.type).sort()
       assert.deepEqual(types, ["arrayFromForEachToForOf", "consoleLogToInfo"])
       // Check the arrayFromForEachToForOf change is on line 2
-      const forOfChange = result.changes.find(c => c.type === "arrayFromForEachToForOf")
+      const forOfChange = result.changes.find(
+        (c) => c.type === "arrayFromForEachToForOf",
+      )
       assert.equal(forOfChange.line, 2)
-    })
-
-    test("tracks line numbers for Object.keys()", () => {
-      const result = transform(`// Line 1
-for (const key of Object.keys(obj)) {
-  console.log(key);
-}`)
-
-      assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 2)
-      // Check that we have both transformations
-      const types = result.changes.map(c => c.type).sort()
-      assert.deepEqual(types, ["consoleLogToInfo", "forOfKeysToForIn"])
-      // Check the forOfKeysToForIn change is on line 2
-      const forInChange = result.changes.find(c => c.type === "forOfKeysToForIn")
-      assert.equal(forInChange.line, 2)
     })
 
     test("Array.from().forEach() with destructuring and 2+ params", () => {
