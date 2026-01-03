@@ -124,10 +124,10 @@ class FileProcessor {
 
     if (transformations) {
       console.group(`✗ ${filePath}`)
-      console.info(transformations)
+      console.warn(transformations)
       console.groupEnd()
     } else {
-      console.info(`✗ ${filePath}`)
+      console.warn(`✗ ${filePath}`)
     }
   }
 }
