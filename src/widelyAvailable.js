@@ -1666,3 +1666,261 @@ export function consoleLogToInfo(j, root) {
 
   return { modified, changes }
 }
+
+/**
+ * Transform global context access patterns to globalThis
+ * Replaces patterns like Function("return this")(), window, and self with globalThis
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }}
+ */
+export function globalContextToGlobalThis(j, root) {
+  let modified = false
+  const changes = []
+
+  // Pattern 1: Function("return this")() or new Function("return this")()
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+      const callee = node.callee
+
+      // Check for Function("return this")() - outer call
+      if (
+        j.CallExpression.check(callee) &&
+        j.Identifier.check(callee.callee) &&
+        callee.callee.name === "Function" &&
+        callee.arguments.length === 1 &&
+        j.StringLiteral.check(callee.arguments[0]) &&
+        callee.arguments[0].value === "return this" &&
+        node.arguments.length === 0
+      ) {
+        return true
+      }
+
+      // Check for new Function("return this")() - outer call
+      if (
+        j.NewExpression.check(callee) &&
+        j.Identifier.check(callee.callee) &&
+        callee.callee.name === "Function" &&
+        callee.arguments.length === 1 &&
+        j.StringLiteral.check(callee.arguments[0]) &&
+        callee.arguments[0].value === "return this" &&
+        node.arguments.length === 0
+      ) {
+        return true
+      }
+
+      return false
+    })
+    .forEach((path) => {
+      const node = path.node
+
+      // Replace with globalThis identifier
+      j(path).replaceWith(j.identifier("globalThis"))
+
+      modified = true
+      if (node.loc) {
+        changes.push({
+          type: "globalContextToGlobalThis",
+          line: node.loc.start.line,
+        })
+      }
+    })
+
+  // Pattern 2: new Function("return this") when not immediately invoked
+  root
+    .find(j.NewExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check if this is new Function("return this")
+      if (
+        !j.Identifier.check(node.callee) ||
+        node.callee.name !== "Function" ||
+        node.arguments.length !== 1 ||
+        !j.StringLiteral.check(node.arguments[0]) ||
+        node.arguments[0].value !== "return this"
+      ) {
+        return false
+      }
+
+      // Check if parent is a CallExpression calling this NewExpression
+      const parent = path.parent.node
+      if (j.CallExpression.check(parent) && parent.callee === node) {
+        // Skip - will be handled by Pattern 1
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+
+      // Replace with IIFE that returns globalThis: (function() { return globalThis })()
+      const iife = j.callExpression(
+        j.functionExpression(
+          null,
+          [],
+          j.blockStatement([j.returnStatement(j.identifier("globalThis"))]),
+        ),
+        [],
+      )
+      j(path).replaceWith(iife)
+
+      modified = true
+      if (node.loc) {
+        changes.push({
+          type: "globalContextToGlobalThis",
+          line: node.loc.start.line,
+        })
+      }
+    })
+
+  // Pattern 3: Standalone window identifier (not in member expressions)
+  root
+    .find(j.Identifier, { name: "window" })
+    .filter((path) => {
+      const node = path.node
+      const parent = path.parent.node
+
+      // Skip if this is a property of a member expression (e.g., window.document)
+      if (j.MemberExpression.check(parent) && parent.object === node) {
+        return false
+      }
+
+      // Skip if this is the property being accessed (e.g., obj.window)
+      if (
+        j.MemberExpression.check(parent) &&
+        parent.property === node &&
+        !parent.computed
+      ) {
+        return false
+      }
+
+      // Skip if this is a property key in an object (e.g., { window: value })
+      if (
+        (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
+        parent.key === node &&
+        !parent.computed
+      ) {
+        return false
+      }
+
+      // Skip if this is a parameter name - traverse up to find containing function
+      let currentPath = path.parent
+      while (currentPath) {
+        const currentNode = currentPath.node
+        if (
+          j.FunctionDeclaration.check(currentNode) ||
+          j.FunctionExpression.check(currentNode) ||
+          j.ArrowFunctionExpression.check(currentNode)
+        ) {
+          // Check if our identifier is in the params
+          if (currentNode.params && currentNode.params.some(param => 
+            patternContainsIdentifier(j, param, "window")
+          )) {
+            return false
+          }
+          break
+        }
+        currentPath = currentPath.parent
+      }
+
+      // Skip if this is a variable declarator name (left side of assignment)
+      if (j.VariableDeclarator.check(parent) && parent.id === node) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+
+      // Replace with globalThis
+      j(path).replaceWith(j.identifier("globalThis"))
+
+      modified = true
+      if (node.loc) {
+        changes.push({
+          type: "globalContextToGlobalThis",
+          line: node.loc.start.line,
+        })
+      }
+    })
+
+  // Pattern 4: Standalone self identifier (not in member expressions)
+  root
+    .find(j.Identifier, { name: "self" })
+    .filter((path) => {
+      const node = path.node
+      const parent = path.parent.node
+
+      // Skip if this is a property of a member expression (e.g., self.postMessage)
+      if (j.MemberExpression.check(parent) && parent.object === node) {
+        return false
+      }
+
+      // Skip if this is the property being accessed (e.g., obj.self)
+      if (
+        j.MemberExpression.check(parent) &&
+        parent.property === node &&
+        !parent.computed
+      ) {
+        return false
+      }
+
+      // Skip if this is a property key in an object (e.g., { self: value })
+      if (
+        (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
+        parent.key === node &&
+        !parent.computed
+      ) {
+        return false
+      }
+
+      // Skip if this is a parameter name - traverse up to find containing function
+      let currentPath = path.parent
+      while (currentPath) {
+        const currentNode = currentPath.node
+        if (
+          j.FunctionDeclaration.check(currentNode) ||
+          j.FunctionExpression.check(currentNode) ||
+          j.ArrowFunctionExpression.check(currentNode)
+        ) {
+          // Check if our identifier is in the params
+          if (currentNode.params && currentNode.params.some(param => 
+            patternContainsIdentifier(j, param, "self")
+          )) {
+            return false
+          }
+          break
+        }
+        currentPath = currentPath.parent
+      }
+
+      // Skip if this is a variable declarator name (left side of assignment)
+      if (j.VariableDeclarator.check(parent) && parent.id === node) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+
+      // Replace with globalThis
+      j(path).replaceWith(j.identifier("globalThis"))
+
+      modified = true
+      if (node.loc) {
+        changes.push({
+          type: "globalContextToGlobalThis",
+          line: node.loc.start.line,
+        })
+      }
+    })
+
+  return { modified, changes }
+}

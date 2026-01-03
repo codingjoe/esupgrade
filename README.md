@@ -260,6 +260,22 @@ Supports:
 >
 > This transformation provides semantic clarity by using an explicit log level, but review your logging infrastructure before applying.
 
+#### Global context access → [globalThis][mdn-globalthis]
+
+```diff
+-const global = Function("return this")();
+-const g = new Function("return this")();
+-const ctx = window;
+-const context = self;
++const global = globalThis;
++const g = function() { return globalThis; }();
++const ctx = globalThis;
++const context = globalThis;
+```
+
+> [!NOTE]
+> Only standalone `window` and `self` identifiers are transformed. Property access like `window.document`, `window.setTimeout()`, or `self.postMessage()` is preserved as these access specific APIs rather than the global object itself.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -311,6 +327,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
+[mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax

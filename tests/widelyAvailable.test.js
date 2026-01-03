@@ -2919,4 +2919,168 @@ myConsole.log('test');
       assert.match(result.code, /myConsole\.log\('test'\)/)
     })
   })
+
+  describe("globalContextToGlobalThis", () => {
+    test("Function('return this')()", () => {
+      const result = transform(`const global = Function("return this")();`)
+
+      assert(result.modified, "transform Function('return this')()")
+      assert.match(result.code, /const global = globalThis/)
+      assert.doesNotMatch(result.code, /Function/)
+    })
+
+    test("new Function('return this')()", () => {
+      const result = transform(`const global = new Function("return this")();`)
+
+      assert(result.modified, "transform new Function('return this')()")
+      assert.match(result.code, /const global = globalThis/)
+      assert.doesNotMatch(result.code, /new Function/)
+    })
+
+    test("new Function('return this') without call", () => {
+      const result = transform(`const getGlobal = new Function("return this");`)
+
+      assert(result.modified, "transform new Function('return this') without call")
+      assert.match(result.code, /const getGlobal = function\(\) \{/)
+      assert.match(result.code, /return globalThis/)
+      assert.doesNotMatch(result.code, /new Function/)
+    })
+
+    test("standalone window identifier", () => {
+      const result = transform(`const global = window;`)
+
+      assert(result.modified, "transform standalone window")
+      assert.match(result.code, /const global = globalThis/)
+      assert.doesNotMatch(result.code, /window/)
+    })
+
+    test("window in expression", () => {
+      const result = transform(`const isWindow = typeof window !== 'undefined';`)
+
+      assert(result.modified, "transform window in typeof expression")
+      assert.match(result.code, /typeof globalThis/)
+    })
+
+    test("window as function argument", () => {
+      const result = transform(`fn(window);`)
+
+      assert(result.modified, "transform window as argument")
+      assert.match(result.code, /fn\(globalThis\)/)
+    })
+
+    test("do not transform window member access", () => {
+      const result = transform(`const width = window.innerWidth;`)
+
+      assert(!result.modified, "skip window.innerWidth")
+      assert.match(result.code, /window\.innerWidth/)
+    })
+
+    test("do not transform window method call", () => {
+      const result = transform(`window.setTimeout(() => {}, 100);`)
+
+      assert(!result.modified, "skip window.setTimeout")
+      assert.match(result.code, /window\.setTimeout/)
+    })
+
+    test("do not transform window.frames", () => {
+      const result = transform(`
+for (const frame of window.frames) {
+  console.info(frame);
+}
+      `)
+
+      assert(!result.modified, "skip window.frames")
+      assert.match(result.code, /window\.frames/)
+    })
+
+    test("do not transform window as parameter", () => {
+      const result = transform(`function test(window) { return window; }`)
+
+      assert(!result.modified, "skip window as parameter")
+      assert.match(result.code, /function test\(window\)/)
+      assert.match(result.code, /return window/)
+    })
+
+    test("do not transform window as variable name", () => {
+      const result = transform(`const window = getWindow();`)
+
+      assert(!result.modified, "skip window as variable name")
+      assert.match(result.code, /const window = getWindow/)
+    })
+
+    test("do not transform window as object property key", () => {
+      const result = transform(`const obj = { window: value };`)
+
+      assert(!result.modified, "skip window as object property key")
+      assert.match(result.code, /\{ window: value \}/)
+    })
+
+    test("standalone self identifier", () => {
+      const result = transform(`const global = self;`)
+
+      assert(result.modified, "transform standalone self")
+      assert.match(result.code, /const global = globalThis/)
+      assert.doesNotMatch(result.code, /self/)
+    })
+
+    test("self in expression", () => {
+      const result = transform(`const isSelf = typeof self !== 'undefined';`)
+
+      assert(result.modified, "transform self in typeof expression")
+      assert.match(result.code, /typeof globalThis/)
+    })
+
+    test("do not transform self member access", () => {
+      const result = transform(`self.postMessage('data');`)
+
+      assert(!result.modified, "skip self.postMessage")
+      assert.match(result.code, /self\.postMessage/)
+    })
+
+    test("do not transform self as parameter", () => {
+      const result = transform(`function test(self) { return self; }`)
+
+      assert(!result.modified, "skip self as parameter")
+      assert.match(result.code, /function test\(self\)/)
+      assert.match(result.code, /return self/)
+    })
+
+    test("do not transform self as variable name", () => {
+      const result = transform(`const self = this;`)
+
+      assert(!result.modified, "skip self as variable name")
+      assert.match(result.code, /const self = this/)
+    })
+
+    test("do not transform Function with different arguments", () => {
+      const result = transform(`const fn = Function("return 42")();`)
+
+      assert(!result.modified, "skip Function with different code")
+      assert.match(result.code, /Function\("return 42"\)/)
+    })
+
+    test("do not transform Function with multiple arguments", () => {
+      const result = transform(`const fn = Function("a", "b", "return a + b")();`)
+
+      assert(!result.modified, "skip Function with multiple arguments")
+      assert.match(result.code, /Function\("a", "b", "return a \+ b"\)/)
+    })
+
+    test("complex case - multiple patterns", () => {
+      const result = transform(`
+const g1 = Function("return this")();
+const g2 = window;
+const g3 = self;
+window.setTimeout(() => {}, 100);
+self.postMessage('data');
+      `)
+
+      assert(result.modified, "transform multiple patterns")
+      assert.match(result.code, /const g1 = globalThis/)
+      assert.match(result.code, /const g2 = globalThis/)
+      assert.match(result.code, /const g3 = globalThis/)
+      assert.match(result.code, /window\.setTimeout/)
+      assert.match(result.code, /self\.postMessage/)
+    })
+  })
 })
