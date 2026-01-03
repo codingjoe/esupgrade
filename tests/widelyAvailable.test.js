@@ -1488,7 +1488,7 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(result.modified, "transform window.frames.forEach()")
-      assert.match(result.code, /for \(const frame of window\.frames\)/)
+      assert.match(result.code, /for \(const frame of globalThis\.frames\)/)
     })
 
     test("arrow function without braces", () => {
@@ -1569,8 +1569,9 @@ for (let i = 0; i < items.length; i++) {
     });
   `)
 
-      assert(!result.modified, "skip window methods not in allowed list")
-      assert.match(result.code, /window\.querySelectorAll/)
+      assert(result.modified, "transform window to globalThis")
+      assert.match(result.code, /globalThis\.querySelectorAll/)
+      assert.match(result.code, /forEach/) // forEach not converted to for...of
     })
 
     test("with function expression", () => {
@@ -1658,8 +1659,9 @@ document.querySelectorAll('.item').forEach(item => {
     });
   `)
 
-      assert(!result.modified, "skip window.querySelectorAll")
-      assert.match(result.code, /window\.querySelectorAll/)
+      assert(result.modified, "transform window to globalThis")
+      assert.match(result.code, /globalThis\.querySelectorAll/)
+      assert.match(result.code, /forEach/) // forEach not converted to for...of
     })
 
     test("property access on unknown objects", () => {
@@ -2968,29 +2970,29 @@ myConsole.log('test');
       assert.match(result.code, /fn\(globalThis\)/)
     })
 
-    test("do not transform window member access", () => {
+    test("transform window member access", () => {
       const result = transform(`const width = window.innerWidth;`)
 
-      assert(!result.modified, "skip window.innerWidth")
-      assert.match(result.code, /window\.innerWidth/)
+      assert(result.modified, "transform window.innerWidth")
+      assert.match(result.code, /globalThis\.innerWidth/)
     })
 
-    test("do not transform window method call", () => {
+    test("transform window method call", () => {
       const result = transform(`window.setTimeout(() => {}, 100);`)
 
-      assert(!result.modified, "skip window.setTimeout")
-      assert.match(result.code, /window\.setTimeout/)
+      assert(result.modified, "transform window.setTimeout")
+      assert.match(result.code, /globalThis\.setTimeout/)
     })
 
-    test("do not transform window.frames", () => {
+    test("transform window.frames", () => {
       const result = transform(`
 for (const frame of window.frames) {
   console.info(frame);
 }
       `)
 
-      assert(!result.modified, "skip window.frames")
-      assert.match(result.code, /window\.frames/)
+      assert(result.modified, "transform window.frames")
+      assert.match(result.code, /globalThis\.frames/)
     })
 
     test("do not transform window as parameter", () => {
@@ -3030,11 +3032,11 @@ for (const frame of window.frames) {
       assert.match(result.code, /typeof globalThis/)
     })
 
-    test("do not transform self member access", () => {
+    test("transform self member access", () => {
       const result = transform(`self.postMessage('data');`)
 
-      assert(!result.modified, "skip self.postMessage")
-      assert.match(result.code, /self\.postMessage/)
+      assert(result.modified, "transform self.postMessage")
+      assert.match(result.code, /globalThis\.postMessage/)
     })
 
     test("do not transform self as parameter", () => {
@@ -3079,8 +3081,8 @@ self.postMessage('data');
       assert.match(result.code, /const g1 = globalThis/)
       assert.match(result.code, /const g2 = globalThis/)
       assert.match(result.code, /const g3 = globalThis/)
-      assert.match(result.code, /window\.setTimeout/)
-      assert.match(result.code, /self\.postMessage/)
+      assert.match(result.code, /globalThis\.setTimeout/)
+      assert.match(result.code, /globalThis\.postMessage/)
     })
   })
 })

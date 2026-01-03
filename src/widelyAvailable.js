@@ -852,6 +852,7 @@ export function iterableForEachToForOf(j, root) {
   // Define known iterable properties
   const knownIterableProperties = {
     window: ["frames"],
+    globalThis: ["frames"],
   }
 
   root
@@ -1826,7 +1827,7 @@ export function globalContextToGlobalThis(j, root) {
       }
     })
 
-  // Pattern 3: Standalone window identifier (not in member expressions)
+  // Pattern 3: window identifier (including member expressions like window.location)
   root
     .find(j.Identifier, { name: "window" })
     .filter((path) => {
@@ -1837,11 +1838,6 @@ export function globalContextToGlobalThis(j, root) {
         return false
       }
       const parent = path.parent.node
-
-      // Skip if this is a property of a member expression (e.g., window.document)
-      if (j.MemberExpression.check(parent) && parent.object === node) {
-        return false
-      }
 
       // Skip if this is the property being accessed (e.g., obj.window)
       if (
@@ -1888,7 +1884,7 @@ export function globalContextToGlobalThis(j, root) {
       }
     })
 
-  // Pattern 4: Standalone self identifier (not in member expressions)
+  // Pattern 4: self identifier (including member expressions like self.postMessage)
   root
     .find(j.Identifier, { name: "self" })
     .filter((path) => {
@@ -1899,11 +1895,6 @@ export function globalContextToGlobalThis(j, root) {
         return false
       }
       const parent = path.parent.node
-
-      // Skip if this is a property of a member expression (e.g., self.postMessage)
-      if (j.MemberExpression.check(parent) && parent.object === node) {
-        return false
-      }
 
       // Skip if this is the property being accessed (e.g., obj.self)
       if (

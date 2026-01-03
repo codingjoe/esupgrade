@@ -267,18 +267,22 @@ Supports:
 -const g = new Function("return this")();
 -const ctx = window;
 -const context = self;
+-window.setTimeout(() => {}, 100);
+-self.postMessage('data');
 +const global = globalThis;
 +const g = function() { return globalThis; }();
 +const ctx = globalThis;
 +const context = globalThis;
++globalThis.setTimeout(() => {}, 100);
++globalThis.postMessage('data');
 ```
 
 > [!NOTE]
 > Transformations:
 >
 > - `Function("return this")()` and `new Function("return this")()` are always safe to transform
-> - Standalone `window` and `self` identifiers (not property access) are transformed
-> - Property access like `window.document`, `window.setTimeout()`, or `self.postMessage()` is preserved
+> - `window` and `self` identifiers are transformed to `globalThis` (including property access)
+> - Property access like `window.document`, `window.setTimeout()`, and `self.postMessage()` becomes `globalThis.document`, `globalThis.setTimeout()`, and `globalThis.postMessage()`
 > - `window` and `self` used as parameter names or variable names are not transformed
 > - `window` and `self` used as object property keys are not transformed
 
