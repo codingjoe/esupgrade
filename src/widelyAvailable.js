@@ -1840,25 +1840,27 @@ export function nullishCoalescingOperator(j, root) {
    * @returns {boolean} True if nodes are equivalent
    */
   const areNodesEquivalent = (node1, node2) => {
-    if (!node1 || !node2) {
-      return false
-    }
-
     // Both are identifiers with same name
     if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
       return node1.name === node2.name
     }
 
-    // Both are member expressions
     if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
-      return (
-        areNodesEquivalent(node1.object, node2.object) &&
-        areNodesEquivalent(node1.property, node2.property) &&
-        node1.computed === node2.computed
-      )
-    }
+      if (!areNodesEquivalent(node1.object, node2.object)) {
+        return false
+      }
 
-    return false
+      if (!areNodesEquivalent(node1.property, node2.property)) {
+        return false
+      }
+
+      // Computed properties must also match
+      if (node1.computed !== node2.computed) {
+        return false
+      }
+
+      return true
+    }
   }
 
   /**

@@ -3545,5 +3545,165 @@ const obj = {
       assert(result.modified, "transform within return statement")
       assert.match(result.code, /return x \?\? 0/)
     })
+
+    test("should not transform with === null (wrong operator)", () => {
+      const result = transform(
+        `const value = x === null && x === undefined ? x : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip === checks")
+      assert.match(result.code, /x === null && x === undefined/)
+    })
+
+    test("should not transform with mixed operators", () => {
+      const result = transform(
+        `const value = x !== null && x === undefined ? x : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip mixed !== and === checks")
+      assert.match(result.code, /x !== null && x === undefined/)
+    })
+
+    test("should not transform === null with !== undefined", () => {
+      const result = transform(
+        `const value = x === null && x !== undefined ? x : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip when first is ===")
+      assert.match(result.code, /x === null && x !== undefined/)
+    })
+
+    test("should not transform swapped order with === operators", () => {
+      const result = transform(
+        `const value = x === undefined && x === null ? x : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip swapped === checks")
+      assert.match(result.code, /x === undefined && x === null/)
+    })
+
+    test("should not transform swapped order with only one negated", () => {
+      const result = transform(
+        `const value = x !== undefined && x === null ? x : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip swapped mixed operators")
+      assert.match(result.code, /x !== undefined && x === null/)
+    })
+
+    test("should not transform when checking different properties", () => {
+      const result = transform(
+        `const value = obj.a !== null && obj.b !== undefined ? obj.a : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip when properties differ")
+      assert.match(result.code, /obj\.a !== null && obj\.b !== undefined/)
+    })
+
+    test("should not transform with swapped different properties", () => {
+      const result = transform(
+        `const value = obj.b !== undefined && obj.a !== null ? obj.a : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip swapped when properties differ")
+      assert.match(result.code, /obj\.b !== undefined && obj\.a !== null/)
+    })
+
+    test("should not transform when consequent differs", () => {
+      const result = transform(
+        `const value = x !== null && x !== undefined ? y : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip when consequent is different variable")
+      assert.match(result.code, /x !== null && x !== undefined \? y : defaultValue/)
+    })
+
+    test("should not transform swapped order when consequent differs", () => {
+      const result = transform(
+        `const value = x !== undefined && x !== null ? y : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip swapped when consequent differs")
+      assert.match(result.code, /x !== undefined && x !== null \? y : defaultValue/)
+    })
+
+    test("should not transform non-null/undefined comparisons", () => {
+      const result = transform(
+        `const value = x !== 0 && x !== false ? x : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip non-null/undefined checks")
+      assert.match(result.code, /x !== 0 && x !== false/)
+    })
+
+    test("should not transform with non-binary expression", () => {
+      const result = transform(`const value = x && y ? x : defaultValue;`)
+
+      assert(!result.modified, "skip non-binary expressions")
+      assert.match(result.code, /x && y \? x : defaultValue/)
+    })
+
+    test("deeply nested member expression with computed properties", () => {
+      const result = transform(
+        `const value = obj.a[b].c !== null && obj.a[b].c !== undefined ? obj.a[b].c : 0;`,
+      )
+
+      assert(result.modified, "transform deeply nested computed member expression")
+      assert.match(result.code, /const value = obj\.a\[b\]\.c \?\? 0/)
+    })
+
+    test("multiple computed properties", () => {
+      const result = transform(
+        `const value = obj[a][b] !== null && obj[a][b] !== undefined ? obj[a][b] : 0;`,
+      )
+
+      assert(result.modified, "transform multiple computed properties")
+      assert.match(result.code, /const value = obj\[a\]\[b\] \?\? 0/)
+    })
+
+    test("should not transform computed vs non-computed member expression", () => {
+      const result = transform(
+        `const value = obj.a !== null && obj[a] !== undefined ? obj.a : 0;`,
+      )
+
+      assert(!result.modified, "skip when computed property differs")
+      assert.match(result.code, /obj\.a !== null && obj\[a\] !== undefined/)
+    })
+
+    test("should not transform when nested objects differ", () => {
+      const result = transform(
+        `const value = obj1.prop !== null && obj2.prop !== undefined ? obj1.prop : 0;`,
+      )
+
+      assert(!result.modified, "skip when nested objects differ")
+      assert.match(result.code, /obj1\.prop !== null && obj2\.prop !== undefined/)
+    })
+
+    test("should not transform computed vs non-computed for same property name", () => {
+      const result = transform(
+        `const value = obj.prop !== null && obj[prop] !== undefined ? obj.prop : 0;`,
+      )
+
+      assert(!result.modified, "skip when one is computed and one is not")
+      assert.match(result.code, /obj\.prop !== null && obj\[prop\] !== undefined/)
+    })
+
+    test("both computed with same key should transform", () => {
+      const result = transform(
+        `const value = obj[key] !== null && obj[key] !== undefined ? obj[key] : 0;`,
+      )
+
+      assert(result.modified, "transform when both are computed with same key")
+      assert.match(result.code, /const value = obj\[key\] \?\? 0/)
+    })
+
+    test("triple nested member expression", () => {
+      const result = transform(
+        `const value = obj.a.b.c !== null && obj.a.b.c !== undefined ? obj.a.b.c : 0;`,
+      )
+
+      assert(result.modified, "transform triple nested member expression")
+      assert.match(result.code, /const value = obj\.a\.b\.c \?\? 0/)
+    })
   })
 })
