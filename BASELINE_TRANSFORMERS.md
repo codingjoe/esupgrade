@@ -2,6 +2,14 @@
 
 This document catalogs all potential JavaScript transformers based on [Web Platform Baseline](https://web.dev/baseline/) features.
 
+## Summary
+
+- **Widely Available - Implemented**: 13 transformers
+- **Widely Available - Potential**: 17 additional transformers
+- **Newly Available - Implemented**: 1 transformer
+- **Newly Available - Potential**: 9 additional transformers
+- **Total Potential Transformers**: 40
+
 ## Widely Available Features
 
 Features that work in all major browsers (Chrome, Edge, Safari, Firefox) for at least 30 months.
