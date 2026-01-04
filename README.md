@@ -171,6 +171,24 @@ Supports:
 +const copy = { ...original };
 ```
 
+#### `Object.keys().forEach()` → [Object.entries()][mdn-object-entries]
+
+```diff
+-Object.keys(obj).forEach(key => {
+-  const value = obj[key];
+-  console.log(key, value);
+-});
++Object.entries(obj).forEach(([key, value]) => {
++  console.log(key, value);
++});
+```
+
+> [!NOTE]
+> Only transforms when:
+> - Callback has exactly one parameter (the key)
+> - First statement in callback body assigns `obj[key]` to a variable
+> - The object being accessed matches the object passed to `Object.keys()`
+
 #### `Array.concat()` → [Array spread [...]][mdn-spread]
 
 ```diff
@@ -361,6 +379,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
+[mdn-object-entries]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
