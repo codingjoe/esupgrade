@@ -307,9 +307,6 @@ Supports:
 +const result = obj.prop ?? 0;
 ```
 
-> [!NOTE]
-> The nullish coalescing operator (`??`) only treats `null` and `undefined` as nullish values. Unlike the logical OR operator (`||`), it does NOT treat `0`, `''` (empty string), or `false` as nullish. This makes it safer for default values when these are valid values.
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">

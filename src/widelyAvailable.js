@@ -1990,13 +1990,13 @@ export function nullishCoalescingOperator(j, root) {
       const undefinedCheck = getUndefinedCheck(right)
 
       if (nullCheck && undefinedCheck) {
+        // Normal order: null check on left, undefined check on right
         valueNode = nullCheck.value
       } else {
-        // Swapped order
+        // Swapped order: undefined check on left, null check on right
+        // The filter guarantees both checks exist in this case
         const nullCheckSwapped = getNullCheck(right)
-        const undefinedCheckSwapped = getUndefinedCheck(left)
-        // The filter guarantees at least one of these checks passed
-        valueNode = (nullCheckSwapped || undefinedCheckSwapped).value
+        valueNode = nullCheckSwapped.value
       }
 
       // Create nullish coalescing expression: value ?? default
