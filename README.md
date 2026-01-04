@@ -265,14 +265,14 @@ Supports:
 ```diff
 -'use strict';
  import { helper } from './utils';
- 
+
  export function main() {
    return helper();
  }
 ```
 
 > [!NOTE]
-> ES6 modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation only applies to files with `import` or `export` statements.
+> ES6 modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation applies to files with `import` or `export` statements.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">

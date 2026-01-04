@@ -1702,10 +1702,7 @@ export function removeUseStrictFromModules(j, root) {
       let i = 0
       while (i < program.directives.length) {
         const directive = program.directives[i]
-        if (
-          directive.value &&
-          directive.value.value === "use strict"
-        ) {
+        if (directive.value && directive.value.value === "use strict") {
           // This is a 'use strict' directive - remove it
           const line = directive.loc ? directive.loc.start.line : null
           program.directives.splice(i, 1)
