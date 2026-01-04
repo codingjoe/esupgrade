@@ -2035,6 +2035,132 @@ export function nullishCoalescingOperator(j, root) {
 }
 
 /**
+ * Transform Array.slice(0) and Array.slice() to array spread syntax.
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ */
+export function arraySliceToSpread(j, root) {
+  let modified = false
+
+  // Helper to check if an expression is statically verifiable as an array
+  const isVerifiableArray = (node) => {
+    // Array literal: [1, 2, 3]
+    if (j.ArrayExpression.check(node)) {
+      return true
+    }
+
+    // Array.from(), Array.of(), etc.
+    if (
+      j.CallExpression.check(node) &&
+      j.MemberExpression.check(node.callee) &&
+      j.Identifier.check(node.callee.object) &&
+      node.callee.object.name === "Array"
+    ) {
+      return true
+    }
+
+    // new Array()
+    if (
+      j.NewExpression.check(node) &&
+      j.Identifier.check(node.callee) &&
+      node.callee.name === "Array"
+    ) {
+      return true
+    }
+
+    // Array methods that return arrays: map, filter, slice, concat, etc.
+    const ARRAY_METHODS_RETURNING_ARRAY = [
+      "map",
+      "filter",
+      "slice",
+      "concat",
+      "flat",
+      "flatMap",
+      "splice",
+      "toSpliced",
+      "toReversed",
+      "toSorted",
+    ]
+
+    if (
+      j.CallExpression.check(node) &&
+      j.MemberExpression.check(node.callee) &&
+      j.Identifier.check(node.callee.property) &&
+      ARRAY_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
+    ) {
+      return true
+    }
+
+    // String methods that return arrays
+    const STRING_METHODS_RETURNING_ARRAY = ["split", "matchAll"]
+
+    if (
+      j.CallExpression.check(node) &&
+      j.MemberExpression.check(node.callee) &&
+      j.Identifier.check(node.callee.property) &&
+      j.StringLiteral.check(node.callee.object) &&
+      STRING_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
+    ) {
+      return true
+    }
+
+    return false
+  }
+
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check if this is a .slice() call
+      if (
+        !j.MemberExpression.check(node.callee) ||
+        !j.Identifier.check(node.callee.property) ||
+        node.callee.property.name !== "slice"
+      ) {
+        return false
+      }
+
+      // Only transform slice() with no arguments or slice(0)
+      if (node.arguments.length === 0) {
+        // slice() with no arguments is valid
+      } else if (node.arguments.length === 1) {
+        // slice(0) is valid
+        const arg = node.arguments[0]
+        if (!j.Literal.check(arg) || arg.value !== 0) {
+          return false
+        }
+      } else {
+        // slice with 2+ arguments is not a copying operation
+        return false
+      }
+
+      // Only transform if we can verify the object is an array
+      const object = node.callee.object
+      if (!isVerifiableArray(object)) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const arrayExpr = node.callee.object
+
+      // Create array with spread element
+      const spreadArray = j.arrayExpression([j.spreadElement(arrayExpr)])
+
+      j(path).replaceWith(spreadArray)
+
+      modified = true
+    })
+
+  return modified
+}
+
+/**
  * Transform conditional property access patterns to optional chaining.
  * Converts patterns like:
  * - obj && obj.prop to obj?.prop
