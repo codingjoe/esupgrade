@@ -25,7 +25,7 @@ uvx pre-commit install
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/codingjoe/esupgrade
-    rev: 2025.0.2  # Use the latest version
+    rev: 2025.0.2 # Use the latest version
     hooks:
       - id: esupgrade
 ```

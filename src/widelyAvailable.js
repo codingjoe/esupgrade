@@ -1876,12 +1876,18 @@ export function nullishCoalescingOperator(j, root) {
       const isNegated = node.operator === "!=="
 
       // value !== null or value === null
-      if (j.NullLiteral.check(node.right) || (j.Literal.check(node.right) && node.right.value === null)) {
+      if (
+        j.NullLiteral.check(node.right) ||
+        (j.Literal.check(node.right) && node.right.value === null)
+      ) {
         return { value: node.left, isNegated }
       }
 
       // null !== value or null === value
-      if (j.NullLiteral.check(node.left) || (j.Literal.check(node.left) && node.left.value === null)) {
+      if (
+        j.NullLiteral.check(node.left) ||
+        (j.Literal.check(node.left) && node.left.value === null)
+      ) {
         return { value: node.right, isNegated }
       }
     }

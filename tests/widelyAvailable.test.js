@@ -3466,18 +3466,14 @@ const obj = {
     })
 
     test("should not transform only null check", () => {
-      const result = transform(
-        `const value = x !== null ? x : defaultValue;`,
-      )
+      const result = transform(`const value = x !== null ? x : defaultValue;`)
 
       assert(!result.modified, "skip only null check")
       assert.match(result.code, /x !== null \? x : defaultValue/)
     })
 
     test("should not transform only undefined check", () => {
-      const result = transform(
-        `const value = x !== undefined ? x : defaultValue;`,
-      )
+      const result = transform(`const value = x !== undefined ? x : defaultValue;`)
 
       assert(!result.modified, "skip only undefined check")
       assert.match(result.code, /x !== undefined \? x : defaultValue/)

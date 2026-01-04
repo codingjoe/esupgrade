@@ -35,5 +35,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/codingjoe/esupgrade.git"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4"
   }
 }
