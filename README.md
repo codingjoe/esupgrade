@@ -297,6 +297,10 @@ Supports:
 +});
 ```
 
+## Future Transformations
+
+See [BASELINE_TRANSFORMERS.md](BASELINE_TRANSFORMERS.md) for a complete catalog of all potential JavaScript transformers based on Baseline features, including both implemented and planned transformations.
+
 ## Versioning
 
 esupgrade uses the [calver] `YYYY.MINOR.PATCH` versioning scheme.
