@@ -1673,9 +1673,8 @@ export function removeUseStrictFromModules(j, root) {
       }
     }
 
-    // Note: 'use strict' directives are stored in program.directives with the tsx parser,
-    // so the body loop is not reachable in practice. We keep it for defensive compatibility
-    // with other parsers that might store 'use strict' as an ExpressionStatement in the body.
+    // Note: 'use strict' directives are typically stored in program.directives (for example with the tsx parser).
+    // This transformer currently only handles directives represented in the directives array, not as body expressions.
   })
 
   return modified
