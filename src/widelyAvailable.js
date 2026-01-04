@@ -1820,3 +1820,191 @@ export function globalContextToGlobalThis(j, root) {
 
   return modified
 }
+
+/**
+ * Transform null/undefined checks to nullish coalescing operator (??).
+ * Converts: value !== null && value !== undefined ? value : default
+ * To: value ?? default
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ */
+export function nullishCoalescingOperator(j, root) {
+  let modified = false
+
+  /**
+   * Check if two nodes are equivalent identifiers or member expressions.
+   * @param {import('jscodeshift').ASTNode} node1 - First node
+   * @param {import('jscodeshift').ASTNode} node2 - Second node
+   * @returns {boolean} True if nodes are equivalent
+   */
+  const areNodesEquivalent = (node1, node2) => {
+    if (!node1 || !node2) {
+      return false
+    }
+
+    // Both are identifiers with same name
+    if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
+      return node1.name === node2.name
+    }
+
+    // Both are member expressions
+    if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
+      return (
+        areNodesEquivalent(node1.object, node2.object) &&
+        areNodesEquivalent(node1.property, node2.property) &&
+        node1.computed === node2.computed
+      )
+    }
+
+    return false
+  }
+
+  /**
+   * Check if a binary expression is a null check (=== null or !== null).
+   * @param {import('jscodeshift').BinaryExpression} node - The binary expression
+   * @returns {{ value: import('jscodeshift').ASTNode, isNegated: boolean } | null}
+   */
+  const getNullCheck = (node) => {
+    if (!j.BinaryExpression.check(node)) {
+      return null
+    }
+
+    // Check for !== null or === null
+    if (node.operator === "!==" || node.operator === "===") {
+      const isNegated = node.operator === "!=="
+
+      // value !== null or value === null
+      if (j.NullLiteral.check(node.right) || (j.Literal.check(node.right) && node.right.value === null)) {
+        return { value: node.left, isNegated }
+      }
+
+      // null !== value or null === value
+      if (j.NullLiteral.check(node.left) || (j.Literal.check(node.left) && node.left.value === null)) {
+        return { value: node.right, isNegated }
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Check if a binary expression is an undefined check (=== undefined or !== undefined).
+   * @param {import('jscodeshift').BinaryExpression} node - The binary expression
+   * @returns {{ value: import('jscodeshift').ASTNode, isNegated: boolean } | null}
+   */
+  const getUndefinedCheck = (node) => {
+    if (!j.BinaryExpression.check(node)) {
+      return null
+    }
+
+    // Check for !== undefined or === undefined
+    if (node.operator === "!==" || node.operator === "===") {
+      const isNegated = node.operator === "!=="
+
+      // value !== undefined or value === undefined
+      if (j.Identifier.check(node.right) && node.right.name === "undefined") {
+        return { value: node.left, isNegated }
+      }
+
+      // undefined !== value or undefined === value
+      if (j.Identifier.check(node.left) && node.left.name === "undefined") {
+        return { value: node.right, isNegated }
+      }
+    }
+
+    return null
+  }
+
+  root
+    .find(j.ConditionalExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Test must be a logical AND expression
+      if (!j.LogicalExpression.check(node.test) || node.test.operator !== "&&") {
+        return false
+      }
+
+      const left = node.test.left
+      const right = node.test.right
+
+      // Check if left and right are null and undefined checks
+      const nullCheck = getNullCheck(left)
+      const undefinedCheck = getUndefinedCheck(right)
+
+      if (!nullCheck || !undefinedCheck) {
+        // Try swapped order
+        const nullCheckSwapped = getNullCheck(right)
+        const undefinedCheckSwapped = getUndefinedCheck(left)
+
+        if (!nullCheckSwapped || !undefinedCheckSwapped) {
+          return false
+        }
+
+        // Both checks must be negated (!==)
+        if (!nullCheckSwapped.isNegated || !undefinedCheckSwapped.isNegated) {
+          return false
+        }
+
+        // Both checks must be on the same value
+        if (!areNodesEquivalent(nullCheckSwapped.value, undefinedCheckSwapped.value)) {
+          return false
+        }
+
+        // Consequent must be the same value
+        if (!areNodesEquivalent(nullCheckSwapped.value, node.consequent)) {
+          return false
+        }
+
+        return true
+      }
+
+      // Both checks must be negated (!==)
+      if (!nullCheck.isNegated || !undefinedCheck.isNegated) {
+        return false
+      }
+
+      // Both checks must be on the same value
+      if (!areNodesEquivalent(nullCheck.value, undefinedCheck.value)) {
+        return false
+      }
+
+      // Consequent must be the same value
+      if (!areNodesEquivalent(nullCheck.value, node.consequent)) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const test = node.test
+      const left = test.left
+      const right = test.right
+
+      // Get the value being checked
+      let valueNode
+      const nullCheck = getNullCheck(left)
+      const undefinedCheck = getUndefinedCheck(right)
+
+      if (nullCheck && undefinedCheck) {
+        valueNode = nullCheck.value
+      } else {
+        // Swapped order
+        const nullCheckSwapped = getNullCheck(right)
+        const undefinedCheckSwapped = getUndefinedCheck(left)
+        valueNode = nullCheckSwapped.value
+      }
+
+      // Create nullish coalescing expression: value ?? default
+      const nullishCoalescing = j.logicalExpression("??", valueNode, node.alternate)
+
+      j(path).replaceWith(nullishCoalescing)
+
+      modified = true
+    })
+
+  return modified
+}
