@@ -1995,7 +1995,8 @@ export function nullishCoalescingOperator(j, root) {
         // Swapped order
         const nullCheckSwapped = getNullCheck(right)
         const undefinedCheckSwapped = getUndefinedCheck(left)
-        valueNode = nullCheckSwapped.value
+        // The filter guarantees at least one of these checks passed
+        valueNode = (nullCheckSwapped || undefinedCheckSwapped).value
       }
 
       // Create nullish coalescing expression: value ?? default
