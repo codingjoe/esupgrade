@@ -1784,11 +1784,6 @@ export function globalContextToGlobalThis(j, root) {
           return false
         }
 
-        // Don't transform if it's a class method key
-        if (j.ClassMethod.check(parent) && parent.key === node) {
-          return false
-        }
-
         // Don't transform if it's a class property key
         if (j.ClassProperty.check(parent) && parent.key === node) {
           return false
