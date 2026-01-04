@@ -1823,8 +1823,6 @@ export function globalContextToGlobalThis(j, root) {
 
 /**
  * Transform null/undefined checks to nullish coalescing operator (??).
- * Converts: value !== null && value !== undefined ? value : default
- * To: value ?? default
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {import('jscodeshift').Collection} root - The root AST collection
@@ -1834,7 +1832,7 @@ export function nullishCoalescingOperator(j, root) {
   let modified = false
 
   /**
-   * Check if two nodes are equivalent identifiers or member expressions.
+   * Determine if two nodes are equivalent identifiers or member expressions.
    * @param {import('jscodeshift').ASTNode} node1 - First node
    * @param {import('jscodeshift').ASTNode} node2 - Second node
    * @returns {boolean} True if nodes are equivalent
@@ -1861,10 +1859,12 @@ export function nullishCoalescingOperator(j, root) {
 
       return true
     }
+
+    return false
   }
 
   /**
-   * Check if a binary expression is a null check (=== null or !== null).
+   * Determine if a binary expression is a null check (=== null or !== null).
    * @param {import('jscodeshift').BinaryExpression} node - The binary expression
    * @returns {{ value: import('jscodeshift').ASTNode, isNegated: boolean } | null}
    */
@@ -1898,7 +1898,7 @@ export function nullishCoalescingOperator(j, root) {
   }
 
   /**
-   * Check if a binary expression is an undefined check (=== undefined or !== undefined).
+   * Determine if a binary expression is an undefined check (=== undefined or !== undefined).
    * @param {import('jscodeshift').BinaryExpression} node - The binary expression
    * @returns {{ value: import('jscodeshift').ASTNode, isNegated: boolean } | null}
    */
@@ -1923,6 +1923,32 @@ export function nullishCoalescingOperator(j, root) {
     }
 
     return null
+  }
+
+  /**
+   * Validate that both checks are negated, operate on the same value, and match the consequent.
+   * @param {{ value: import('jscodeshift').ASTNode, isNegated: boolean }} nullCheck - The null check result
+   * @param {{ value: import('jscodeshift').ASTNode, isNegated: boolean }} undefinedCheck - The undefined check result
+   * @param {import('jscodeshift').ASTNode} consequent - The consequent node to validate against
+   * @returns {boolean} True if validation passes
+   */
+  const validateChecks = (nullCheck, undefinedCheck, consequent) => {
+    // Both checks must be negated (!==)
+    if (!nullCheck.isNegated || !undefinedCheck.isNegated) {
+      return false
+    }
+
+    // Both checks must be on the same value
+    if (!areNodesEquivalent(nullCheck.value, undefinedCheck.value)) {
+      return false
+    }
+
+    // Consequent must be the same value
+    if (!areNodesEquivalent(nullCheck.value, consequent)) {
+      return false
+    }
+
+    return true
   }
 
   root
@@ -1951,40 +1977,10 @@ export function nullishCoalescingOperator(j, root) {
           return false
         }
 
-        // Both checks must be negated (!==)
-        if (!nullCheckSwapped.isNegated || !undefinedCheckSwapped.isNegated) {
-          return false
-        }
-
-        // Both checks must be on the same value
-        if (!areNodesEquivalent(nullCheckSwapped.value, undefinedCheckSwapped.value)) {
-          return false
-        }
-
-        // Consequent must be the same value
-        if (!areNodesEquivalent(nullCheckSwapped.value, node.consequent)) {
-          return false
-        }
-
-        return true
+        return validateChecks(nullCheckSwapped, undefinedCheckSwapped, node.consequent)
       }
 
-      // Both checks must be negated (!==)
-      if (!nullCheck.isNegated || !undefinedCheck.isNegated) {
-        return false
-      }
-
-      // Both checks must be on the same value
-      if (!areNodesEquivalent(nullCheck.value, undefinedCheck.value)) {
-        return false
-      }
-
-      // Consequent must be the same value
-      if (!areNodesEquivalent(nullCheck.value, node.consequent)) {
-        return false
-      }
-
-      return true
+      return validateChecks(nullCheck, undefinedCheck, node.consequent)
     })
     .forEach((path) => {
       const node = path.node
