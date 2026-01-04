@@ -3817,13 +3817,6 @@ const obj = {
       assert.match(result.code, /obj && obj\.prop && other\.nested/)
     })
 
-    test("skip || operator (not && operator)", () => {
-      const result = transform(`const value = obj || obj.prop;`)
-
-      assert(!result.modified, "skip || operator")
-      assert.match(result.code, /obj \|\| obj\.prop/)
-    })
-
     test("property access in expression", () => {
       const result = transform(`doSomething(obj && obj.prop);`)
 

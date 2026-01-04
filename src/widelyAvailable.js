@@ -2091,14 +2091,10 @@ export function optionalChaining(j, root) {
 
   /**
    * Process a logical expression chain to extract optional chaining candidates.
-   * @param {import('jscodeshift').ASTNode} node - The logical expression
+   * @param {import('jscodeshift').ASTNode} node - The logical expression (must be && operator)
    * @returns {{ base: import('jscodeshift').ASTNode, accesses: import('jscodeshift').ASTNode[] } | null}
    */
   const extractChain = (node) => {
-    if (!j.LogicalExpression.check(node) || node.operator !== "&&") {
-      return null
-    }
-
     const parts = []
     let current = node
 
