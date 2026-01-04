@@ -295,15 +295,6 @@ Supports:
 +const global = globalThis;
 ```
 
-> [!NOTE]
-> `globalThis` provides a standard way to access the global object across different JavaScript environments (browsers, Node.js, Web Workers). This transformation safely replaces environment-specific global references:
->
-> - `window` (browser global object)
-> - `self` (browser and Web Worker global object)
-> - `Function('return this')()` (legacy pattern for getting the global object)
->
-> The transformation is skipped when these identifiers are shadowed by local variables, function parameters, or used as object properties (e.g., `obj.window`).
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
