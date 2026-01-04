@@ -838,6 +838,7 @@ export function iterableForEachToForOf(j, root) {
   // Define known iterable properties
   const knownIterableProperties = {
     window: ["frames"],
+    globalThis: ["frames"],
   }
 
   root
@@ -1676,6 +1677,148 @@ export function removeUseStrictFromModules(j, root) {
     // Note: 'use strict' directives are typically stored in program.directives (for example with the tsx parser).
     // This transformer currently only handles directives represented in the directives array, not as body expressions.
   })
+
+  return modified
+}
+
+/**
+ * Replace global context references (window, self, Function("return this")()) with globalThis.
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ */
+export function globalContextToGlobalThis(j, root) {
+  let modified = false
+
+  /**
+   * Check if an identifier is shadowed by a local declaration or parameter.
+   * @param {import('jscodeshift').ASTPath} path - Path to the identifier
+   * @param {string} name - Name to check for shadowing
+   * @returns {boolean} True if the identifier is shadowed
+   */
+  const isShadowed = (path, name) => {
+    let scope = path.scope
+
+    while (scope) {
+      // Check if this scope has a binding for the name
+      const bindings = scope.getBindings()
+      if (bindings[name]) {
+        // Found a binding - this shadows the global
+        return true
+      }
+
+      // Move to parent scope
+      scope = scope.parent
+    }
+
+    return false
+  }
+
+  // Transform Function("return this")() pattern to globalThis
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+      // Check if this is a call to Function constructor
+      if (
+        !j.Identifier.check(node.callee) ||
+        node.callee.name !== "Function" ||
+        node.arguments.length !== 1
+      ) {
+        return false
+      }
+
+      // Check if the argument is "return this" (either single or double quotes)
+      const arg = node.arguments[0]
+      if (
+        !j.StringLiteral.check(arg) &&
+        !j.Literal.check(arg)
+      ) {
+        return false
+      }
+
+      const value = arg.value
+      return value === "return this"
+    })
+    .forEach((path) => {
+      // Check if the Function call result is immediately invoked
+      const parent = path.parent
+      if (j.CallExpression.check(parent.node) && parent.node.callee === path.node) {
+        // Replace the entire call expression with globalThis
+        j(parent).replaceWith(j.identifier("globalThis"))
+        modified = true
+      }
+    })
+
+  // Transform window and self identifiers to globalThis
+  const globalIdentifiers = ["window", "self"]
+
+  for (const globalName of globalIdentifiers) {
+    root
+      .find(j.Identifier)
+      .filter((path) => {
+        const node = path.node
+        if (node.name !== globalName) {
+          return false
+        }
+
+        // Don't transform if it's a property name (e.g., obj.window)
+        const parent = path.parent.node
+        if (
+          j.MemberExpression.check(parent) &&
+          parent.property === node &&
+          !parent.computed
+        ) {
+          return false
+        }
+
+        // Don't transform if it's an object property key
+        if (
+          (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
+          parent.key === node &&
+          !parent.computed
+        ) {
+          return false
+        }
+
+        // Don't transform if it's a method definition key
+        if (j.MethodDefinition.check(parent) && parent.key === node) {
+          return false
+        }
+
+        // Don't transform if it's a class property key
+        if (j.ClassProperty.check(parent) && parent.key === node) {
+          return false
+        }
+
+        // Don't transform if it's a variable declarator id (e.g., var window = ...)
+        if (j.VariableDeclarator.check(parent) && parent.id === node) {
+          return false
+        }
+
+        // Don't transform if it's a function parameter
+        if (
+          (j.FunctionDeclaration.check(parent) ||
+            j.FunctionExpression.check(parent) ||
+            j.ArrowFunctionExpression.check(parent)) &&
+          parent.params.includes(node)
+        ) {
+          return false
+        }
+
+        // Check if the identifier is shadowed by a local variable or parameter
+        if (isShadowed(path, globalName)) {
+          return false
+        }
+
+        return true
+      })
+      .forEach((path) => {
+        path.node.name = "globalThis"
+        modified = true
+      })
+  }
 
   return modified
 }
