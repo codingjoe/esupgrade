@@ -272,7 +272,7 @@ Supports:
 ```
 
 > [!NOTE]
-> ES6 modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation applies to files with `import` or `export` statements.
+> ES modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation applies to files with `import` or `export` statements.
 
 #### Global context access → [globalThis][mdn-globalthis]
 
@@ -290,15 +290,6 @@ Supports:
 +globalThis.setTimeout(() => {}, 100);
 +globalThis.postMessage('data');
 ```
-
-> [!NOTE]
-> Transformations:
->
-> - `Function("return this")()` and `new Function("return this")()` are always safe to transform
-> - `window` and `self` identifiers are transformed to `globalThis` (including property access)
-> - Property access like `window.document`, `window.setTimeout()`, and `self.postMessage()` becomes `globalThis.document`, `globalThis.setTimeout()`, and `globalThis.postMessage()`
-> - `window` and `self` used as parameter names or variable names are not transformed
-> - `window` and `self` used as object property keys are not transformed
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
