@@ -2252,7 +2252,6 @@ export function indexOfToIncludes(j, root) {
 
       // Validate operator with value combinations
       const operator = node.operator
-      
       // For -1 comparisons:
       // - indexOf() !== -1 → includes()
       // - indexOf() === -1 → !includes()
