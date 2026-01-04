@@ -180,6 +180,18 @@ Supports:
 +const withItem = [...array, item];
 ```
 
+#### `Array.slice(0)` → [Array spread [...]][mdn-spread]
+
+```diff
+-const copy = arr.slice(0);
+-const clone = arr.slice();
++const copy = [...arr];
++const clone = [...arr];
+```
+
+> [!NOTE]
+> Only transforms when the object can be verified as an array (array literals, Array methods, etc.). Identifier slices like `arr.slice()` are not transformed to avoid breaking string operations.
+
 #### `Math.pow()` → [Exponentiation operator \*\*][mdn-exponentiation]
 
 ```diff
