@@ -1770,13 +1770,14 @@ export function globalContextToGlobalThis(j, root) {
           return false
         }
 
-        // Don't transform if it's an object property key
-        if (
-          (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
-          parent.key === node &&
-          !parent.computed
-        ) {
-          return false
+        // Don't transform if it's an object property key or shorthand property
+        if (j.Property.check(parent) || j.ObjectProperty.check(parent)) {
+          if (parent.key === node && !parent.computed) {
+            return false
+          }
+          if (parent.shorthand === true && parent.value === node) {
+            return false
+          }
         }
 
         // Don't transform if it's an object method key (method shorthand syntax)

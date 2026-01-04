@@ -3300,6 +3300,52 @@ class MyClass {
       assert.match(result.code, /globalThis\.location\.pathname/)
     })
 
+    test("do not transform ES6 shorthand property from global window", () => {
+      const result = transform(`const obj = { window };`)
+
+      assert(!result.modified, "skip shorthand property with global window")
+      assert.match(result.code, /\{ window \}/)
+      assert.doesNotMatch(result.code, /globalThis/)
+    })
+
+    test("do not transform ES6 shorthand property from local window", () => {
+      const result = transform(`
+const window = getWindow();
+const obj = { window };
+      `)
+
+      // No transformation should happen - window is shadowed
+      assert(!result.modified, "skip shorthand property with local window")
+      assert.match(result.code, /const window = getWindow\(\)/)
+      assert.match(result.code, /\{ window \}/)
+      assert.doesNotMatch(result.code, /globalThis/)
+    })
+
+    test("do not transform ES6 shorthand property with self", () => {
+      const result = transform(`
+const self = this;
+const obj = { self };
+      `)
+
+      assert(!result.modified, "skip shorthand property with self")
+      assert.match(result.code, /\{ self \}/)
+      assert.doesNotMatch(result.code, /globalThis/)
+    })
+
+    test("do not transform window in shorthand method definition", () => {
+      const result = transform(`
+const obj = {
+  window() {
+    return 'method';
+  }
+};
+      `)
+
+      assert(!result.modified, "skip method name")
+      assert.match(result.code, /window\(\)/)
+      assert.doesNotMatch(result.code, /globalThis/)
+    })
+
     test("do not transform Function with non-string literal argument", () => {
       const result = transform(`const fn = Function(123)();`)
 
