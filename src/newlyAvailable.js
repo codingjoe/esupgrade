@@ -1,10 +1,12 @@
 /**
- * Transform new Promise((resolve, reject) => { resolve(fn()) }) to Promise.try(fn)
+ * Transform new Promise((resolve, reject) => { resolve(fn()) }) to Promise.try(fn).
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function promiseTry(j, root) {
   let modified = false
-  const changes = []
 
   root
     .find(j.NewExpression)
@@ -142,14 +144,8 @@ export function promiseTry(j, root) {
         j(path).replaceWith(promiseTryCall)
 
         modified = true
-        if (node.loc) {
-          changes.push({
-            type: "promiseTry",
-            line: node.loc.start.line,
-          })
-        }
       }
     })
 
-  return { modified, changes }
+  return modified
 }

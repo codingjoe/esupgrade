@@ -207,17 +207,5 @@ suite("newly-available", () => {
       assert(result.modified)
       assert.match(result.code, /Promise\.try/)
     })
-
-    test("tracks line numbers correctly", () => {
-      const result = transform(
-        `// Line 1
-const p = new Promise((resolve) => resolve(getData()));`,
-        "newly-available",
-      )
-      assert(result.modified)
-      assert.equal(result.changes.length, 1)
-      assert.equal(result.changes[0].type, "promiseTry")
-      assert.equal(result.changes[0].line, 2)
-    })
   })
 })

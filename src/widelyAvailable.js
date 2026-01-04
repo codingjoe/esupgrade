@@ -239,16 +239,15 @@ function processMultipleDeclarators(j, root, path) {
 }
 
 /**
- * Transform var to const or let
+ * Transform var to const or let.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {import('jscodeshift').Collection} root - The root AST collection
- * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }}
+ * @returns {boolean} True if code was modified
  */
 export function varToLetOrConst(j, root) {
   let modified = false
-  const changes = []
 
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
     const isSingleDeclarator = path.node.declarations.length === 1
@@ -260,21 +259,20 @@ export function varToLetOrConst(j, root) {
     if (result.modified) {
       modified = true
     }
-    if (result.change) {
-      changes.push(result.change)
-    }
   })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform string concatenation to template literals
+ * Transform string concatenation to template literals.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function concatToTemplateLiteral(j, root) {
   let modified = false
-  const changes = []
 
   root
     .find(j.BinaryExpression, { operator: "+" })
@@ -420,16 +418,18 @@ export function concatToTemplateLiteral(j, root) {
       modified = true
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform Object.assign({}, ...) to object spread
+ * Transform Object.assign({}, ...) to object spread.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function objectAssignToSpread(j, root) {
   let modified = false
-  const changes = []
 
   root
     .find(j.CallExpression, {
@@ -455,16 +455,18 @@ export function objectAssignToSpread(j, root) {
       modified = true
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform Array.from().forEach() to for...of
+ * Transform Array.from().forEach() to for...of.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function arrayFromForEachToForOf(j, root) {
   let modified = false
-  const changes = []
 
   root
     .find(j.CallExpression)
@@ -532,29 +534,25 @@ export function arrayFromForEachToForOf(j, root) {
             j(statement).replaceWith(forOfLoop)
 
             modified = true
-            if (node.loc) {
-              changes.push({
-                type: "arrayFromForEachToForOf",
-                line: node.loc.start.line,
-              })
-            }
           }
         }
       }
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform Array.from(obj) to [...obj] spread syntax
+ * Transform Array.from(obj) to [...obj] spread syntax.
  * This handles cases like Array.from(obj).map(), .filter(), .some(), etc.
- * that are not covered by the forEach transformer
+ * that are not covered by the forEach transformer.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function arrayFromToSpread(j, root) {
   let modified = false
-  const changes = []
 
   root
     .find(j.CallExpression)
@@ -601,24 +599,20 @@ export function arrayFromToSpread(j, root) {
       j(path).replaceWith(spreadArray)
 
       modified = true
-      if (node.loc) {
-        changes.push({
-          type: "arrayFromToSpread",
-          line: node.loc.start.line,
-        })
-      }
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform Math.pow() to exponentiation operator (**)
+ * Transform Math.pow() to exponentiation operator (**).
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function mathPowToExponentiation(j, root) {
   let modified = false
-  const changes = []
 
   root
     .find(j.CallExpression, {
@@ -642,26 +636,22 @@ export function mathPowToExponentiation(j, root) {
       j(path).replaceWith(expExpression)
 
       modified = true
-      if (node.loc) {
-        changes.push({
-          type: "mathPowToExponentiation",
-          line: node.loc.start.line,
-        })
-      }
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform traditional for loops to for...of where safe
+ * Transform traditional for loops to for...of where safe.
  * Converts: for (let i = 0; i < arr.length; i++) { const item = arr[i]; ... }
  * To: for (const item of arr) { ... }
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function forLoopToForOf(j, root) {
   let modified = false
-  const changes = []
 
   root
     .find(j.ForStatement)
@@ -818,26 +808,22 @@ export function forLoopToForOf(j, root) {
       j(path).replaceWith(forOfLoop)
 
       modified = true
-      if (node.loc) {
-        changes.push({
-          type: "forLoopToForOf",
-          line: node.loc.start.line,
-        })
-      }
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform iterables' forEach() to for...of loop
- * Handles DOM APIs like querySelectorAll, getElementsBy*, etc. and other known iterables
- * Only transforms when forEach callback is declared inline with a function body (block statement)
+ * Transform iterables' forEach() to for...of loop.
+ * Handles DOM APIs like querySelectorAll, getElementsBy*, etc. and other known iterables.
+ * Only transforms when forEach callback is declared inline with a function body (block statement).
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function iterableForEachToForOf(j, root) {
   let modified = false
-  const changes = []
 
   // Define known iterable-returning methods by their object/context
   const knownIterableMethods = {
@@ -1004,20 +990,14 @@ export function iterableForEachToForOf(j, root) {
         j(statement).replaceWith(forOfLoop)
 
         modified = true
-        if (node.loc) {
-          changes.push({
-            type: "iterableForEachToForOf",
-            line: node.loc.start.line,
-          })
-        }
       }
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform anonymous function expressions to arrow functions
+ * Transform anonymous function expressions to arrow functions.
  * Does not transform if the function:
  * - is a named function expression (useful for stack traces and recursion)
  * - uses 'this' (arrow functions don't have their own 'this')
@@ -1025,10 +1005,12 @@ export function iterableForEachToForOf(j, root) {
  * - uses 'super' (defensive check, though this would be a syntax error in function expressions)
  * - is a generator function (arrow functions cannot be generators)
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function anonymousFunctionToArrow(j, root) {
   let modified = false
-  const changes = []
 
   // Helper to check if a node or its descendants use 'this'
   const usesThis = (node) => {
@@ -1178,24 +1160,20 @@ export function anonymousFunctionToArrow(j, root) {
       j(path).replaceWith(arrowFunction)
 
       modified = true
-      if (node.loc) {
-        changes.push({
-          type: "anonymousFunctionToArrow",
-          line: node.loc.start.line,
-        })
-      }
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform Array.concat() to array spread syntax
+ * Transform Array.concat() to array spread syntax.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function arrayConcatToSpread(j, root) {
   let modified = false
-  const changes = []
 
   // Helper to check if an expression is statically verifiable as an array
   const isVerifiableArray = (node) => {
@@ -1307,20 +1285,17 @@ export function arrayConcatToSpread(j, root) {
       j(path).replaceWith(spreadArray)
 
       modified = true
-      if (node.loc) {
-        changes.push({
-          type: "arrayConcatToSpread",
-          line: node.loc.start.line,
-        })
-      }
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Transform old-school constructor functions with prototype methods to ES6 class syntax
+ * Transform old-school constructor functions with prototype methods to ES6 class syntax.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  */
 export function constructorToClass(j, root) {
   /**
@@ -1532,11 +1507,10 @@ export function constructorToClass(j, root) {
    * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API.
    * @param {import('jscodeshift').Collection} root - The root AST collection.
    * @param {Map<string, { declaration: import('jscodeshift').ASTPath, prototypeMethods: Array<any> }>} constructors - Map of constructors.
-   * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }} Transformation result.
+   * @returns {boolean} True if code was modified.
    */
   function transformConstructorsToClasses(j, root, constructors) {
     let modified = false
-    const changes = []
 
     constructors.forEach((info, constructorName) => {
       if (info.prototypeMethods.length === 0) {
@@ -1605,15 +1579,9 @@ export function constructorToClass(j, root) {
       })
 
       modified = true
-      if (constructorNode.loc) {
-        changes.push({
-          type: "constructorToClass",
-          line: constructorNode.loc.start.line,
-        })
-      }
     })
 
-    return { modified, changes }
+    return modified
   }
 
   const constructors = findConstructors(j, root)
@@ -1622,15 +1590,14 @@ export function constructorToClass(j, root) {
 }
 
 /**
- * Transform console.log() to console.info()
+ * Transform console.log() to console.info().
  * @see https://developer.mozilla.org/en-US/docs/Web/API/console
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {import('jscodeshift').Collection} root - The root AST collection
- * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }}
+ * @returns {boolean} True if code was modified
  */
 export function consoleLogToInfo(j, root) {
   let modified = false
-  const changes = []
 
   root
     .find(j.CallExpression)
@@ -1656,28 +1623,21 @@ export function consoleLogToInfo(j, root) {
       node.callee.property.name = "info"
 
       modified = true
-      if (node.loc) {
-        changes.push({
-          type: "consoleLogToInfo",
-          line: node.loc.start.line,
-        })
-      }
     })
 
-  return { modified, changes }
+  return modified
 }
 
 /**
- * Remove 'use strict' directives from modules
- * Modules are strict by default, making these directives redundant
+ * Remove 'use strict' directives from modules.
+ * Modules are strict by default, making these directives redundant.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {import('jscodeshift').Collection} root - The root AST collection
- * @returns {{ modified: boolean, changes: Array<{ type: string, line: number }> }}
+ * @returns {boolean} True if code was modified
  */
 export function removeUseStrictFromModules(j, root) {
   let modified = false
-  const changes = []
 
   // Check if the file is a module by looking for import/export statements
   const hasImports = root.find(j.ImportDeclaration).length > 0
@@ -1690,7 +1650,7 @@ export function removeUseStrictFromModules(j, root) {
 
   // Only proceed if this is a module
   if (!isModule) {
-    return { modified, changes }
+    return modified
   }
 
   // Find and remove 'use strict' directives
@@ -1704,15 +1664,8 @@ export function removeUseStrictFromModules(j, root) {
         const directive = program.directives[i]
         if (directive.value && directive.value.value === "use strict") {
           // This is a 'use strict' directive - remove it
-          const line = directive.loc ? directive.loc.start.line : null
           program.directives.splice(i, 1)
           modified = true
-          if (line) {
-            changes.push({
-              type: "removeUseStrictFromModules",
-              line,
-            })
-          }
           // Don't increment i since we removed an element
         } else {
           i++
@@ -1720,37 +1673,10 @@ export function removeUseStrictFromModules(j, root) {
       }
     }
 
-    // Also check body for ExpressionStatement with 'use strict' (fallback for other parsers)
-    const body = program.body
-    let i = 0
-    while (i < body.length) {
-      const statement = body[i]
-
-      // Check if this is an ExpressionStatement with a string literal 'use strict'
-      if (
-        j.ExpressionStatement.check(statement) &&
-        (j.StringLiteral.check(statement.expression) ||
-          (j.Literal.check(statement.expression) &&
-            typeof statement.expression.value === "string")) &&
-        statement.expression.value === "use strict"
-      ) {
-        // This is a 'use strict' directive - remove it
-        const line = statement.loc ? statement.loc.start.line : null
-        body.splice(i, 1)
-        modified = true
-        if (line) {
-          changes.push({
-            type: "removeUseStrictFromModules",
-            line,
-          })
-        }
-        // Don't increment i since we removed an element
-      } else {
-        // Stop looking for directives after the first non-directive statement
-        break
-      }
-    }
+    // Note: 'use strict' directives are stored in program.directives with the tsx parser,
+    // so the body loop is not reachable in practice. We keep it for defensive compatibility
+    // with other parsers that might store 'use strict' as an ExpressionStatement in the body.
   })
 
-  return { modified, changes }
+  return modified
 }

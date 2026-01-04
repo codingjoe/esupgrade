@@ -15,7 +15,11 @@ try {
   parentPort.postMessage({
     success: true,
     filePath,
-    result,
+    result: {
+      modified: result.modified,
+      original: code,
+      code: result.code,
+    },
   })
 } catch (error) {
   parentPort.postMessage({
