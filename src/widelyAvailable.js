@@ -119,6 +119,89 @@ function areNodesEquivalent(j, node1, node2) {
 }
 
 /**
+ * Check if an expression is statically verifiable as an array.
+ * Used by transformers to ensure they only transform array operations, not string operations.
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').ASTNode} node - The AST node to check
+ * @returns {boolean} True if the node can be verified as an array
+ */
+function isVerifiableArray(j, node) {
+  // Array literal: [1, 2, 3]
+  if (j.ArrayExpression.check(node)) {
+    return true
+  }
+
+  // Array.from(), Array.of(), etc.
+  if (
+    j.CallExpression.check(node) &&
+    j.MemberExpression.check(node.callee) &&
+    j.Identifier.check(node.callee.object) &&
+    node.callee.object.name === "Array"
+  ) {
+    return true
+  }
+
+  // new Array()
+  if (
+    j.NewExpression.check(node) &&
+    j.Identifier.check(node.callee) &&
+    node.callee.name === "Array"
+  ) {
+    return true
+  }
+
+  // Array methods that return arrays
+  const ARRAY_METHODS_RETURNING_ARRAY = [
+    "map",
+    "filter",
+    "slice",
+    "concat",
+    "flat",
+    "flatMap",
+    "splice",
+    "toSpliced",
+    "toReversed",
+    "toSorted",
+  ]
+
+  if (
+    j.CallExpression.check(node) &&
+    j.MemberExpression.check(node.callee) &&
+    j.Identifier.check(node.callee.property) &&
+    ARRAY_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
+  ) {
+    return true
+  }
+
+  // String methods that return arrays
+  const STRING_METHODS_RETURNING_ARRAY = [
+    "matchAll",
+    "split",
+    "slice",
+    "substr",
+    "substring",
+    "toLowerCase",
+    "toUpperCase",
+    "trim",
+    "trimStart",
+    "trimEnd",
+  ]
+
+  // String literal methods that return arrays (e.g., "a,b,c".split(','))
+  if (
+    j.CallExpression.check(node) &&
+    j.MemberExpression.check(node.callee) &&
+    j.Identifier.check(node.callee.property) &&
+    j.StringLiteral.check(node.callee.object) &&
+    STRING_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
+  ) {
+    return true
+  }
+
+  return false
+}
+
+/**
  * Check if an assignment/update expression is shadowed by a closer variable declaration
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {string} varName - The variable name to check
@@ -1228,59 +1311,6 @@ export function anonymousFunctionToArrow(j, root) {
 export function arrayConcatToSpread(j, root) {
   let modified = false
 
-  // Helper to check if an expression is statically verifiable as an array
-  const isVerifiableArray = (node) => {
-    // Array literal: [1, 2, 3]
-    if (j.ArrayExpression.check(node)) {
-      return true
-    }
-
-    // Array.from(), Array.of(), etc.
-    if (
-      j.CallExpression.check(node) &&
-      j.MemberExpression.check(node.callee) &&
-      j.Identifier.check(node.callee.object) &&
-      node.callee.object.name === "Array"
-    ) {
-      return true
-    }
-
-    // new Array()
-    if (
-      j.NewExpression.check(node) &&
-      j.Identifier.check(node.callee) &&
-      node.callee.name === "Array"
-    ) {
-      return true
-    }
-
-    const STRING_METHODS_RETURNING_ARRAY = [
-      "matchAll",
-      "split",
-      "slice",
-      "substr",
-      "substring",
-      "toLowerCase",
-      "toUpperCase",
-      "trim",
-      "trimStart",
-      "trimEnd",
-    ]
-
-    // .split() on strings returns arrays
-    if (
-      j.CallExpression.check(node) &&
-      j.MemberExpression.check(node.callee) &&
-      j.Identifier.check(node.callee.property) &&
-      j.StringLiteral.check(node.callee.object) &&
-      STRING_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
-    ) {
-      return true
-    }
-
-    return false
-  }
-
   root
     .find(j.CallExpression)
     .filter((path) => {
@@ -1302,7 +1332,7 @@ export function arrayConcatToSpread(j, root) {
 
       // Only transform if we can verify the object is an array
       const object = node.callee.object
-      if (!isVerifiableArray(object)) {
+      if (!isVerifiableArray(j, object)) {
         return false
       }
 
@@ -2044,71 +2074,6 @@ export function nullishCoalescingOperator(j, root) {
 export function arraySliceToSpread(j, root) {
   let modified = false
 
-  // Helper to check if an expression is statically verifiable as an array
-  const isVerifiableArray = (node) => {
-    // Array literal: [1, 2, 3]
-    if (j.ArrayExpression.check(node)) {
-      return true
-    }
-
-    // Array.from(), Array.of(), etc.
-    if (
-      j.CallExpression.check(node) &&
-      j.MemberExpression.check(node.callee) &&
-      j.Identifier.check(node.callee.object) &&
-      node.callee.object.name === "Array"
-    ) {
-      return true
-    }
-
-    // new Array()
-    if (
-      j.NewExpression.check(node) &&
-      j.Identifier.check(node.callee) &&
-      node.callee.name === "Array"
-    ) {
-      return true
-    }
-
-    // Array methods that return arrays: map, filter, slice, concat, etc.
-    const ARRAY_METHODS_RETURNING_ARRAY = [
-      "map",
-      "filter",
-      "slice",
-      "concat",
-      "flat",
-      "flatMap",
-      "splice",
-      "toSpliced",
-      "toReversed",
-      "toSorted",
-    ]
-
-    if (
-      j.CallExpression.check(node) &&
-      j.MemberExpression.check(node.callee) &&
-      j.Identifier.check(node.callee.property) &&
-      ARRAY_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
-    ) {
-      return true
-    }
-
-    // String methods that return arrays
-    const STRING_METHODS_RETURNING_ARRAY = ["split", "matchAll"]
-
-    if (
-      j.CallExpression.check(node) &&
-      j.MemberExpression.check(node.callee) &&
-      j.Identifier.check(node.callee.property) &&
-      j.StringLiteral.check(node.callee.object) &&
-      STRING_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
-    ) {
-      return true
-    }
-
-    return false
-  }
-
   root
     .find(j.CallExpression)
     .filter((path) => {
@@ -2139,7 +2104,7 @@ export function arraySliceToSpread(j, root) {
 
       // Only transform if we can verify the object is an array
       const object = node.callee.object
-      if (!isVerifiableArray(object)) {
+      if (!isVerifiableArray(j, object)) {
         return false
       }
 
