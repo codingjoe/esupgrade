@@ -260,6 +260,20 @@ Supports:
 >
 > This transformation provides semantic clarity by using an explicit log level, but review your logging infrastructure before applying.
 
+#### Remove redundant `'use strict'` from [modules][mdn-strict-mode]
+
+```diff
+-'use strict';
+ import { helper } from './utils';
+
+ export function main() {
+   return helper();
+ }
+```
+
+> [!NOTE]
+> ES6 modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation applies to files with `import` or `export` statements.
+
 #### Global context access → [globalThis][mdn-globalthis]
 
 ```diff
@@ -341,6 +355,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+[mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
 [pre-commit]: https://pre-commit.com/
 [pyupgrade]: https://github.com/asottile/pyupgrade
