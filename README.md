@@ -274,6 +274,27 @@ Supports:
 > [!NOTE]
 > ES6 modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation applies to files with `import` or `export` statements.
 
+#### Global context → [globalThis][mdn-globalthis]
+
+```diff
+-const global = window;
+-const loc = window.location.href;
++const global = globalThis;
++const loc = globalThis.location.href;
+```
+
+```diff
+-const global = self;
+-const nav = self.navigator;
++const global = globalThis;
++const nav = globalThis.navigator;
+```
+
+```diff
+-const global = Function('return this')();
++const global = globalThis;
+```
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -325,6 +346,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
+[mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
