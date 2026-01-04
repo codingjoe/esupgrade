@@ -3705,6 +3705,33 @@ const obj = {
       assert(result.modified, "transform triple nested member expression")
       assert.match(result.code, /const value = obj\.a\.b\.c \?\? 0/)
     })
+
+    test("should not transform with different function callees", () => {
+      const result = transform(
+        `const value = fn1() !== null && fn2() !== undefined ? fn1() : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip when function callees differ")
+      assert.match(result.code, /fn1\(\) !== null && fn2\(\)/)
+    })
+
+    test("should not transform with different function argument counts", () => {
+      const result = transform(
+        `const value = fn(a) !== null && fn(a, b) !== undefined ? fn(a) : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip when function argument counts differ")
+      assert.match(result.code, /fn\(a\) !== null && fn\(a, b\)/)
+    })
+
+    test("should not transform with different function argument values", () => {
+      const result = transform(
+        `const value = fn(a) !== null && fn(b) !== undefined ? fn(a) : defaultValue;`,
+      )
+
+      assert(!result.modified, "skip when function argument values differ")
+      assert.match(result.code, /fn\(a\) !== null && fn\(b\)/)
+    })
   })
 
   describe("optionalChaining", () => {
@@ -3788,6 +3815,13 @@ const obj = {
 
       assert(!result.modified, "skip when chain breaks")
       assert.match(result.code, /obj && obj\.prop && other\.nested/)
+    })
+
+    test("skip || operator (not && operator)", () => {
+      const result = transform(`const value = obj || obj.prop;`)
+
+      assert(!result.modified, "skip || operator")
+      assert.match(result.code, /obj \|\| obj\.prop/)
     })
 
     test("property access in expression", () => {
