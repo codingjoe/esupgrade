@@ -307,6 +307,29 @@ Supports:
 +const result = obj.prop ?? 0;
 ```
 
+#### `indexOf()` → [includes()][mdn-includes]
+
+```diff
+-const found = arr.indexOf(item) !== -1;
+-const exists = str.indexOf(substr) > -1;
+-const hasValue = list.indexOf(value) >= 0;
++const found = arr.includes(item);
++const exists = str.includes(substr);
++const hasValue = list.includes(value);
+```
+
+```diff
+-if (arr.indexOf(item) === -1) {
+-  console.log('not found');
+-}
++if (!arr.includes(item)) {
++  console.log('not found');
++}
+```
+
+> [!NOTE]
+> Only transforms indexOf() calls with a single argument (search value). Calls with a fromIndex parameter are not transformed as they have different semantics than includes().
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -359,6 +382,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
 [mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+[mdn-includes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try

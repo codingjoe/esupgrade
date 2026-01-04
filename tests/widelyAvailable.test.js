@@ -3923,4 +3923,274 @@ const obj = {
       assert.match(result.code, /const value = fn\?\.\(x, y\)\?\.result/)
     })
   })
+
+  describe("indexOfToIncludes", () => {
+    describe("array indexOf patterns", () => {
+      test("arr.indexOf(item) !== -1", () => {
+        const result = transform(`const found = arr.indexOf(item) !== -1;`)
+
+        assert(result.modified, "transform indexOf !== -1")
+        assert.match(result.code, /const found = arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("arr.indexOf(item) > -1", () => {
+        const result = transform(`const found = arr.indexOf(item) > -1;`)
+
+        assert(result.modified, "transform indexOf > -1")
+        assert.match(result.code, /const found = arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("arr.indexOf(item) >= 0", () => {
+        const result = transform(`const found = arr.indexOf(item) >= 0;`)
+
+        assert(result.modified, "transform indexOf >= 0")
+        assert.match(result.code, /const found = arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("reversed: -1 !== arr.indexOf(item)", () => {
+        const result = transform(`const found = -1 !== arr.indexOf(item);`)
+
+        assert(result.modified, "transform -1 !== indexOf")
+        assert.match(result.code, /const found = arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("reversed: -1 < arr.indexOf(item)", () => {
+        const result = transform(`const found = -1 < arr.indexOf(item);`)
+
+        assert(result.modified, "transform -1 < indexOf")
+        assert.match(result.code, /const found = arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("reversed: 0 <= arr.indexOf(item)", () => {
+        const result = transform(`const found = 0 <= arr.indexOf(item);`)
+
+        assert(result.modified, "transform 0 <= indexOf")
+        assert.match(result.code, /const found = arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+    })
+
+    describe("negated patterns", () => {
+      test("arr.indexOf(item) === -1", () => {
+        const result = transform(`const notFound = arr.indexOf(item) === -1;`)
+
+        assert(result.modified, "transform indexOf === -1")
+        assert.match(result.code, /const notFound = !arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("arr.indexOf(item) <= -1", () => {
+        const result = transform(`const notFound = arr.indexOf(item) <= -1;`)
+
+        assert(result.modified, "transform indexOf <= -1")
+        assert.match(result.code, /const notFound = !arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("arr.indexOf(item) < 0", () => {
+        const result = transform(`const notFound = arr.indexOf(item) < 0;`)
+
+        assert(result.modified, "transform indexOf < 0")
+        assert.match(result.code, /const notFound = !arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("reversed: -1 === arr.indexOf(item)", () => {
+        const result = transform(`const notFound = -1 === arr.indexOf(item);`)
+
+        assert(result.modified, "transform -1 === indexOf")
+        assert.match(result.code, /const notFound = !arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("reversed: -1 >= arr.indexOf(item)", () => {
+        const result = transform(`const notFound = -1 >= arr.indexOf(item);`)
+
+        assert(result.modified, "transform -1 >= indexOf")
+        assert.match(result.code, /const notFound = !arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("reversed: 0 > arr.indexOf(item)", () => {
+        const result = transform(`const notFound = 0 > arr.indexOf(item);`)
+
+        assert(result.modified, "transform 0 > indexOf")
+        assert.match(result.code, /const notFound = !arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+    })
+
+    describe("string indexOf patterns", () => {
+      test("str.indexOf(substr) !== -1", () => {
+        const result = transform(`const found = str.indexOf(substr) !== -1;`)
+
+        assert(result.modified, "transform string indexOf !== -1")
+        assert.match(result.code, /const found = str\.includes\(substr\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("str.indexOf(substr) > -1", () => {
+        const result = transform(`const found = str.indexOf(substr) > -1;`)
+
+        assert(result.modified, "transform string indexOf > -1")
+        assert.match(result.code, /const found = str\.includes\(substr\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("str.indexOf(substr) >= 0", () => {
+        const result = transform(`const found = str.indexOf(substr) >= 0;`)
+
+        assert(result.modified, "transform string indexOf >= 0")
+        assert.match(result.code, /const found = str\.includes\(substr\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("str.indexOf('literal') !== -1", () => {
+        const result = transform(`if (str.indexOf('hello') !== -1) { }`)
+
+        assert(result.modified, "transform string indexOf with literal")
+        assert.match(result.code, /if \(str\.includes\('hello'\)\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+    })
+
+    describe("complex expressions", () => {
+      test("member expression object", () => {
+        const result = transform(`const found = obj.arr.indexOf(item) !== -1;`)
+
+        assert(result.modified, "transform with member expression")
+        assert.match(result.code, /const found = obj\.arr\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("call expression object", () => {
+        const result = transform(`const found = getArray().indexOf(item) !== -1;`)
+
+        assert(result.modified, "transform with call expression")
+        assert.match(result.code, /const found = getArray\(\)\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("in if condition", () => {
+        const result = transform(`if (arr.indexOf(item) !== -1) { console.log('found'); }`)
+
+        assert(result.modified, "transform in if condition")
+        assert.match(result.code, /if \(arr\.includes\(item\)\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("in ternary expression", () => {
+        const result = transform(`const result = arr.indexOf(item) !== -1 ? 'yes' : 'no';`)
+
+        assert(result.modified, "transform in ternary expression")
+        assert.match(result.code, /const result = arr\.includes\(item\) \? 'yes' : 'no'/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("negated in if condition", () => {
+        const result = transform(`if (arr.indexOf(item) === -1) { console.log('not found'); }`)
+
+        assert(result.modified, "transform negated in if condition")
+        assert.match(result.code, /if \(!arr\.includes\(item\)\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+    })
+
+    describe("skip patterns", () => {
+      test("indexOf with fromIndex parameter", () => {
+        const result = transform(`const found = arr.indexOf(item, 5) !== -1;`)
+
+        assert(!result.modified, "skip indexOf with fromIndex")
+        assert.match(result.code, /arr\.indexOf\(item, 5\) !== -1/)
+      })
+
+      test("indexOf without comparison", () => {
+        const result = transform(`const index = arr.indexOf(item);`)
+
+        assert(!result.modified, "skip indexOf without comparison")
+        assert.match(result.code, /arr\.indexOf\(item\)/)
+      })
+
+      test("indexOf compared to other values", () => {
+        const result = transform(`const found = arr.indexOf(item) > 0;`)
+
+        assert(!result.modified, "skip indexOf compared to other values")
+        assert.match(result.code, /arr\.indexOf\(item\) > 0/)
+      })
+
+      test("indexOf compared to variable", () => {
+        const result = transform(`const found = arr.indexOf(item) !== someValue;`)
+
+        assert(!result.modified, "skip indexOf compared to variable")
+        assert.match(result.code, /arr\.indexOf\(item\) !== someValue/)
+      })
+
+      test("indexOf with invalid operators for -1", () => {
+        const result = transform(`const found = arr.indexOf(item) < -1;`)
+
+        assert(!result.modified, "skip invalid operators")
+        assert.match(result.code, /arr\.indexOf\(item\) < -1/)
+      })
+
+      test("indexOf with invalid operators for 0", () => {
+        const result = transform(`const found = arr.indexOf(item) > 0;`)
+
+        assert(!result.modified, "skip > 0 comparison")
+        assert.match(result.code, /arr\.indexOf\(item\) > 0/)
+      })
+
+      test("indexOf with == operator", () => {
+        const result = transform(`const found = arr.indexOf(item) == -1;`)
+
+        assert(!result.modified, "skip loose equality")
+        assert.match(result.code, /arr\.indexOf\(item\) == -1/)
+      })
+
+      test("indexOf with != operator", () => {
+        const result = transform(`const found = arr.indexOf(item) != -1;`)
+
+        assert(!result.modified, "skip loose inequality")
+        assert.match(result.code, /arr\.indexOf\(item\) != -1/)
+      })
+    })
+
+    describe("real-world patterns", () => {
+      test("combined with logical operators", () => {
+        const result = transform(`const valid = arr.indexOf(item) !== -1 && arr.length > 0;`)
+
+        assert(result.modified, "transform with logical operators")
+        assert.match(result.code, /const valid = arr\.includes\(item\) && arr\.length > 0/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("multiple indexOf checks", () => {
+        const result = transform(`const found = arr1.indexOf(x) !== -1 || arr2.indexOf(y) !== -1;`)
+
+        assert(result.modified, "transform multiple indexOf checks")
+        assert.match(result.code, /const found = arr1\.includes\(x\) \|\| arr2\.includes\(y\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("in return statement", () => {
+        const result = transform(`return items.indexOf(target) !== -1;`)
+
+        assert(result.modified, "transform in return statement")
+        assert.match(result.code, /return items\.includes\(target\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("assigned to variable", () => {
+        const result = transform(`const hasItem = items.indexOf(searchValue) >= 0;`)
+
+        assert(result.modified, "transform assigned to variable")
+        assert.match(result.code, /const hasItem = items\.includes\(searchValue\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+    })
+  })
 })

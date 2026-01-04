@@ -2151,3 +2151,226 @@ export function optionalChaining(j, root) {
 
   return modified
 }
+
+/**
+ * Transform indexOf() existence checks to includes() method.
+ * Converts patterns like arr.indexOf(item) !== -1 to arr.includes(item).
+ * Also handles negative checks: arr.indexOf(item) === -1 to !arr.includes(item).
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ */
+export function indexOfToIncludes(j, root) {
+  let modified = false
+
+  root
+    .find(j.BinaryExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check for comparison operators: !==, ===, >, >=, <, <=
+      if (!["!==", "===", ">", ">=", "<", "<="].includes(node.operator)) {
+        return false
+      }
+
+      // Check if one side is a .indexOf() call and the other is -1 or 0
+      let indexOfCall = null
+      let comparisonValue = null
+      let isLeftIndexOf = false
+
+      // Check left side
+      if (
+        j.CallExpression.check(node.left) &&
+        j.MemberExpression.check(node.left.callee) &&
+        j.Identifier.check(node.left.callee.property) &&
+        node.left.callee.property.name === "indexOf"
+      ) {
+        indexOfCall = node.left
+        comparisonValue = node.right
+        isLeftIndexOf = true
+      }
+      // Check right side
+      else if (
+        j.CallExpression.check(node.right) &&
+        j.MemberExpression.check(node.right.callee) &&
+        j.Identifier.check(node.right.callee.property) &&
+        node.right.callee.property.name === "indexOf"
+      ) {
+        indexOfCall = node.right
+        comparisonValue = node.left
+        isLeftIndexOf = false
+      } else {
+        return false
+      }
+
+      // Only transform if indexOf has exactly 1 argument (the search value)
+      // indexOf with fromIndex (2nd argument) has different semantics
+      if (!indexOfCall || indexOfCall.arguments.length !== 1) {
+        return false
+      }
+
+      // Helper to get numeric value from a node
+      const getNumericValue = (node) => {
+        // Handle direct literals (e.g., 0)
+        if (j.Literal.check(node) && typeof node.value === "number") {
+          return node.value
+        }
+        // Handle NumericLiteral (alternative node type)
+        if (node.type === "NumericLiteral" && typeof node.value === "number") {
+          return node.value
+        }
+        // Handle UnaryExpression with minus operator (e.g., -1)
+        if (
+          j.UnaryExpression.check(node) &&
+          node.operator === "-" &&
+          (j.Literal.check(node.argument) || node.argument.type === "NumericLiteral")
+        ) {
+          const argValue = node.argument.value
+          if (typeof argValue === "number") {
+            return -argValue
+          }
+        }
+        return null
+      }
+
+      // Comparison value must be -1 or 0
+      const value = getNumericValue(comparisonValue)
+      if (value !== -1 && value !== 0) {
+        return false
+      }
+
+      // Validate operator with value combinations
+      const operator = node.operator
+      
+      // For -1 comparisons:
+      // - indexOf() !== -1 → includes()
+      // - indexOf() === -1 → !includes()
+      // - indexOf() > -1 → includes()
+      // - indexOf() <= -1 → !includes()
+      // For 0 comparisons:
+      // - indexOf() >= 0 → includes()
+      // - indexOf() < 0 → !includes()
+      
+      if (value === -1) {
+        if (isLeftIndexOf) {
+          // indexOf() op -1
+          if (!["!==", "===", ">", "<="].includes(operator)) {
+            return false
+          }
+        } else {
+          // -1 op indexOf()
+          if (!["!==", "===", "<", ">="].includes(operator)) {
+            return false
+          }
+        }
+      } else if (value === 0) {
+        if (isLeftIndexOf) {
+          // indexOf() op 0
+          if (![">=", "<"].includes(operator)) {
+            return false
+          }
+        } else {
+          // 0 op indexOf()
+          if (!["<=", ">"].includes(operator)) {
+            return false
+          }
+        }
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      let indexOfCall
+      let comparisonValue
+      let isLeftIndexOf
+
+      // Determine which side has indexOf
+      if (
+        j.CallExpression.check(node.left) &&
+        j.MemberExpression.check(node.left.callee) &&
+        j.Identifier.check(node.left.callee.property) &&
+        node.left.callee.property.name === "indexOf"
+      ) {
+        indexOfCall = node.left
+        comparisonValue = node.right
+        isLeftIndexOf = true
+      } else {
+        indexOfCall = node.right
+        comparisonValue = node.left
+        isLeftIndexOf = false
+      }
+
+      // Helper to get numeric value from a node
+      const getNumericValue = (node) => {
+        if (j.Literal.check(node) && typeof node.value === "number") {
+          return node.value
+        }
+        if (node.type === "NumericLiteral" && typeof node.value === "number") {
+          return node.value
+        }
+        if (
+          j.UnaryExpression.check(node) &&
+          node.operator === "-" &&
+          (j.Literal.check(node.argument) || node.argument.type === "NumericLiteral")
+        ) {
+          const argValue = node.argument.value
+          if (typeof argValue === "number") {
+            return -argValue
+          }
+        }
+        return null
+      }
+
+      const operator = node.operator
+      const value = getNumericValue(comparisonValue)
+
+      // Determine if this should be negated
+      let shouldNegate = false
+
+      if (value === -1) {
+        if (isLeftIndexOf) {
+          // indexOf() op -1
+          // Negate for: ===, <=
+          shouldNegate = operator === "===" || operator === "<="
+        } else {
+          // -1 op indexOf()
+          // Negate for: ===, >=
+          shouldNegate = operator === "===" || operator === ">="
+        }
+      } else if (value === 0) {
+        if (isLeftIndexOf) {
+          // indexOf() op 0
+          // Negate for: <
+          shouldNegate = operator === "<"
+        } else {
+          // 0 op indexOf()
+          // Negate for: >
+          shouldNegate = operator === ">"
+        }
+      }
+
+      // Create includes() call
+      const includesCall = j.callExpression(
+        j.memberExpression(
+          indexOfCall.callee.object,
+          j.identifier("includes"),
+          false,
+        ),
+        indexOfCall.arguments,
+      )
+
+      // Wrap in negation if needed
+      const replacement = shouldNegate
+        ? j.unaryExpression("!", includesCall)
+        : includesCall
+
+      j(path).replaceWith(replacement)
+
+      modified = true
+    })
+
+  return modified
+}
