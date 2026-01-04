@@ -2052,7 +2052,21 @@ export function optionalChaining(j, root) {
 
     // Both are call expressions
     if (j.CallExpression.check(node1) && j.CallExpression.check(node2)) {
-      return areNodesEquivalent(node1.callee, node2.callee)
+      // Check if callees are equivalent
+      if (!areNodesEquivalent(node1.callee, node2.callee)) {
+        return false
+      }
+      // Check if argument counts match
+      if (node1.arguments.length !== node2.arguments.length) {
+        return false
+      }
+      // Check if all arguments are equivalent
+      for (let i = 0; i < node1.arguments.length; i++) {
+        if (!areNodesEquivalent(node1.arguments[i], node2.arguments[i])) {
+          return false
+        }
+      }
+      return true
     }
 
     return false
