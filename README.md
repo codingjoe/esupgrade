@@ -25,7 +25,7 @@ uvx pre-commit install
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/codingjoe/esupgrade
-    rev: 2025.0.2  # Use the latest version
+    rev: 2025.0.2 # Use the latest version
     hooks:
       - id: esupgrade
 ```
@@ -295,6 +295,18 @@ Supports:
 +const global = globalThis;
 ```
 
+#### Null/undefined checks → [Nullish coalescing operator (??)][mdn-nullish-coalescing]
+
+```diff
+-const value = x !== null && x !== undefined ? x : defaultValue;
++const value = x ?? defaultValue;
+```
+
+```diff
+-const result = obj.prop !== null && obj.prop !== undefined ? obj.prop : 0;
++const result = obj.prop ?? 0;
+```
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -348,6 +360,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
 [mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
+[mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
