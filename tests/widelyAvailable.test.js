@@ -3208,7 +3208,9 @@ window.frames.forEach(frame => {
     })
 
     test("transform window in ternary expression", () => {
-      const result = transform(`const global = typeof window !== 'undefined' ? window : {};`)
+      const result = transform(
+        `const global = typeof window !== 'undefined' ? window : {};`,
+      )
 
       assert(result.modified, "transform window in ternary")
       assert.match(result.code, /typeof globalThis !== 'undefined' \? globalThis/)
@@ -3253,7 +3255,7 @@ const obj = {
       const result = transform(`
 class MyClass {
   window = null;
-  
+
   getWindow() {
     return this.window;
   }
@@ -3296,6 +3298,44 @@ class MyClass {
 
       assert(result.modified, "transform window.location chain")
       assert.match(result.code, /globalThis\.location\.pathname/)
+    })
+
+    test("do not transform Function with non-string literal argument", () => {
+      const result = transform(`const fn = Function(123)();`)
+
+      assert(!result.modified, "skip Function with numeric literal argument")
+      assert.match(result.code, /Function\(123\)/)
+    })
+
+    test("do not transform Function with identifier argument", () => {
+      const result = transform(`const fn = Function(getSomeString)();`)
+
+      assert(!result.modified, "skip Function with identifier argument")
+      assert.match(result.code, /Function\(getSomeString\)/)
+    })
+
+    test("do not transform Function with non-return-this string", () => {
+      const result = transform(`const fn = Function('return globalThis')();`)
+
+      assert(!result.modified, "skip Function with different string argument")
+      assert.match(result.code, /Function\('return globalThis'\)/)
+    })
+
+    test("do not transform window as method definition key", () => {
+      const result = transform(`
+const obj = {
+  window() {
+    return this.value;
+  },
+  getValue() {
+    return window;
+  }
+};
+      `)
+
+      assert(result.modified, "transform window in method body but not in method name")
+      assert.match(result.code, /window\(\)/)
+      assert.match(result.code, /return globalThis/)
     })
   })
 })

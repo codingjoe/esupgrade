@@ -1731,15 +1731,12 @@ export function globalContextToGlobalThis(j, root) {
 
       // Check if the argument is "return this" (either single or double quotes)
       const arg = node.arguments[0]
-      if (
-        !j.StringLiteral.check(arg) &&
-        !j.Literal.check(arg)
-      ) {
+      if (!j.StringLiteral.check(arg) && !j.Literal.check(arg)) {
         return false
       }
 
       const value = arg.value
-      return value === "return this"
+      return typeof value === "string" && value === "return this"
     })
     .forEach((path) => {
       // Check if the Function call result is immediately invoked
@@ -1782,8 +1779,13 @@ export function globalContextToGlobalThis(j, root) {
           return false
         }
 
-        // Don't transform if it's a method definition key
-        if (j.MethodDefinition.check(parent) && parent.key === node) {
+        // Don't transform if it's an object method key (method shorthand syntax)
+        if (j.ObjectMethod.check(parent) && parent.key === node) {
+          return false
+        }
+
+        // Don't transform if it's a class method key
+        if (j.ClassMethod.check(parent) && parent.key === node) {
           return false
         }
 
