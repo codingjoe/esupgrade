@@ -12,6 +12,7 @@ Avoid overly complex functions. Break them into smaller functions if necessary.
 
 Write docstrings with jsdoc type annotations for all functions, classes, and methods.
 Docstrings should be written in present tense imperative mood.
+They must start with a capital letter and end with a period.
 Docstrings must describe the external behavior of the function, class, or method.
 Docstrings should avoid redundant phrases like "This function" or "This method".
 Class docstrings must not repeat the class name or start with a verb since they don't do anything themselves.

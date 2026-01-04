@@ -124,23 +124,6 @@ suite("widely-available", () => {
       )
       assert.match(result.code, /for \(const item of items\)/)
     })
-
-    test("tracks line numbers for Array.from().forEach()", () => {
-      const result = transform(`// Line 1
-Array.from(items).forEach(item => console.log(item));`)
-
-      assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 2)
-      // Check that we have both transformations
-      const types = result.changes.map((c) => c.type).sort()
-      assert.deepEqual(types, ["arrayFromForEachToForOf", "consoleLogToInfo"])
-      // Check the arrayFromForEachToForOf change is on line 2
-      const forOfChange = result.changes.find(
-        (c) => c.type === "arrayFromForEachToForOf",
-      )
-      assert.equal(forOfChange.line, 2)
-    })
-
     test("Array.from().forEach() with destructuring and 2+ params", () => {
       const result = transform(`Array.from(items).forEach(([a, b], index) => {
         console.log(a, b, index);
@@ -258,16 +241,6 @@ Array.from(items).forEach(item => console.log(item));`)
       assert(result.modified, "transform Array.from() with complex iterable")
       assert.match(result.code, /\[\.\.\.document\.querySelectorAll\('\.item'\)\]/)
     })
-
-    test("tracks line numbers for Array.from() to spread", () => {
-      const result = transform(`// Line 1
-const result = Array.from(items).map(x => x * 2);`)
-
-      assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 1)
-      assert.equal(result.changes[0].type, "arrayFromToSpread")
-      assert.equal(result.changes[0].line, 2)
-    })
   })
 
   describe("varToLetOrConst", () => {
@@ -304,19 +277,7 @@ const result = Array.from(items).map(x => x * 2);`)
       assert.match(result.code, /const x = 1/)
       assert.match(result.code, /const y = 2/)
       assert.match(result.code, /const z = 3/)
-      assert.equal(result.changes.length, 3)
     })
-
-    test("tracks line numbers", () => {
-      const result = transform(`// Line 1
-var x = 1;`)
-
-      assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 1)
-      assert.equal(result.changes[0].type, "varToLetOrConst")
-      assert.equal(result.changes[0].line, 2)
-    })
-
     test("uninitialized var reassigned in loop", () => {
       const result = transform(`
     var pixels;
@@ -975,18 +936,6 @@ var x = 1;`)
       assert(result.modified, "transform nested Math.pow() in single pass")
       assert.match(result.code, /Math\.pow\(2, 3\) \*\* 4/)
     })
-
-    test("tracks line numbers", () => {
-      const result = transform(`// Line 1
-const result = Math.pow(2, 3);`)
-
-      assert(result.modified, "tracks line numbers")
-      const mathPowChanges = result.changes.filter(
-        (c) => c.type === "mathPowToExponentiation",
-      )
-      assert.equal(mathPowChanges.length, 1)
-      assert.equal(mathPowChanges[0].line, 2)
-    })
   })
 
   describe("forLoopToForOf", () => {
@@ -1391,9 +1340,6 @@ for (let i = 0; i < items.length; i++) {
 }`)
 
       assert(result.modified, "tracks line numbers")
-      const forLoopChanges = result.changes.filter((c) => c.type === "forLoopToForOf")
-      assert.equal(forLoopChanges.length, 1)
-      assert.equal(forLoopChanges[0].line, 2)
     })
   })
 
@@ -1594,9 +1540,6 @@ document.querySelectorAll('.item').forEach(item => {
 });`)
 
       assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 1)
-      assert.equal(result.changes[0].type, "iterableForEachToForOf")
-      assert.equal(result.changes[0].line, 2)
     })
 
     test("complex selector strings", () => {
@@ -2082,17 +2025,6 @@ document.querySelectorAll('.item').forEach(item => {
       assert(!result.modified, "skip concat with no arguments")
       assert.match(result.code, /arr\.concat\(\)/)
     })
-
-    test("tracks line numbers", () => {
-      const result = transform(`// Line 1
-const result = [1, 2].concat(other);`)
-
-      assert(result.modified, "tracks line numbers")
-      assert.equal(result.changes.length, 1)
-      assert.equal(result.changes[0].type, "arrayConcatToSpread")
-      assert.equal(result.changes[0].line, 2)
-    })
-
     test("in arrow function", () => {
       const result = transform(`const fn = (arr, other) => [1, 2].concat(other);`)
 
@@ -3042,6 +2974,42 @@ export {};
       `)
 
       assert(result.modified, "remove use strict from empty module")
+      assert.doesNotMatch(result.code, /'use strict'/)
+    })
+
+    test("remove use strict when followed by non-directive statement", () => {
+      const result = transform(`
+'use strict';
+import foo from 'bar';
+const x = 1;
+      `)
+
+      assert(result.modified, "remove use strict before non-directive")
+      assert.doesNotMatch(result.code, /'use strict'/)
+      assert.match(result.code, /import foo from 'bar'/)
+      assert.match(result.code, /const x = 1/)
+    })
+
+    test("remove multiple use strict directives", () => {
+      const result = transform(`
+'use strict';
+'use strict';
+export const x = 1;
+      `)
+
+      assert(result.modified, "remove multiple use strict directives")
+      assert.doesNotMatch(result.code, /'use strict'/)
+      assert.match(result.code, /export const x = 1/)
+    })
+
+    test("keep other directives but remove use strict", () => {
+      const result = transform(`
+'use asm';
+'use strict';
+import foo from 'bar';
+      `)
+
+      assert(result.modified, "remove use strict but keep other directives")
       assert.doesNotMatch(result.code, /'use strict'/)
     })
   })

@@ -23,6 +23,7 @@
   "license": "BSD-2-Clause",
   "dependencies": {
     "commander": "^14.0.2",
+    "diff": "^8.0.2",
     "jscodeshift": "^17.3.0"
   },
   "engines": {

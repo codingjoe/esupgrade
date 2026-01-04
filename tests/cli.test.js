@@ -274,7 +274,7 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /varToLetOrConst/, "shows var to let or const changes")
+    assert.match(result.stdout, /- var x = 1;/, "shows var to let or const changes")
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -357,7 +357,7 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stdout, /varToLetOrConst/, "shows var to let or const changes")
+    assert.match(result.stdout, /- var x = 1;/, "shows var to let or const changes")
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -369,8 +369,8 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stderr, /✗ Error:/, "displays error for syntax issues")
-    assert.equal(result.status, 1, "exits with 1 on errors")
+    assert.match(result.stderr, /Error:/, "displays error for syntax issues")
+    assert.equal(result.status, 128, "exits with 1 on errors")
   })
 
   test("exit with 1 on parsing errors with --check", () => {
@@ -381,8 +381,8 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stderr, /✗ Error:/, "displays error for parsing issues")
-    assert.equal(result.status, 1, "exits with 1 on errors with --check")
+    assert.match(result.stderr, /Error:/, "displays error for parsing issues")
+    assert.equal(result.status, 128, "exits with 1 on errors with --check")
   })
 
   test("exit with 1 on parsing errors without --check", () => {
@@ -393,8 +393,8 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stderr, /✗ Error:/, "displays error for parsing issues")
-    assert.equal(result.status, 1, "exits with 1 on errors without --check")
+    assert.match(result.stderr, /Error:/, "displays error for parsing issues")
+    assert.equal(result.status, 128, "exits with 1 on errors without --check")
   })
 
   test("dry-run mode without flags shows changes but doesn't write", () => {
@@ -456,9 +456,9 @@ describe("CLI", () => {
       },
     )
 
-    assert.match(result.stderr, /✗ Error:/, "displays error for invalid file")
+    assert.match(result.stderr, /Error:/, "displays error for invalid file")
     assert.match(result.stdout, /valid\.js/, "processes valid file")
-    assert.equal(result.status, 1, "exits with 1 when any file has errors")
+    assert.equal(result.status, 128, "exits with 1 when any file has errors")
   })
 
   test("handle mixed directory and file arguments", () => {
@@ -505,7 +505,7 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(result.stderr, /✗ Error:/, "displays error for write issues")
-    assert.equal(result.status, 1, "exits with 1 on write errors")
+    assert.match(result.stderr, /Error:/, "displays error for write issues")
+    assert.equal(result.status, 128, "exits with 1 on write errors")
   })
 })
