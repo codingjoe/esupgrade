@@ -3748,9 +3748,7 @@ const obj = {
     })
 
     test("deeply nested property access", () => {
-      const result = transform(
-        `const value = obj && obj.a && obj.a.b && obj.a.b.c;`,
-      )
+      const result = transform(`const value = obj && obj.a && obj.a.b && obj.a.b.c;`)
 
       assert(result.modified, "transform deeply nested property access")
       assert.match(result.code, /const value = obj\?\.a\?\.b\?\.c/)
@@ -3857,9 +3855,7 @@ const obj = {
     })
 
     test("skip complex method chaining", () => {
-      const result = transform(
-        `const value = obj && obj.method && obj.method().prop;`,
-      )
+      const result = transform(`const value = obj && obj.method && obj.method().prop;`)
 
       assert(!result.modified, "skip when accessing property on method result")
       assert.match(result.code, /obj && obj\.method && obj\.method\(\)\.prop/)
@@ -3870,6 +3866,34 @@ const obj = {
 
       assert(!result.modified, "skip duplicate base checks")
       assert.match(result.code, /obj && obj && obj\.prop/)
+    })
+
+    test("skip function calls with different arguments", () => {
+      const result = transform(`const value = fn && fn(a) && fn(b);`)
+
+      assert(!result.modified, "skip when function arguments differ")
+      assert.match(result.code, /fn && fn\(a\) && fn\(b\)/)
+    })
+
+    test("transform function calls with same arguments", () => {
+      const result = transform(`const value = fn && fn(a) && fn(a).prop;`)
+
+      assert(result.modified, "transform when function arguments are same")
+      assert.match(result.code, /const value = fn\?\.\(a\)\?\.prop/)
+    })
+
+    test("skip function calls with different argument counts", () => {
+      const result = transform(`const value = fn && fn(a) && fn(a, b);`)
+
+      assert(!result.modified, "skip when argument counts differ")
+      assert.match(result.code, /fn && fn\(a\) && fn\(a, b\)/)
+    })
+
+    test("transform function calls with multiple same arguments", () => {
+      const result = transform(`const value = fn && fn(x, y) && fn(x, y).result;`)
+
+      assert(result.modified, "transform when multiple arguments are same")
+      assert.match(result.code, /const value = fn\?\.\(x, y\)\?\.result/)
     })
   })
 })
