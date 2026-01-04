@@ -3706,7 +3706,6 @@ const obj = {
       assert.match(result.code, /const value = obj\.a\.b\.c \?\? 0/)
     })
   })
-})
 
   describe("optionalChaining", () => {
     test("simple property access", () => {
@@ -3873,3 +3872,4 @@ const obj = {
       assert.match(result.code, /obj && obj && obj\.prop/)
     })
   })
+})
