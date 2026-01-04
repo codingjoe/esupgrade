@@ -67,6 +67,58 @@ function* extractIdentifiersFromPattern(j, pattern) {
 }
 
 /**
+ * Check if two AST nodes are structurally equivalent.
+ * Compares identifiers, literals, member expressions, and call expressions recursively.
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').ASTNode | null | undefined} node1 - First node to compare
+ * @param {import('jscodeshift').ASTNode | null | undefined} node2 - Second node to compare
+ * @returns {boolean} True if nodes are structurally equivalent
+ */
+function areNodesEquivalent(j, node1, node2) {
+  if (!node1 || !node2) return false
+
+  // Both are identifiers with same name
+  if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
+    return node1.name === node2.name
+  }
+
+  // Both are literals with same value
+  if (j.Literal.check(node1) && j.Literal.check(node2)) {
+    return node1.value === node2.value
+  }
+
+  // Both are member expressions
+  if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
+    return (
+      areNodesEquivalent(j, node1.object, node2.object) &&
+      areNodesEquivalent(j, node1.property, node2.property) &&
+      node1.computed === node2.computed
+    )
+  }
+
+  // Both are call expressions
+  if (j.CallExpression.check(node1) && j.CallExpression.check(node2)) {
+    // Check if callees are equivalent
+    if (!areNodesEquivalent(j, node1.callee, node2.callee)) {
+      return false
+    }
+    // Check if argument counts match
+    if (node1.arguments.length !== node2.arguments.length) {
+      return false
+    }
+    // Check if all arguments are equivalent
+    for (let i = 0; i < node1.arguments.length; i++) {
+      if (!areNodesEquivalent(j, node1.arguments[i], node2.arguments[i])) {
+        return false
+      }
+    }
+    return true
+  }
+
+  return false
+}
+
+/**
  * Check if an assignment/update expression is shadowed by a closer variable declaration
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {string} varName - The variable name to check
@@ -1832,32 +1884,6 @@ export function nullishCoalescingOperator(j, root) {
   let modified = false
 
   /**
-   * Determine if two nodes are equivalent identifiers or member expressions.
-   * @param {import('jscodeshift').ASTNode} node1 - First node
-   * @param {import('jscodeshift').ASTNode} node2 - Second node
-   * @returns {boolean} True if nodes are equivalent
-   */
-  const areNodesEquivalent = (node1, node2) => {
-    // Both are identifiers with same name
-    if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
-      return node1.name === node2.name
-    }
-
-    if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
-      if (!areNodesEquivalent(node1.object, node2.object)) {
-        return false
-      }
-
-      if (!areNodesEquivalent(node1.property, node2.property)) {
-        return false
-      }
-
-      // Computed properties must also match
-      return node1.computed === node2.computed
-    }
-  }
-
-  /**
    * Determine if a binary expression is a null check (=== null or !== null).
    * @param {import('jscodeshift').BinaryExpression} node - The binary expression
    * @returns {{ value: import('jscodeshift').ASTNode, isNegated: boolean } | null}
@@ -1933,12 +1959,12 @@ export function nullishCoalescingOperator(j, root) {
     }
 
     // Both checks must be on the same value
-    if (!areNodesEquivalent(nullCheck.value, undefinedCheck.value)) {
+    if (!areNodesEquivalent(j, nullCheck.value, undefinedCheck.value)) {
       return false
     }
 
     // Consequent must be the same value
-    if (!areNodesEquivalent(nullCheck.value, consequent)) {
+    if (!areNodesEquivalent(j, nullCheck.value, consequent)) {
       return false
     }
 
@@ -2023,56 +2049,6 @@ export function optionalChaining(j, root) {
   let modified = false
 
   /**
-   * Check if two nodes are structurally equivalent.
-   * @param {import('jscodeshift').ASTNode} node1 - First node to compare
-   * @param {import('jscodeshift').ASTNode} node2 - Second node to compare
-   * @returns {boolean} True if nodes are equivalent
-   */
-  const areNodesEquivalent = (node1, node2) => {
-    if (!node1 || !node2) return false
-
-    // Both are identifiers with same name
-    if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
-      return node1.name === node2.name
-    }
-
-    // Both are literals with same value
-    if (j.Literal.check(node1) && j.Literal.check(node2)) {
-      return node1.value === node2.value
-    }
-
-    // Both are member expressions
-    if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
-      return (
-        areNodesEquivalent(node1.object, node2.object) &&
-        areNodesEquivalent(node1.property, node2.property) &&
-        node1.computed === node2.computed
-      )
-    }
-
-    // Both are call expressions
-    if (j.CallExpression.check(node1) && j.CallExpression.check(node2)) {
-      // Check if callees are equivalent
-      if (!areNodesEquivalent(node1.callee, node2.callee)) {
-        return false
-      }
-      // Check if argument counts match
-      if (node1.arguments.length !== node2.arguments.length) {
-        return false
-      }
-      // Check if all arguments are equivalent
-      for (let i = 0; i < node1.arguments.length; i++) {
-        if (!areNodesEquivalent(node1.arguments[i], node2.arguments[i])) {
-          return false
-        }
-      }
-      return true
-    }
-
-    return false
-  }
-
-  /**
    * Check if a node is a property access or call on a base.
    * @param {import('jscodeshift').ASTNode} node - The node to check
    * @param {import('jscodeshift').ASTNode} base - The expected base
@@ -2080,10 +2056,10 @@ export function optionalChaining(j, root) {
    */
   const isAccessOnBase = (node, base) => {
     if (j.MemberExpression.check(node)) {
-      return areNodesEquivalent(node.object, base)
+      return areNodesEquivalent(j, node.object, base)
     }
     if (j.CallExpression.check(node)) {
-      return areNodesEquivalent(node.callee, base)
+      return areNodesEquivalent(j, node.callee, base)
     }
     return false
   }
