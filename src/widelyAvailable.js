@@ -67,6 +67,58 @@ function* extractIdentifiersFromPattern(j, pattern) {
 }
 
 /**
+ * Check if two AST nodes are structurally equivalent.
+ * Compares identifiers, literals, member expressions, and call expressions recursively.
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').ASTNode | null | undefined} node1 - First node to compare
+ * @param {import('jscodeshift').ASTNode | null | undefined} node2 - Second node to compare
+ * @returns {boolean} True if nodes are structurally equivalent
+ */
+function areNodesEquivalent(j, node1, node2) {
+  if (!node1 || !node2) return false
+
+  // Both are identifiers with same name
+  if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
+    return node1.name === node2.name
+  }
+
+  // Both are literals with same value
+  if (j.Literal.check(node1) && j.Literal.check(node2)) {
+    return node1.value === node2.value
+  }
+
+  // Both are member expressions
+  if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
+    return (
+      areNodesEquivalent(j, node1.object, node2.object) &&
+      areNodesEquivalent(j, node1.property, node2.property) &&
+      node1.computed === node2.computed
+    )
+  }
+
+  // Both are call expressions
+  if (j.CallExpression.check(node1) && j.CallExpression.check(node2)) {
+    // Check if callees are equivalent
+    if (!areNodesEquivalent(j, node1.callee, node2.callee)) {
+      return false
+    }
+    // Check if argument counts match
+    if (node1.arguments.length !== node2.arguments.length) {
+      return false
+    }
+    // Check if all arguments are equivalent
+    for (let i = 0; i < node1.arguments.length; i++) {
+      if (!areNodesEquivalent(j, node1.arguments[i], node2.arguments[i])) {
+        return false
+      }
+    }
+    return true
+  }
+
+  return false
+}
+
+/**
  * Check if an assignment/update expression is shadowed by a closer variable declaration
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {string} varName - The variable name to check
@@ -1832,32 +1884,6 @@ export function nullishCoalescingOperator(j, root) {
   let modified = false
 
   /**
-   * Determine if two nodes are equivalent identifiers or member expressions.
-   * @param {import('jscodeshift').ASTNode} node1 - First node
-   * @param {import('jscodeshift').ASTNode} node2 - Second node
-   * @returns {boolean} True if nodes are equivalent
-   */
-  const areNodesEquivalent = (node1, node2) => {
-    // Both are identifiers with same name
-    if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
-      return node1.name === node2.name
-    }
-
-    if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
-      if (!areNodesEquivalent(node1.object, node2.object)) {
-        return false
-      }
-
-      if (!areNodesEquivalent(node1.property, node2.property)) {
-        return false
-      }
-
-      // Computed properties must also match
-      return node1.computed === node2.computed
-    }
-  }
-
-  /**
    * Determine if a binary expression is a null check (=== null or !== null).
    * @param {import('jscodeshift').BinaryExpression} node - The binary expression
    * @returns {{ value: import('jscodeshift').ASTNode, isNegated: boolean } | null}
@@ -1933,12 +1959,12 @@ export function nullishCoalescingOperator(j, root) {
     }
 
     // Both checks must be on the same value
-    if (!areNodesEquivalent(nullCheck.value, undefinedCheck.value)) {
+    if (!areNodesEquivalent(j, nullCheck.value, undefinedCheck.value)) {
       return false
     }
 
     // Consequent must be the same value
-    if (!areNodesEquivalent(nullCheck.value, consequent)) {
+    if (!areNodesEquivalent(j, nullCheck.value, consequent)) {
       return false
     }
 
@@ -2002,6 +2028,124 @@ export function nullishCoalescingOperator(j, root) {
 
       j(path).replaceWith(nullishCoalescing)
 
+      modified = true
+    })
+
+  return modified
+}
+
+/**
+ * Transform conditional property access patterns to optional chaining.
+ * Converts patterns like:
+ * - obj && obj.prop to obj?.prop
+ * - arr && arr[0] to arr?.[0]
+ * - fn && fn() to fn?.()
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ */
+export function optionalChaining(j, root) {
+  let modified = false
+
+  /**
+   * Check if a node is a property access or call on a base.
+   * @param {import('jscodeshift').ASTNode} node - The node to check
+   * @param {import('jscodeshift').ASTNode} base - The expected base
+   * @returns {boolean} True if node accesses base
+   */
+  const isAccessOnBase = (node, base) => {
+    if (j.MemberExpression.check(node)) {
+      return areNodesEquivalent(j, node.object, base)
+    }
+    if (j.CallExpression.check(node)) {
+      return areNodesEquivalent(j, node.callee, base)
+    }
+    return false
+  }
+
+  /**
+   * Build an optional chaining expression from a base and accesses.
+   * @param {import('jscodeshift').ASTNode} base - The base expression
+   * @param {import('jscodeshift').ASTNode[]} accesses - The property/method accesses
+   * @returns {import('jscodeshift').ASTNode} The optional chaining expression
+   */
+  const buildOptionalChain = (base, accesses) => {
+    let result = base
+
+    for (const access of accesses) {
+      if (j.MemberExpression.check(access)) {
+        result = j.optionalMemberExpression(
+          result,
+          access.property,
+          access.computed,
+          true, // optional = true
+        )
+      } else if (j.CallExpression.check(access)) {
+        result = j.optionalCallExpression(result, access.arguments, true)
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * Process a logical expression chain to extract optional chaining candidates.
+   * @param {import('jscodeshift').ASTNode} node - The logical expression (must be && operator)
+   * @returns {{ base: import('jscodeshift').ASTNode, accesses: import('jscodeshift').ASTNode[] } | null}
+   */
+  const extractChain = (node) => {
+    const parts = []
+    let current = node
+
+    // Flatten the && chain
+    while (j.LogicalExpression.check(current) && current.operator === "&&") {
+      parts.unshift(current.right)
+      current = current.left
+    }
+    parts.unshift(current)
+
+    // The base should be the first part
+    const base = parts[0]
+
+    // Check if all subsequent parts are accesses on the previous part
+    const accesses = []
+    for (let i = 1; i < parts.length; i++) {
+      const prev = i === 1 ? base : parts[i - 1]
+      if (!isAccessOnBase(parts[i], prev)) {
+        return null
+      }
+      accesses.push(parts[i])
+    }
+
+    return accesses.length > 0 ? { base, accesses } : null
+  }
+
+  // Transform logical && expressions to optional chaining
+  root
+    .find(j.LogicalExpression, { operator: "&&" })
+    .filter((path) => {
+      // Only transform if this is the top-level && in the chain
+      const parent = path.parent.node
+      if (
+        j.LogicalExpression.check(parent) &&
+        parent.operator === "&&" &&
+        parent.left === path.node
+      ) {
+        return false
+      }
+      return true
+    })
+    .forEach((path) => {
+      const chain = extractChain(path.node)
+      if (!chain) {
+        return
+      }
+
+      const { base, accesses } = chain
+      const optionalExpr = buildOptionalChain(base, accesses)
+
+      j(path).replaceWith(optionalExpr)
       modified = true
     })
 
