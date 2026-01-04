@@ -1853,14 +1853,8 @@ export function nullishCoalescingOperator(j, root) {
       }
 
       // Computed properties must also match
-      if (node1.computed !== node2.computed) {
-        return false
-      }
-
-      return true
+      return node1.computed === node2.computed
     }
-
-    return false
   }
 
   /**
