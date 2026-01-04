@@ -3923,4 +3923,220 @@ const obj = {
       assert.match(result.code, /const value = fn\?\.\(x, y\)\?\.result/)
     })
   })
+
+  describe("objectKeysForEachToEntries", () => {
+    test("basic Object.keys().forEach() with value assignment", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          const value = obj[key];
+          console.log(key, value);
+        });
+      `)
+
+      assert(result.modified, "transform Object.keys().forEach() to Object.entries()")
+      assert.match(result.code, /Object\.entries\(obj\)\.forEach\(\(\[key, value\]\)/)
+      assert.match(result.code, /console\.info\(key, value\)/)
+      assert.doesNotMatch(result.code, /const value = obj\[key\]/)
+    })
+
+    test("Object.keys().forEach() with different variable names", () => {
+      const result = transform(`
+        Object.keys(data).forEach(k => {
+          const v = data[k];
+          process(k, v);
+        });
+      `)
+
+      assert(result.modified, "transform with different variable names")
+      assert.match(result.code, /Object\.entries\(data\)\.forEach\(\(\[k, v\]\)/)
+      assert.match(result.code, /process\(k, v\)/)
+      assert.doesNotMatch(result.code, /const v = data\[k\]/)
+    })
+
+    test("Object.keys().forEach() with member expression object", () => {
+      const result = transform(`
+        Object.keys(user.settings).forEach(key => {
+          const value = user.settings[key];
+          apply(key, value);
+        });
+      `)
+
+      assert(result.modified, "transform with member expression")
+      assert.match(result.code, /Object\.entries\(user\.settings\)\.forEach\(\(\[key, value\]\)/)
+      assert.match(result.code, /apply\(key, value\)/)
+    })
+
+    test("Object.keys().forEach() with function expression", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(function(key) {
+          const value = obj[key];
+          console.log(key, value);
+        });
+      `)
+
+      assert(result.modified, "transform with function expression")
+      assert.match(result.code, /Object\.entries\(obj\)\.forEach\(\(\[key, value\]\)/)
+    })
+
+    test("Object.keys().forEach() with let declaration", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          let value = obj[key];
+          value = transform(value);
+          use(value);
+        });
+      `)
+
+      assert(result.modified, "transform with let declaration")
+      assert.match(result.code, /Object\.entries\(obj\)\.forEach\(\(\[key, value\]\)/)
+      assert.match(result.code, /value = transform\(value\)/)
+    })
+
+    test("Object.keys().forEach() with var declaration", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          var value = obj[key];
+          process(value);
+        });
+      `)
+
+      assert(result.modified, "transform with var declaration")
+      assert.match(result.code, /Object\.entries\(obj\)\.forEach\(\(\[key, value\]\)/)
+    })
+
+    test("skip when callback has multiple parameters", () => {
+      const result = transform(`
+        Object.keys(obj).forEach((key, index) => {
+          const value = obj[key];
+          console.log(key, value, index);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when first statement is not value assignment", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          console.log(key);
+          const value = obj[key];
+          process(value);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when value is assigned from different object", () => {
+      const result = transform(`
+        Object.keys(obj1).forEach(key => {
+          const value = obj2[key];
+          process(key, value);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj1\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when no value assignment", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          console.log(key);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when callback has expression body", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => obj[key].process());
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when callback is not a function", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(callback);
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when key parameter is destructured", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(([key]) => {
+          const value = obj[key];
+          process(key, value);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when value variable is destructured", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          const { value } = obj[key];
+          process(key, value);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when property access is not computed", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          const value = obj.key;
+          process(key, value);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when multiple declarations in first statement", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          const value = obj[key], other = 1;
+          process(key, value);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when callback body is empty", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {});
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+
+    test("skip when property access uses different key", () => {
+      const result = transform(`
+        Object.keys(obj).forEach(key => {
+          const value = obj[otherKey];
+          process(key, value);
+        });
+      `)
+
+      assert.match(result.code, /Object\.keys\(obj\)\.forEach/, "should not transform")
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
+  })
 })

@@ -2151,3 +2151,138 @@ export function optionalChaining(j, root) {
 
   return modified
 }
+
+/**
+ * Transform Object.keys().forEach() to Object.entries().
+ * Converts patterns like Object.keys(obj).forEach(key => { const value = obj[key]; ... })
+ * to Object.entries(obj).forEach(([key, value]) => { ... }).
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ */
+export function objectKeysForEachToEntries(j, root) {
+  let modified = false
+
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+      // Check if this is a forEach call
+      if (
+        !j.MemberExpression.check(node.callee) ||
+        !j.Identifier.check(node.callee.property) ||
+        node.callee.property.name !== "forEach"
+      ) {
+        return false
+      }
+
+      // Check if the object is Object.keys()
+      const object = node.callee.object
+      if (
+        !j.CallExpression.check(object) ||
+        !j.MemberExpression.check(object.callee) ||
+        !j.Identifier.check(object.callee.object) ||
+        object.callee.object.name !== "Object" ||
+        !j.Identifier.check(object.callee.property) ||
+        object.callee.property.name !== "keys"
+      ) {
+        return false
+      }
+
+      // Must have exactly one argument to Object.keys()
+      if (object.arguments.length !== 1) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const objectKeysCall = node.callee.object
+      const obj = objectKeysCall.arguments[0]
+      const callback = node.arguments[0]
+
+      // Only transform if callback is a function
+      if (
+        !callback ||
+        (!j.ArrowFunctionExpression.check(callback) &&
+          !j.FunctionExpression.check(callback))
+      ) {
+        return
+      }
+
+      // Only transform if callback has exactly 1 parameter (the key)
+      if (callback.params.length !== 1) {
+        return
+      }
+
+      const keyParam = callback.params[0]
+
+      // Only transform if the key parameter is a simple identifier
+      if (!j.Identifier.check(keyParam)) {
+        return
+      }
+
+      const keyName = keyParam.name
+
+      // Check if the callback body is a block statement
+      if (!j.BlockStatement.check(callback.body)) {
+        return
+      }
+
+      const body = callback.body.body
+
+      // Check if the first statement is a const/let/var declaration that assigns obj[key]
+      if (body.length === 0) {
+        return
+      }
+
+      const firstStmt = body[0]
+      if (!j.VariableDeclaration.check(firstStmt)) {
+        return
+      }
+
+      if (firstStmt.declarations.length !== 1) {
+        return
+      }
+
+      const declarator = firstStmt.declarations[0]
+
+      // Check if the declarator is assigning obj[key]
+      if (
+        !j.MemberExpression.check(declarator.init) ||
+        !declarator.init.computed ||
+        !j.Identifier.check(declarator.init.property) ||
+        declarator.init.property.name !== keyName
+      ) {
+        return
+      }
+
+      // Check if the object being accessed is the same as the one passed to Object.keys()
+      if (!areNodesEquivalent(j, declarator.init.object, obj)) {
+        return
+      }
+
+      // Check that the value variable name is a simple identifier
+      if (!j.Identifier.check(declarator.id)) {
+        return
+      }
+
+      const valueName = declarator.id.name
+
+      // Transform to Object.entries()
+      // 1. Change Object.keys() to Object.entries()
+      objectKeysCall.callee.property.name = "entries"
+
+      // 2. Change callback parameter from `key` to `[key, value]`
+      callback.params[0] = j.arrayPattern([j.identifier(keyName), j.identifier(valueName)])
+
+      // 3. Remove the first statement (const value = obj[key])
+      callback.body.body = body.slice(1)
+
+      modified = true
+    })
+
+  return modified
+}
