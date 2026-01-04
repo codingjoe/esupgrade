@@ -174,18 +174,7 @@ function isVerifiableArray(j, node) {
   }
 
   // String methods that return arrays
-  const STRING_METHODS_RETURNING_ARRAY = [
-    "matchAll",
-    "split",
-    "slice",
-    "substr",
-    "substring",
-    "toLowerCase",
-    "toUpperCase",
-    "trim",
-    "trimStart",
-    "trimEnd",
-  ]
+  const STRING_METHODS_RETURNING_ARRAY = ["split", "matchAll"]
 
   // String literal methods that return arrays (e.g., "a,b,c".split(','))
   if (
