@@ -5,6 +5,18 @@ on:
       - main
   pull_request:
 jobs:
+  readme:
+    name: "Word Weasel / README.md"
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v6
+      - id: read_readme
+        run: |
+          echo "::set-output name=content::$(cat README.md)"
+      - uses: codingjoe/word-weasel@v1
+        with:
+          text: ${{ steps.read_readme.outputs.content }}
   node-test:
     name: Test
     runs-on: ubuntu-latest
@@ -15,9 +27,9 @@ jobs:
         with:
           node-version-file: package.json
       - run: npm ci
-      - run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=lcov.txt
+      - run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=lcov.info
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: javascript
-          files: lcov.txt
+          files: lcov.info

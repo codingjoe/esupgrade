@@ -8,7 +8,7 @@
     "esupgrade": "./bin/esupgrade.js"
   },
   "scripts": {
-    "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-exclude=tests/* tests/*.test.js"
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=lcov.info --test-coverage-exclude=tests/* tests/*.test.js"
   },
   "keywords": [
     "javascript",
@@ -22,9 +22,10 @@
   "author": "Johannes Maron",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "commander": "^14.0.2",
-    "diff": "^8.0.2",
-    "jscodeshift": "^17.3.0"
+    "ast-types": ">=0.14.2",
+    "commander": ">=14.0.2",
+    "diff": ">=8.0.2",
+    "jscodeshift": ">=17.3.0"
   },
   "engines": {
     "node": ">=24.0.0"
@@ -37,6 +38,5 @@
     "url": "https://github.com/codingjoe/esupgrade.git"
   },
   "devDependencies": {
-    "prettier": "^3.7.4"
   }
 }

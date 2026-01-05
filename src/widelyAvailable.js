@@ -1,368 +1,27 @@
-/**
- * Check if a pattern (identifier, destructuring, etc.) contains a specific variable name
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').ASTNode | null | undefined} node - The AST node to check
- * @param {string} varName - The variable name to search for
- * @returns {boolean} True if the pattern contains the identifier
- */
-function patternContainsIdentifier(j, node, varName) {
-  if (!node) {
-    return false
-  }
-  if (j.Identifier.check(node)) {
-    return node.name === varName
-  }
-  if (j.ObjectPattern.check(node)) {
-    return node.properties.some(
-      (prop) =>
-        ((j.Property.check(prop) || j.ObjectProperty.check(prop)) &&
-          patternContainsIdentifier(j, prop.value, varName)) ||
-        (j.RestElement.check(prop) &&
-          patternContainsIdentifier(j, prop.argument, varName)),
-    )
-  }
-  if (j.ArrayPattern.check(node)) {
-    return node.elements.some((element) =>
-      patternContainsIdentifier(j, element, varName),
-    )
-  }
-  if (j.AssignmentPattern.check(node)) {
-    return patternContainsIdentifier(j, node.left, varName)
-  }
-  // RestElement is the only remaining valid pattern type
-  return (
-    j.RestElement.check(node) && patternContainsIdentifier(j, node.argument, varName)
-  )
-}
-
-/**
- * Extract all identifier names from a pattern (handles destructuring)
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').ASTNode | null | undefined} pattern - The pattern node to extract identifiers from
- * @yields {string} Identifier names found in the pattern
- * @returns {Generator<string, void, unknown>}
- */
-function* extractIdentifiersFromPattern(j, pattern) {
-  if (!pattern) return
-
-  if (j.Identifier.check(pattern)) {
-    yield pattern.name
-  } else if (j.ObjectPattern.check(pattern)) {
-    for (const prop of pattern.properties) {
-      if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
-        yield* extractIdentifiersFromPattern(j, prop.value)
-      } else if (j.RestElement.check(prop)) {
-        yield* extractIdentifiersFromPattern(j, prop.argument)
-      }
-    }
-  } else if (j.ArrayPattern.check(pattern)) {
-    for (const element of pattern.elements) {
-      yield* extractIdentifiersFromPattern(j, element)
-    }
-  } else if (j.AssignmentPattern.check(pattern)) {
-    yield* extractIdentifiersFromPattern(j, pattern.left)
-  } else if (j.RestElement.check(pattern)) {
-    yield* extractIdentifiersFromPattern(j, pattern.argument)
-  }
-}
-
-/**
- * Check if two AST nodes are structurally equivalent.
- * Compares identifiers, literals, member expressions, and call expressions recursively.
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').ASTNode | null | undefined} node1 - First node to compare
- * @param {import('jscodeshift').ASTNode | null | undefined} node2 - Second node to compare
- * @returns {boolean} True if nodes are structurally equivalent
- */
-function areNodesEquivalent(j, node1, node2) {
-  if (!node1 || !node2) return false
-
-  // Both are identifiers with same name
-  if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
-    return node1.name === node2.name
-  }
-
-  // Both are literals with same value
-  if (j.Literal.check(node1) && j.Literal.check(node2)) {
-    return node1.value === node2.value
-  }
-
-  // Both are member expressions
-  if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
-    return (
-      areNodesEquivalent(j, node1.object, node2.object) &&
-      areNodesEquivalent(j, node1.property, node2.property) &&
-      node1.computed === node2.computed
-    )
-  }
-
-  // Both are call expressions
-  if (j.CallExpression.check(node1) && j.CallExpression.check(node2)) {
-    // Check if callees are equivalent
-    if (!areNodesEquivalent(j, node1.callee, node2.callee)) {
-      return false
-    }
-    // Check if argument counts match
-    if (node1.arguments.length !== node2.arguments.length) {
-      return false
-    }
-    // Check if all arguments are equivalent
-    for (let i = 0; i < node1.arguments.length; i++) {
-      if (!areNodesEquivalent(j, node1.arguments[i], node2.arguments[i])) {
-        return false
-      }
-    }
-    return true
-  }
-
-  return false
-}
-
-/**
- * Check if an expression is statically verifiable as iterable.
- * Used by transformers to ensure they only transform known iterable types.
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').ASTNode} node - The AST node to check
- * @returns {boolean} True if the node can be verified as iterable
- */
-function isVerifiableIterable(j, node) {
-  // Array literal: [1, 2, 3]
-  if (j.ArrayExpression.check(node)) {
-    return true
-  }
-
-  // Array.from(), Array.of(), etc.
-  if (
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    j.Identifier.check(node.callee.object) &&
-    node.callee.object.name === "Array"
-  ) {
-    return true
-  }
-
-  // new Array()
-  if (
-    j.NewExpression.check(node) &&
-    j.Identifier.check(node.callee) &&
-    node.callee.name === "Array"
-  ) {
-    return true
-  }
-
-  // String literal methods that return iterables
-  const STRING_METHODS_RETURNING_ITERABLE = [
-    "matchAll",
-    "split",
-    "slice",
-    "substr",
-    "substring",
-    "toLowerCase",
-    "toUpperCase",
-    "trim",
-    "trimStart",
-    "trimEnd",
-  ]
-
-  // String literal methods (e.g., "a,b,c".split(','), "hello".slice(0))
-  return !!(
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    j.Identifier.check(node.callee.property) &&
-    j.StringLiteral.check(node.callee.object) &&
-    STRING_METHODS_RETURNING_ITERABLE.includes(node.callee.property.name)
-  )
-}
-
-/**
- * Check if an assignment/update expression is shadowed by a closer variable declaration
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {string} varName - The variable name to check
- * @param {import('jscodeshift').ASTPath} declarationPath - The path to the original declaration
- * @param {import('jscodeshift').ASTPath} usagePath - The path to the assignment/update expression
- * @returns {boolean} True if the assignment is shadowed by a closer declaration
- */
-function isAssignmentShadowed(j, varName, declarationPath, usagePath) {
-  let current = usagePath.parent
-
-  while (current) {
-    if (
-      j.FunctionDeclaration.check(current.node) ||
-      j.FunctionExpression.check(current.node) ||
-      j.ArrowFunctionExpression.check(current.node)
-    ) {
-      // Check function parameters
-      if (current.node.params) {
-        for (const param of current.node.params) {
-          if (patternContainsIdentifier(j, param, varName)) {
-            return true
-          }
-        }
-      }
-
-      // Check for var/let/const declarations in this function
-      const functionBody = current.node.body
-      if (functionBody) {
-        let foundOurDeclaration = false
-        const hasLocalDecl = j(functionBody)
-          .find(j.VariableDeclarator)
-          .some((declPath) => {
-            const declParent = declPath.parent.node
-            if (declParent === declarationPath.node) {
-              foundOurDeclaration = true
-              return false
-            }
-            return patternContainsIdentifier(j, declPath.node.id, varName)
-          })
-
-        // If we found a shadowing declaration (not our own), the assignment is shadowed
-        if (hasLocalDecl) {
-          return true
-        }
-
-        // If we found our declaration in this scope, stop traversing -
-        // the assignment is not shadowed, it belongs to our declaration
-        if (foundOurDeclaration) {
-          return false
-        }
-      }
-    }
-
-    current = current.parent
-  }
-
-  return false
-}
-
-/**
- * Check if a variable is reassigned after its declaration
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
- * @param {string} varName - The variable name to check
- * @param {import('jscodeshift').ASTPath} declarationPath - The path to the variable declaration
- * @returns {boolean} True if the variable is reassigned
- */
-function isVariableReassigned(j, root, varName, declarationPath) {
-  let isReassigned = false
-
-  // Check for AssignmentExpression where left side targets the variable
-  root.find(j.AssignmentExpression).forEach((assignPath) => {
-    if (!patternContainsIdentifier(j, assignPath.node.left, varName)) {
-      return
-    }
-
-    if (isAssignmentShadowed(j, varName, declarationPath, assignPath)) {
-      return
-    }
-
-    isReassigned = true
-  })
-
-  if (isReassigned) return true
-
-  // Check for UpdateExpression (++, --)
-  root.find(j.UpdateExpression).forEach((updatePath) => {
-    if (
-      !j.Identifier.check(updatePath.node.argument) ||
-      updatePath.node.argument.name !== varName
-    ) {
-      return
-    }
-
-    if (isAssignmentShadowed(j, varName, declarationPath, updatePath)) {
-      return
-    }
-
-    isReassigned = true
-  })
-
-  return isReassigned
-}
-
-/**
- * Determine the appropriate kind (const or let) for a declarator
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
- * @param {import('jscodeshift').VariableDeclarator} declarator - The variable declarator
- * @param {import('jscodeshift').ASTPath} declarationPath - The path to the variable declaration
- * @returns {'const' | 'let'} The appropriate variable kind
- */
-function determineDeclaratorKind(j, root, declarator, declarationPath) {
-  if (j.Identifier.check(declarator.id)) {
-    return isVariableReassigned(j, root, declarator.id.name, declarationPath)
-      ? "let"
-      : "const"
-  }
-
-  // Destructuring pattern - check if any identifier is reassigned
-  for (const varName of extractIdentifiersFromPattern(j, declarator.id)) {
-    if (isVariableReassigned(j, root, varName, declarationPath)) {
-      return "let"
-    }
-  }
-
-  return "const"
-}
-
-/**
- * Process a single declarator variable declaration
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
- * @param {import('jscodeshift').ASTPath} path - The path to the variable declaration
- * @returns {{ modified: boolean, change: { type: string, line: number } | null }}
- */
-function processSingleDeclarator(j, root, path) {
-  const declarator = path.node.declarations[0]
-  const kind = determineDeclaratorKind(j, root, declarator, path)
-
-  path.node.kind = kind
-
-  const change = path.node.loc
-    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
-    : null
-
-  return { modified: true, change }
-}
-
-/**
- * Process a multiple declarator variable declaration by splitting into separate declarations
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
- * @param {import('jscodeshift').ASTPath} path - The path to the variable declaration
- * @returns {{ modified: boolean, change: { type: string, line: number } | null }}
- */
-function processMultipleDeclarators(j, root, path) {
-  const declarations = path.node.declarations.map((declarator) => {
-    const kind = determineDeclaratorKind(j, root, declarator, path)
-    return j.variableDeclaration(kind, [declarator])
-  })
-
-  j(path).replaceWith(declarations)
-
-  const change = path.node.loc
-    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
-    : null
-
-  return { modified: true, change }
-}
+import { default as j } from "jscodeshift"
+import {
+  NodeTest,
+  processMultipleDeclarators,
+  processSingleDeclarator,
+} from "./types.js"
 
 /**
  * Transform var to const or let.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
- * @returns {boolean} True if code was modified
  */
-export function varToLetOrConst(j, root) {
+export function varToLetOrConst(root) {
   let modified = false
 
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
     const isSingleDeclarator = path.node.declarations.length === 1
 
     const result = isSingleDeclarator
-      ? processSingleDeclarator(j, root, path)
-      : processMultipleDeclarators(j, root, path)
+      ? processSingleDeclarator(root, path)
+      : processMultipleDeclarators(root, path)
 
     if (result.modified) {
       modified = true
@@ -374,12 +33,12 @@ export function varToLetOrConst(j, root) {
 
 /**
  * Transform string concatenation to template literals.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
  */
-export function concatToTemplateLiteral(j, root) {
+export function concatToTemplateLiteral(root) {
   let modified = false
 
   root
@@ -531,12 +190,12 @@ export function concatToTemplateLiteral(j, root) {
 
 /**
  * Transform Object.assign({}, ...) to object spread.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
  */
-export function objectAssignToSpread(j, root) {
+export function objectAssignToSpread(root) {
   let modified = false
 
   root
@@ -568,12 +227,12 @@ export function objectAssignToSpread(j, root) {
 
 /**
  * Transform Array.from().forEach() to for...of.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
  */
-export function arrayFromForEachToForOf(j, root) {
+export function arrayFromForEachToForOf(root) {
   let modified = false
 
   root
@@ -651,15 +310,15 @@ export function arrayFromForEachToForOf(j, root) {
 }
 
 /**
- * Transform Array.from(obj) to [...obj] spread syntax.
- * This handles cases like Array.from(obj).map(), .filter(), .some(), etc.
- * that are not covered by the forEach transformer.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ * Transform Array.from(obj) to [...obj] spread syntax. This handles cases like
+ * Array.from(obj).map(), .filter(), .some(), etc. that are not covered by the forEach
+ * transformer.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
  */
-export function arrayFromToSpread(j, root) {
+export function arrayFromToSpread(root) {
   let modified = false
 
   root
@@ -714,12 +373,12 @@ export function arrayFromToSpread(j, root) {
 
 /**
  * Transform Math.pow() to exponentiation operator (**).
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
  */
-export function mathPowToExponentiation(j, root) {
+export function mathPowToExponentiation(root) {
   let modified = false
 
   root
@@ -750,15 +409,14 @@ export function mathPowToExponentiation(j, root) {
 }
 
 /**
- * Transform traditional for loops to for...of where safe.
- * Converts: for (let i = 0; i < arr.length; i++) { const item = arr[i]; ... }
- * To: for (const item of arr) { ... }
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ * Transform traditional for loops to for...of where safe. Converts: for (let i = 0; i <
+ * arr.length; i++) { const item = arr[i]; ... } To: for (const item of arr) { ... }
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
  */
-export function forLoopToForOf(j, root) {
+export function forLoopToForOf(root) {
   let modified = false
 
   root
@@ -922,15 +580,15 @@ export function forLoopToForOf(j, root) {
 }
 
 /**
- * Transform iterables' forEach() to for...of loop.
- * Handles DOM APIs like querySelectorAll, getElementsBy*, etc. and other known iterables.
- * Only transforms when forEach callback is declared inline with a function body (block statement).
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ * Transform iterables' forEach() to for...of loop. Handles DOM APIs like
+ * querySelectorAll, getElementsBy*, etc. and other known iterables. Only transforms
+ * when forEach callback is declared inline with a function body (block statement).
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
  */
-export function iterableForEachToForOf(j, root) {
+export function iterableForEachToForOf(root) {
   let modified = false
 
   // Define known iterable-returning methods by their object/context
@@ -1106,19 +764,21 @@ export function iterableForEachToForOf(j, root) {
 }
 
 /**
- * Transform anonymous function expressions to arrow functions.
- * Does not transform if the function:
- * - is a named function expression (useful for stack traces and recursion)
- * - uses 'this' (arrow functions don't have their own 'this')
- * - uses 'arguments' (arrow functions don't have 'arguments' object)
- * - uses 'super' (defensive check, though this would be a syntax error in function expressions)
- * - is a generator function (arrow functions cannot be generators)
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ * Transform anonymous function expressions to arrow functions. Does not transform if
+ * the function:
+ *
+ * - Is a named function expression (useful for stack traces and recursion)
+ * - Uses 'this' (arrow functions don't have their own 'this')
+ * - Uses 'arguments' (arrow functions don't have 'arguments' object)
+ * - Uses 'super' (defensive check, though this would be a syntax error in function
+ *   expressions)
+ * - Is a generator function (arrow functions cannot be generators)
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
  */
-export function anonymousFunctionToArrow(j, root) {
+export function anonymousFunctionToArrow(root) {
   let modified = false
 
   // Helper to check if a node or its descendants use 'this'
@@ -1276,12 +936,12 @@ export function anonymousFunctionToArrow(j, root) {
 
 /**
  * Transform Array.concat() to array spread syntax.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
  */
-export function arrayConcatToSpread(j, root) {
+export function arrayConcatToSpread(root) {
   let modified = false
 
   root
@@ -1304,12 +964,7 @@ export function arrayConcatToSpread(j, root) {
       }
 
       // Only transform if we can verify the object is an iterable
-      const object = node.callee.object
-      if (!isVerifiableIterable(j, object)) {
-        return false
-      }
-
-      return true
+      return new NodeTest(node.callee.object).isIterable()
     })
     .forEach((path) => {
       const node = path.node
@@ -1347,15 +1002,17 @@ export function arrayConcatToSpread(j, root) {
 }
 
 /**
- * Transform old-school constructor functions with prototype methods to ES6 class syntax.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ * Transform old-school constructor functions with prototype methods to ES6 class
+ * syntax.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
  */
-export function constructorToClass(j, root) {
+export function constructorToClass(root) {
   /**
    * Check if a function name follows constructor naming convention.
+   *
    * @param {string} name - The function name to check.
    * @returns {boolean} True if the name starts with an uppercase letter.
    */
@@ -1365,7 +1022,9 @@ export function constructorToClass(j, root) {
 
   /**
    * Check if a function body contains only simple constructor statements.
-   * @param {import('jscodeshift').BlockStatement} functionBody - The function body to check.
+   *
+   * @param {import("jscodeshift").BlockStatement} functionBody - The function body to
+   *   check.
    * @returns {boolean} True if the body contains only allowed statements.
    */
   function hasSimpleConstructorBody(functionBody) {
@@ -1388,11 +1047,15 @@ export function constructorToClass(j, root) {
 
   /**
    * Find all constructor functions in the AST.
-   * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API.
-   * @param {import('jscodeshift').Collection} root - The root AST collection.
-   * @returns {Map<string, { declaration: import('jscodeshift').ASTPath, prototypeMethods: Array<any> }>} Map of constructor names to their info.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection.
+   * @returns {Map<
+   *   string,
+   *   { declaration: import("ast-types").NodePath; prototypeMethods: any[] }
+   * >}
+   *   Map of constructor names to their info.
    */
-  function findConstructors(j, root) {
+  function findConstructors(root) {
     const constructors = new Map()
 
     // Handle function declarations
@@ -1445,11 +1108,15 @@ export function constructorToClass(j, root) {
 
   /**
    * Find and associate prototype methods with constructors.
-   * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API.
-   * @param {import('jscodeshift').Collection} root - The root AST collection.
-   * @param {Map<string, { declaration: import('jscodeshift').ASTPath, prototypeMethods: Array<any> }>} constructors - Map of constructors.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection.
+   * @param {Map<
+   *   string,
+   *   { declaration: import("ast-types").NodePath; prototypeMethods: any[] }
+   * >} constructors
+   *   - Map of constructors.
    */
-  function findPrototypeMethods(j, root, constructors) {
+  function findPrototypeMethods(root, constructors) {
     // Pattern 1: ConstructorName.prototype.methodName = ...
     root
       .find(j.ExpressionStatement)
@@ -1560,12 +1227,17 @@ export function constructorToClass(j, root) {
 
   /**
    * Transform constructors and their prototype methods to class syntax.
-   * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API.
-   * @param {import('jscodeshift').Collection} root - The root AST collection.
-   * @param {Map<string, { declaration: import('jscodeshift').ASTPath, prototypeMethods: Array<any> }>} constructors - Map of constructors.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection.
+   * @param {Map<
+   *   string,
+   *   { declaration: import("ast-types").NodePath; prototypeMethods: any[] }
+   * >} constructors
+   *   - Map of constructors.
+   *
    * @returns {boolean} True if code was modified.
    */
-  function transformConstructorsToClasses(j, root, constructors) {
+  function transformConstructorsToClasses(root, constructors) {
     let modified = false
 
     constructors.forEach((info, constructorName) => {
@@ -1640,19 +1312,19 @@ export function constructorToClass(j, root) {
     return modified
   }
 
-  const constructors = findConstructors(j, root)
-  findPrototypeMethods(j, root, constructors)
-  return transformConstructorsToClasses(j, root, constructors)
+  const constructors = findConstructors(root)
+  findPrototypeMethods(root, constructors)
+  return transformConstructorsToClasses(root, constructors)
 }
 
 /**
  * Transform console.log() to console.info().
- * @see https://developer.mozilla.org/en-US/docs/Web/API/console
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/console
  */
-export function consoleLogToInfo(j, root) {
+export function consoleLogToInfo(root) {
   let modified = false
 
   root
@@ -1685,14 +1357,14 @@ export function consoleLogToInfo(j, root) {
 }
 
 /**
- * Remove 'use strict' directives from modules.
- * Modules are strict by default, making these directives redundant.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ * Remove 'use strict' directives from modules. Modules are strict by default, making
+ * these directives redundant.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
  */
-export function removeUseStrictFromModules(j, root) {
+export function removeUseStrictFromModules(root) {
   let modified = false
 
   // Check if the file is a module by looking for import/export statements
@@ -1737,18 +1409,20 @@ export function removeUseStrictFromModules(j, root) {
 }
 
 /**
- * Replace global context references (window, self, Function("return this")()) with globalThis.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ * Replace global context references (window, self, Function("return this")()) with
+ * globalThis.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
  */
-export function globalContextToGlobalThis(j, root) {
+export function globalContextToGlobalThis(root) {
   let modified = false
 
   /**
    * Check if an identifier is shadowed by a local declaration or parameter.
-   * @param {import('jscodeshift').ASTPath} path - Path to the identifier
+   *
+   * @param {import("ast-types").NodePath} path - Path to the identifier
    * @param {string} name - Name to check for shadowing
    * @returns {boolean} True if the identifier is shadowed
    */
@@ -1878,18 +1552,19 @@ export function globalContextToGlobalThis(j, root) {
 
 /**
  * Transform null/undefined checks to nullish coalescing operator (??).
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
  */
-export function nullishCoalescingOperator(j, root) {
+export function nullishCoalescingOperator(root) {
   let modified = false
 
   /**
    * Determine if a binary expression is a null check (=== null or !== null).
-   * @param {import('jscodeshift').BinaryExpression} node - The binary expression
-   * @returns {{ value: import('jscodeshift').ASTNode, isNegated: boolean } | null}
+   *
+   * @param {import("jscodeshift").BinaryExpression} node - The binary expression
+   * @returns {{ value: import("ast-types").ASTNode; isNegated: boolean } | null}
    */
   const getNullCheck = (node) => {
     if (!j.BinaryExpression.check(node)) {
@@ -1921,9 +1596,11 @@ export function nullishCoalescingOperator(j, root) {
   }
 
   /**
-   * Determine if a binary expression is an undefined check (=== undefined or !== undefined).
-   * @param {import('jscodeshift').BinaryExpression} node - The binary expression
-   * @returns {{ value: import('jscodeshift').ASTNode, isNegated: boolean } | null}
+   * Determine if a binary expression is an undefined check (=== undefined or !==
+   * undefined).
+   *
+   * @param {import("jscodeshift").BinaryExpression} node - The binary expression
+   * @returns {{ value: import("ast-types").ASTNode; isNegated: boolean } | null}
    */
   const getUndefinedCheck = (node) => {
     if (!j.BinaryExpression.check(node)) {
@@ -1949,10 +1626,16 @@ export function nullishCoalescingOperator(j, root) {
   }
 
   /**
-   * Validate that both checks are negated, operate on the same value, and match the consequent.
-   * @param {{ value: import('jscodeshift').ASTNode, isNegated: boolean }} nullCheck - The null check result
-   * @param {{ value: import('jscodeshift').ASTNode, isNegated: boolean }} undefinedCheck - The undefined check result
-   * @param {import('jscodeshift').ASTNode} consequent - The consequent node to validate against
+   * Validate that both checks are negated, operate on the same value, and match the
+   * consequent.
+   *
+   * @param {{ value: import("ast-types").ASTNode; isNegated: boolean }} nullCheck - The
+   *   null check result
+   * @param {{ value: import("ast-types").ASTNode; isNegated: boolean }} undefinedCheck
+   *   - The undefined check result
+   *
+   * @param {import("ast-types").ASTNode} consequent - The consequent node to validate
+   *   against
    * @returns {boolean} True if validation passes
    */
   const validateChecks = (nullCheck, undefinedCheck, consequent) => {
@@ -1962,16 +1645,12 @@ export function nullishCoalescingOperator(j, root) {
     }
 
     // Both checks must be on the same value
-    if (!areNodesEquivalent(j, nullCheck.value, undefinedCheck.value)) {
+    if (!new NodeTest(nullCheck.value).isEqual(undefinedCheck.value)) {
       return false
     }
 
     // Consequent must be the same value
-    if (!areNodesEquivalent(j, nullCheck.value, consequent)) {
-      return false
-    }
-
-    return true
+    return new NodeTest(nullCheck.value).isEqual(consequent)
   }
 
   root
@@ -2039,12 +1718,12 @@ export function nullishCoalescingOperator(j, root) {
 
 /**
  * Transform Array.slice(0) and Array.slice() to array spread syntax.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
  */
-export function arraySliceToSpread(j, root) {
+export function arraySliceToSpread(root) {
   let modified = false
 
   root
@@ -2076,8 +1755,7 @@ export function arraySliceToSpread(j, root) {
       }
 
       // Only transform if we can verify the object is an iterable
-      const object = node.callee.object
-      return isVerifiableIterable(j, object)
+      return new NodeTest(node.callee.object).isIterable()
     })
     .forEach((path) => {
       const node = path.node
@@ -2095,40 +1773,43 @@ export function arraySliceToSpread(j, root) {
 }
 
 /**
- * Transform conditional property access patterns to optional chaining.
- * Converts patterns like:
- * - obj && obj.prop to obj?.prop
- * - arr && arr[0] to arr?.[0]
- * - fn && fn() to fn?.()
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ * Transform conditional property access patterns to optional chaining. Converts
+ * patterns like:
+ *
+ * - Obj && obj.prop to obj?.prop
+ * - Arr && arr[0] to arr?.[0]
+ * - Fn && fn() to fn?.()
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
  */
-export function optionalChaining(j, root) {
+export function optionalChaining(root) {
   let modified = false
 
   /**
    * Check if a node is a property access or call on a base.
-   * @param {import('jscodeshift').ASTNode} node - The node to check
-   * @param {import('jscodeshift').ASTNode} base - The expected base
+   *
+   * @param {import("ast-types").ASTNode} node - The node to check
+   * @param {import("ast-types").ASTNode} base - The expected base
    * @returns {boolean} True if node accesses base
    */
   const isAccessOnBase = (node, base) => {
     if (j.MemberExpression.check(node)) {
-      return areNodesEquivalent(j, node.object, base)
+      return new NodeTest(node.object).isEqual(base)
     }
     if (j.CallExpression.check(node)) {
-      return areNodesEquivalent(j, node.callee, base)
+      return new NodeTest(node.callee).isEqual(base)
     }
     return false
   }
 
   /**
    * Build an optional chaining expression from a base and accesses.
-   * @param {import('jscodeshift').ASTNode} base - The base expression
-   * @param {import('jscodeshift').ASTNode[]} accesses - The property/method accesses
-   * @returns {import('jscodeshift').ASTNode} The optional chaining expression
+   *
+   * @param {import("ast-types").ASTNode} base - The base expression
+   * @param {import("ast-types").ASTNode[]} accesses - The property/method accesses
+   * @returns {import("ast-types").ASTNode} The optional chaining expression
    */
   const buildOptionalChain = (base, accesses) => {
     let result = base
@@ -2151,8 +1832,13 @@ export function optionalChaining(j, root) {
 
   /**
    * Process a logical expression chain to extract optional chaining candidates.
-   * @param {import('jscodeshift').ASTNode} node - The logical expression (must be && operator)
-   * @returns {{ base: import('jscodeshift').ASTNode, accesses: import('jscodeshift').ASTNode[] } | null}
+   *
+   * @param {import("ast-types").ASTNode} node - The logical expression (must be &&
+   *   operator)
+   * @returns {{
+   *   base: import("ast-types").ASTNode
+   *   accesses: import("ast-types").ASTNode[]
+   * } | null}
    */
   const extractChain = (node) => {
     const parts = []

@@ -1,0 +1,27 @@
+# Write better PRs and commit messages
+name: "Word Weasel"
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+jobs:
+  pr-title:
+    name: "PR Title"
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    steps:
+      - uses: codingjoe/word-weasel@v1
+        with:
+          text: ${{ github.event.pull_request.title }}
+  pr-body:
+    name: "PR Body"
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    steps:
+      - uses: codingjoe/word-weasel@v1
+        with:
+          text: ${{ github.event.pull_request.body }}
