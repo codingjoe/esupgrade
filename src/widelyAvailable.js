@@ -119,13 +119,13 @@ function areNodesEquivalent(j, node1, node2) {
 }
 
 /**
- * Check if an expression is statically verifiable as an array.
- * Used by transformers to ensure they only transform array operations, not string operations.
+ * Check if an expression is statically verifiable as iterable.
+ * Used by transformers to ensure they only transform known iterable types.
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {import('jscodeshift').ASTNode} node - The AST node to check
- * @returns {boolean} True if the node can be verified as an array
+ * @returns {boolean} True if the node can be verified as iterable
  */
-function isVerifiableArray(j, node) {
+function isVerifiableIterable(j, node) {
   // Array literal: [1, 2, 3]
   if (j.ArrayExpression.check(node)) {
     return true
@@ -150,39 +150,27 @@ function isVerifiableArray(j, node) {
     return true
   }
 
-  // Array methods that return arrays
-  const ARRAY_METHODS_RETURNING_ARRAY = [
-    "map",
-    "filter",
+  // String literal methods that return iterables
+  const STRING_METHODS_RETURNING_ITERABLE = [
+    "matchAll",
+    "split",
     "slice",
-    "concat",
-    "flat",
-    "flatMap",
-    "splice",
-    "toSpliced",
-    "toReversed",
-    "toSorted",
+    "substr",
+    "substring",
+    "toLowerCase",
+    "toUpperCase",
+    "trim",
+    "trimStart",
+    "trimEnd",
   ]
 
-  if (
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    j.Identifier.check(node.callee.property) &&
-    ARRAY_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
-  ) {
-    return true
-  }
-
-  // String methods that return arrays
-  const STRING_METHODS_RETURNING_ARRAY = ["split", "matchAll"]
-
-  // String literal methods that return arrays (e.g., "a,b,c".split(','))
+  // String literal methods (e.g., "a,b,c".split(','), "hello".slice(0))
   if (
     j.CallExpression.check(node) &&
     j.MemberExpression.check(node.callee) &&
     j.Identifier.check(node.callee.property) &&
     j.StringLiteral.check(node.callee.object) &&
-    STRING_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
+    STRING_METHODS_RETURNING_ITERABLE.includes(node.callee.property.name)
   ) {
     return true
   }
@@ -1319,9 +1307,9 @@ export function arrayConcatToSpread(j, root) {
         return false
       }
 
-      // Only transform if we can verify the object is an array
+      // Only transform if we can verify the object is an iterable
       const object = node.callee.object
-      if (!isVerifiableArray(j, object)) {
+      if (!isVerifiableIterable(j, object)) {
         return false
       }
 
@@ -2091,9 +2079,9 @@ export function arraySliceToSpread(j, root) {
         return false
       }
 
-      // Only transform if we can verify the object is an array
+      // Only transform if we can verify the object is an iterable
       const object = node.callee.object
-      if (!isVerifiableArray(j, object)) {
+      if (!isVerifiableIterable(j, object)) {
         return false
       }
 

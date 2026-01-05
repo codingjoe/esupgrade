@@ -2122,18 +2122,18 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /const copy = \[\.\..\[1, 2, 3\]\]/)
     })
 
-    test("arr.map().slice(0)", () => {
+    test("arr.map().slice(0) - should not transform unknown chain", () => {
       const result = transform(`const copy = arr.map(x => x * 2).slice(0);`)
 
-      assert(result.modified, "transform slice on map result")
-      assert.match(result.code, /const copy = \[\.\.\.arr\.map/)
+      assert(!result.modified, "skip slice on unknown method chain")
+      assert.match(result.code, /arr\.map\(x => x \* 2\)\.slice\(0\)/)
     })
 
-    test("arr.filter().slice()", () => {
+    test("arr.filter().slice() - should not transform unknown chain", () => {
       const result = transform(`const copy = items.filter(x => x > 5).slice();`)
 
-      assert(result.modified, "transform slice on filter result")
-      assert.match(result.code, /const copy = \[\.\.\.items\.filter/)
+      assert(!result.modified, "skip slice on unknown method chain")
+      assert.match(result.code, /items\.filter\(x => x > 5\)\.slice\(\)/)
     })
 
     test("Array.from().slice(0)", () => {
@@ -2187,18 +2187,18 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /str\.slice\(0\)/)
     })
 
-    test("chained array methods with slice", () => {
+    test("chained array methods with slice - should not transform", () => {
       const result = transform(`const result = arr.map(x => x * 2).filter(x => x > 5).slice(0);`)
 
-      assert(result.modified, "transform slice in chain")
-      assert.match(result.code, /\[\.\.\.arr\.map.*\.filter/)
+      assert(!result.modified, "skip slice on unknown method chain")
+      assert.match(result.code, /arr\.map\(x => x \* 2\)\.filter\(x => x > 5\)\.slice\(0\)/)
     })
 
-    test("slice in arrow function", () => {
+    test("slice in arrow function - should not transform", () => {
       const result = transform(`const fn = arr => arr.map(x => x).slice(0);`)
 
-      assert(result.modified, "transform slice in arrow function")
-      assert.match(result.code, /\[\.\.\.arr\.map/)
+      assert(!result.modified, "skip slice on unknown method chain")
+      assert.match(result.code, /arr\.map\(x => x\)\.slice\(0\)/)
     })
 
     test("multiple slice calls", () => {

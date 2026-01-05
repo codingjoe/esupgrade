@@ -183,14 +183,11 @@ Supports:
 #### `Array.slice(0)` → [Array spread [...]][mdn-spread]
 
 ```diff
--const copy = arr.slice(0);
--const clone = arr.slice();
-+const copy = [...arr];
-+const clone = [...arr];
+-const copy = [1, 2, 3].slice(0);
+-const clone = Array.from(items).slice();
++const copy = [...[1, 2, 3]];
++const clone = [...Array.from(items)];
 ```
-
-> [!NOTE]
-> Only transforms when the object can be verified as an array (array literals, Array methods, etc.). Identifier slices like `arr.slice()` are not transformed to avoid breaking string operations.
 
 #### `Math.pow()` → [Exponentiation operator \*\*][mdn-exponentiation]
 
