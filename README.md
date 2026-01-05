@@ -328,6 +328,9 @@ ES6 modules are automatically in strict mode, making explicit `'use strict'` dir
 +}
 ```
 
+Transforms `indexOf()` calls with a single argument (search value).
+Calls with a fromIndex parameter are not transformed as they have different semantics than `includes()`.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
