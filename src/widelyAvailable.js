@@ -1902,15 +1902,22 @@ export function optionalChaining(root) {
  * Transform indexOf() existence checks to includes() method.
  * Converts patterns like arr.indexOf(item) !== -1 to arr.includes(item).
  * Also handles negative checks: arr.indexOf(item) === -1 to !arr.includes(item).
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes
- * @param {import('jscodeshift').Collection} root - The root AST collection
- * @returns {boolean} True if code was modified
  */
 export function indexOfToIncludes(root) {
   let modified = false
 
-  // Helper to get numeric value from a node (handles -1 as UnaryExpression)
+  /**
+   * Get numeric value from a node (handles -1 as UnaryExpression).
+   *
+   * @param {import("ast-types").namedTypes.Node} node - The AST node to extract
+   *   numeric value from
+   * @returns {number | null} The numeric value, or null if not a number
+   */
   const getNumericValue = (node) => {
     // Handle direct literals (e.g., 0)
     if (j.Literal.check(node) && typeof node.value === "number") {
@@ -1934,7 +1941,18 @@ export function indexOfToIncludes(root) {
     return null
   }
 
-  // Helper to determine which side has the indexOf call
+  /**
+   * Determine which side of the binary expression has the indexOf call.
+   *
+   * @param {import("ast-types").namedTypes.BinaryExpression} node - The binary
+   *   expression node to analyze
+   * @returns {{
+   *   indexOfCall: import("ast-types").namedTypes.CallExpression;
+   *   comparisonValue: import("ast-types").namedTypes.Node;
+   *   isLeftIndexOf: boolean;
+   * } | null}
+   *   Object with indexOf call info, or null if not found
+   */
   const getIndexOfInfo = (node) => {
     // Check left side
     if (
