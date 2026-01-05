@@ -165,17 +165,13 @@ function isVerifiableIterable(j, node) {
   ]
 
   // String literal methods (e.g., "a,b,c".split(','), "hello".slice(0))
-  if (
+  return !!(
     j.CallExpression.check(node) &&
     j.MemberExpression.check(node.callee) &&
     j.Identifier.check(node.callee.property) &&
     j.StringLiteral.check(node.callee.object) &&
     STRING_METHODS_RETURNING_ITERABLE.includes(node.callee.property.name)
-  ) {
-    return true
-  }
-
-  return false
+  )
 }
 
 /**
@@ -2081,11 +2077,7 @@ export function arraySliceToSpread(j, root) {
 
       // Only transform if we can verify the object is an iterable
       const object = node.callee.object
-      if (!isVerifiableIterable(j, object)) {
-        return false
-      }
-
-      return true
+      return isVerifiableIterable(j, object)
     })
     .forEach((path) => {
       const node = path.node
