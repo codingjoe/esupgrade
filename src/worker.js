@@ -1,5 +1,5 @@
-import { parentPort, workerData } from "worker_threads"
 import fs from "fs"
+import { parentPort, workerData } from "worker_threads"
 import { transform } from "./index.js"
 
 /**

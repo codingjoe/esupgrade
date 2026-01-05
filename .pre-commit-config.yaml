@@ -44,7 +44,7 @@ repos:
         args:
           - --config=package.json
         language: node
-        additional_dependencies: ["prettier"]
+        additional_dependencies: ["prettier", "prettier-plugin-jsdoc", "prettier-plugin-organize-imports"]
         types_or: [javascript]
 ci:
   autoupdate_schedule: weekly

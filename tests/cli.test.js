@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
 import fs from "node:fs"
-import path from "node:path"
 import os from "node:os"
+import path from "node:path"
+import { afterEach, beforeEach, describe, test } from "node:test"
 
 const CLI_PATH = path.join(process.cwd(), "bin", "esupgrade.js")
 

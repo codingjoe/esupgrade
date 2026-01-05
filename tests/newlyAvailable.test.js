@@ -1,5 +1,5 @@
-import { describe, suite, test } from "node:test"
 import assert from "node:assert/strict"
+import { describe, suite, test } from "node:test"
 import { transform } from "../src/index.js"
 
 suite("newly-available", () => {

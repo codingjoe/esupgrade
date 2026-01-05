@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
-import fs from "fs"
-import path from "path"
-import os from "os"
-import { Worker } from "worker_threads"
-import { once } from "events"
 import { Command, Option } from "commander"
-import { fileURLToPath } from "url"
-import process from "node:process"
 import { diffLines } from "diff"
+import { once } from "events"
+import fs from "fs"
+import process from "node:process"
+import os from "os"
+import path from "path"
+import { fileURLToPath } from "url"
+import { Worker } from "worker_threads"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

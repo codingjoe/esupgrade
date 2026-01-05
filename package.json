@@ -30,6 +30,10 @@
     "node": ">=24.0.0"
   },
   "prettier": {
+    "plugins": [
+      "prettier-plugin-jsdoc",
+      "prettier-plugin-organize-imports"
+    ],
     "semi": false
   },
   "repository": {
@@ -37,6 +41,8 @@
     "url": "https://github.com/codingjoe/esupgrade.git"
   },
   "devDependencies": {
-    "prettier": "^3.7.4"
+    "prettier": "^3.7.4",
+    "prettier-plugin-jsdoc": "^1.8.0",
+    "prettier-plugin-organize-imports": "^4.3.0"
   }
 }

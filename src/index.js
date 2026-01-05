@@ -1,6 +1,6 @@
 import jscodeshift from "jscodeshift"
-import * as widelyAvailable from "./widelyAvailable.js"
 import * as newlyAvailable from "./newlyAvailable.js"
+import * as widelyAvailable from "./widelyAvailable.js"
 
 /**
  * Result of a transformation.
