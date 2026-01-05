@@ -1,283 +1,4 @@
-/**
- * Check if a pattern (identifier, destructuring, etc.) contains a specific variable name
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').ASTNode | null | undefined} node - The AST node to check
- * @param {string} varName - The variable name to search for
- * @returns {boolean} True if the pattern contains the identifier
- */
-function patternContainsIdentifier(j, node, varName) {
-  if (!node) {
-    return false
-  }
-  if (j.Identifier.check(node)) {
-    return node.name === varName
-  }
-  if (j.ObjectPattern.check(node)) {
-    return node.properties.some(
-      (prop) =>
-        ((j.Property.check(prop) || j.ObjectProperty.check(prop)) &&
-          patternContainsIdentifier(j, prop.value, varName)) ||
-        (j.RestElement.check(prop) &&
-          patternContainsIdentifier(j, prop.argument, varName)),
-    )
-  }
-  if (j.ArrayPattern.check(node)) {
-    return node.elements.some((element) =>
-      patternContainsIdentifier(j, element, varName),
-    )
-  }
-  if (j.AssignmentPattern.check(node)) {
-    return patternContainsIdentifier(j, node.left, varName)
-  }
-  // RestElement is the only remaining valid pattern type
-  return (
-    j.RestElement.check(node) && patternContainsIdentifier(j, node.argument, varName)
-  )
-}
-
-/**
- * Extract all identifier names from a pattern (handles destructuring)
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').ASTNode | null | undefined} pattern - The pattern node to extract identifiers from
- * @yields {string} Identifier names found in the pattern
- * @returns {Generator<string, void, unknown>}
- */
-function* extractIdentifiersFromPattern(j, pattern) {
-  if (!pattern) return
-
-  if (j.Identifier.check(pattern)) {
-    yield pattern.name
-  } else if (j.ObjectPattern.check(pattern)) {
-    for (const prop of pattern.properties) {
-      if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
-        yield* extractIdentifiersFromPattern(j, prop.value)
-      } else if (j.RestElement.check(prop)) {
-        yield* extractIdentifiersFromPattern(j, prop.argument)
-      }
-    }
-  } else if (j.ArrayPattern.check(pattern)) {
-    for (const element of pattern.elements) {
-      yield* extractIdentifiersFromPattern(j, element)
-    }
-  } else if (j.AssignmentPattern.check(pattern)) {
-    yield* extractIdentifiersFromPattern(j, pattern.left)
-  } else if (j.RestElement.check(pattern)) {
-    yield* extractIdentifiersFromPattern(j, pattern.argument)
-  }
-}
-
-/**
- * Check if two AST nodes are structurally equivalent.
- * Compares identifiers, literals, member expressions, and call expressions recursively.
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').ASTNode | null | undefined} node1 - First node to compare
- * @param {import('jscodeshift').ASTNode | null | undefined} node2 - Second node to compare
- * @returns {boolean} True if nodes are structurally equivalent
- */
-function areNodesEquivalent(j, node1, node2) {
-  if (!node1 || !node2) return false
-
-  // Both are identifiers with same name
-  if (j.Identifier.check(node1) && j.Identifier.check(node2)) {
-    return node1.name === node2.name
-  }
-
-  // Both are literals with same value
-  if (j.Literal.check(node1) && j.Literal.check(node2)) {
-    return node1.value === node2.value
-  }
-
-  // Both are member expressions
-  if (j.MemberExpression.check(node1) && j.MemberExpression.check(node2)) {
-    return (
-      areNodesEquivalent(j, node1.object, node2.object) &&
-      areNodesEquivalent(j, node1.property, node2.property) &&
-      node1.computed === node2.computed
-    )
-  }
-
-  // Both are call expressions
-  if (j.CallExpression.check(node1) && j.CallExpression.check(node2)) {
-    // Check if callees are equivalent
-    if (!areNodesEquivalent(j, node1.callee, node2.callee)) {
-      return false
-    }
-    // Check if argument counts match
-    if (node1.arguments.length !== node2.arguments.length) {
-      return false
-    }
-    // Check if all arguments are equivalent
-    for (let i = 0; i < node1.arguments.length; i++) {
-      if (!areNodesEquivalent(j, node1.arguments[i], node2.arguments[i])) {
-        return false
-      }
-    }
-    return true
-  }
-
-  return false
-}
-
-/**
- * Check if an expression is statically verifiable as iterable.
- * Used by transformers to ensure they only transform known iterable types.
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').ASTNode} node - The AST node to check
- * @returns {boolean} True if the node can be verified as iterable
- */
-function isVerifiableIterable(j, node) {
-  // Array literal: [1, 2, 3]
-  if (j.ArrayExpression.check(node)) {
-    return true
-  }
-
-  // Array.from(), Array.of(), etc.
-  if (
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    j.Identifier.check(node.callee.object) &&
-    node.callee.object.name === "Array"
-  ) {
-    return true
-  }
-
-  // new Array()
-  if (
-    j.NewExpression.check(node) &&
-    j.Identifier.check(node.callee) &&
-    node.callee.name === "Array"
-  ) {
-    return true
-  }
-
-  // String literal methods that return iterables
-  const STRING_METHODS_RETURNING_ITERABLE = [
-    "matchAll",
-    "split",
-    "slice",
-    "substr",
-    "substring",
-    "toLowerCase",
-    "toUpperCase",
-    "trim",
-    "trimStart",
-    "trimEnd",
-  ]
-
-  // String literal methods (e.g., "a,b,c".split(','), "hello".slice(0))
-  return !!(
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    j.Identifier.check(node.callee.property) &&
-    j.StringLiteral.check(node.callee.object) &&
-    STRING_METHODS_RETURNING_ITERABLE.includes(node.callee.property.name)
-  )
-}
-
-/**
- * Check if an assignment/update expression is shadowed by a closer variable declaration
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {string} varName - The variable name to check
- * @param {import('jscodeshift').ASTPath} declarationPath - The path to the original declaration
- * @param {import('jscodeshift').ASTPath} usagePath - The path to the assignment/update expression
- * @returns {boolean} True if the assignment is shadowed by a closer declaration
- */
-function isAssignmentShadowed(j, varName, declarationPath, usagePath) {
-  let current = usagePath.parent
-
-  while (current) {
-    if (
-      j.FunctionDeclaration.check(current.node) ||
-      j.FunctionExpression.check(current.node) ||
-      j.ArrowFunctionExpression.check(current.node)
-    ) {
-      // Check function parameters
-      if (current.node.params) {
-        for (const param of current.node.params) {
-          if (patternContainsIdentifier(j, param, varName)) {
-            return true
-          }
-        }
-      }
-
-      // Check for var/let/const declarations in this function
-      const functionBody = current.node.body
-      if (functionBody) {
-        let foundOurDeclaration = false
-        const hasLocalDecl = j(functionBody)
-          .find(j.VariableDeclarator)
-          .some((declPath) => {
-            const declParent = declPath.parent.node
-            if (declParent === declarationPath.node) {
-              foundOurDeclaration = true
-              return false
-            }
-            return patternContainsIdentifier(j, declPath.node.id, varName)
-          })
-
-        // If we found a shadowing declaration (not our own), the assignment is shadowed
-        if (hasLocalDecl) {
-          return true
-        }
-
-        // If we found our declaration in this scope, stop traversing -
-        // the assignment is not shadowed, it belongs to our declaration
-        if (foundOurDeclaration) {
-          return false
-        }
-      }
-    }
-
-    current = current.parent
-  }
-
-  return false
-}
-
-/**
- * Check if a variable is reassigned after its declaration
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
- * @param {string} varName - The variable name to check
- * @param {import('jscodeshift').ASTPath} declarationPath - The path to the variable declaration
- * @returns {boolean} True if the variable is reassigned
- */
-function isVariableReassigned(j, root, varName, declarationPath) {
-  let isReassigned = false
-
-  // Check for AssignmentExpression where left side targets the variable
-  root.find(j.AssignmentExpression).forEach((assignPath) => {
-    if (!patternContainsIdentifier(j, assignPath.node.left, varName)) {
-      return
-    }
-
-    if (isAssignmentShadowed(j, varName, declarationPath, assignPath)) {
-      return
-    }
-
-    isReassigned = true
-  })
-
-  if (isReassigned) return true
-
-  // Check for UpdateExpression (++, --)
-  root.find(j.UpdateExpression).forEach((updatePath) => {
-    if (
-      !j.Identifier.check(updatePath.node.argument) ||
-      updatePath.node.argument.name !== varName
-    ) {
-      return
-    }
-
-    if (isAssignmentShadowed(j, varName, declarationPath, updatePath)) {
-      return
-    }
-
-    isReassigned = true
-  })
-
-  return isReassigned
-}
+import { PatternChecker, NodeChecker, VariableChecker } from "./checks.js"
 
 /**
  * Determine the appropriate kind (const or let) for a declarator
@@ -289,14 +10,14 @@ function isVariableReassigned(j, root, varName, declarationPath) {
  */
 function determineDeclaratorKind(j, root, declarator, declarationPath) {
   if (j.Identifier.check(declarator.id)) {
-    return isVariableReassigned(j, root, declarator.id.name, declarationPath)
+    return VariableChecker.isReassigned(j, root, declarator.id.name, declarationPath)
       ? "let"
       : "const"
   }
 
   // Destructuring pattern - check if any identifier is reassigned
-  for (const varName of extractIdentifiersFromPattern(j, declarator.id)) {
-    if (isVariableReassigned(j, root, varName, declarationPath)) {
+  for (const varName of PatternChecker.extractIdentifiers(j, declarator.id)) {
+    if (VariableChecker.isReassigned(j, root, varName, declarationPath)) {
       return "let"
     }
   }
@@ -1305,7 +1026,7 @@ export function arrayConcatToSpread(j, root) {
 
       // Only transform if we can verify the object is an iterable
       const object = node.callee.object
-      if (!isVerifiableIterable(j, object)) {
+      if (!NodeChecker.isVerifiableIterable(j, object)) {
         return false
       }
 
@@ -1962,12 +1683,12 @@ export function nullishCoalescingOperator(j, root) {
     }
 
     // Both checks must be on the same value
-    if (!areNodesEquivalent(j, nullCheck.value, undefinedCheck.value)) {
+    if (!NodeChecker.areEquivalent(j, nullCheck.value, undefinedCheck.value)) {
       return false
     }
 
     // Consequent must be the same value
-    if (!areNodesEquivalent(j, nullCheck.value, consequent)) {
+    if (!NodeChecker.areEquivalent(j, nullCheck.value, consequent)) {
       return false
     }
 
@@ -2077,7 +1798,7 @@ export function arraySliceToSpread(j, root) {
 
       // Only transform if we can verify the object is an iterable
       const object = node.callee.object
-      return isVerifiableIterable(j, object)
+      return NodeChecker.isVerifiableIterable(j, object)
     })
     .forEach((path) => {
       const node = path.node
@@ -2116,10 +1837,10 @@ export function optionalChaining(j, root) {
    */
   const isAccessOnBase = (node, base) => {
     if (j.MemberExpression.check(node)) {
-      return areNodesEquivalent(j, node.object, base)
+      return NodeChecker.areEquivalent(j, node.object, base)
     }
     if (j.CallExpression.check(node)) {
-      return areNodesEquivalent(j, node.callee, base)
+      return NodeChecker.areEquivalent(j, node.callee, base)
     }
     return false
   }
