@@ -5,6 +5,18 @@ on:
       - main
   pull_request:
 jobs:
+  readme:
+    name: "Word Weasel / README.md"
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v6
+      - id: read_readme
+        run: |
+          echo "::set-output name=content::$(cat README.md)"
+      - uses: codingjoe/word-weasel@v1
+        with:
+          text: ${{ steps.read_readme.outputs.content }}
   node-test:
     name: Test
     runs-on: ubuntu-latest
