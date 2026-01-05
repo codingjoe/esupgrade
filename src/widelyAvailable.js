@@ -2260,7 +2260,7 @@ export function indexOfToIncludes(j, root) {
       // For 0 comparisons:
       // - indexOf() >= 0 → includes()
       // - indexOf() < 0 → !includes()
-      
+
       if (value === -1) {
         if (isLeftIndexOf) {
           // indexOf() op -1
@@ -2326,11 +2326,7 @@ export function indexOfToIncludes(j, root) {
 
       // Create includes() call
       const includesCall = j.callExpression(
-        j.memberExpression(
-          indexOfCall.callee.object,
-          j.identifier("includes"),
-          false,
-        ),
+        j.memberExpression(indexOfCall.callee.object, j.identifier("includes"), false),
         indexOfCall.arguments,
       )
 

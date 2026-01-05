@@ -4077,7 +4077,9 @@ const obj = {
       })
 
       test("in if condition", () => {
-        const result = transform(`if (arr.indexOf(item) !== -1) { console.log('found'); }`)
+        const result = transform(
+          `if (arr.indexOf(item) !== -1) { console.log('found'); }`,
+        )
 
         assert(result.modified, "transform in if condition")
         assert.match(result.code, /if \(arr\.includes\(item\)\)/)
@@ -4085,15 +4087,22 @@ const obj = {
       })
 
       test("in ternary expression", () => {
-        const result = transform(`const result = arr.indexOf(item) !== -1 ? 'yes' : 'no';`)
+        const result = transform(
+          `const result = arr.indexOf(item) !== -1 ? 'yes' : 'no';`,
+        )
 
         assert(result.modified, "transform in ternary expression")
-        assert.match(result.code, /const result = arr\.includes\(item\) \? 'yes' : 'no'/)
+        assert.match(
+          result.code,
+          /const result = arr\.includes\(item\) \? 'yes' : 'no'/,
+        )
         assert.doesNotMatch(result.code, /indexOf/)
       })
 
       test("negated in if condition", () => {
-        const result = transform(`if (arr.indexOf(item) === -1) { console.log('not found'); }`)
+        const result = transform(
+          `if (arr.indexOf(item) === -1) { console.log('not found'); }`,
+        )
 
         assert(result.modified, "transform negated in if condition")
         assert.match(result.code, /if \(!arr\.includes\(item\)\)/)
@@ -4161,18 +4170,28 @@ const obj = {
 
     describe("real-world patterns", () => {
       test("combined with logical operators", () => {
-        const result = transform(`const valid = arr.indexOf(item) !== -1 && arr.length > 0;`)
+        const result = transform(
+          `const valid = arr.indexOf(item) !== -1 && arr.length > 0;`,
+        )
 
         assert(result.modified, "transform with logical operators")
-        assert.match(result.code, /const valid = arr\.includes\(item\) && arr\.length > 0/)
+        assert.match(
+          result.code,
+          /const valid = arr\.includes\(item\) && arr\.length > 0/,
+        )
         assert.doesNotMatch(result.code, /indexOf/)
       })
 
       test("multiple indexOf checks", () => {
-        const result = transform(`const found = arr1.indexOf(x) !== -1 || arr2.indexOf(y) !== -1;`)
+        const result = transform(
+          `const found = arr1.indexOf(x) !== -1 || arr2.indexOf(y) !== -1;`,
+        )
 
         assert(result.modified, "transform multiple indexOf checks")
-        assert.match(result.code, /const found = arr1\.includes\(x\) \|\| arr2\.includes\(y\)/)
+        assert.match(
+          result.code,
+          /const found = arr1\.includes\(x\) \|\| arr2\.includes\(y\)/,
+        )
         assert.doesNotMatch(result.code, /indexOf/)
       })
 
