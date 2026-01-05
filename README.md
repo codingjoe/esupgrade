@@ -111,8 +111,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +}
 ```
 
-> [!NOTE]
-> Transformations are limited to loops that start at 0, increment by 1, and where the index variable is not used in the loop body.
+Transformations are limited to loops that start at 0, increment by 1, and where the index variable is not used in the loop body.
 
 #### `Array.from().forEach()` → [`for...of` loops][mdn-for-of]
 
@@ -139,14 +138,17 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 Supports:
 
 - `document.querySelectorAll()`
+
 - `document.getElementsByTagName()`
+
 - `document.getElementsByClassName()`
+
 - `document.getElementsByName()`
+
 - `window.frames`
 
-> [!NOTE]
-> Transformations limited to inline arrow or function expressions with block statement bodies.
-> Callbacks with index parameters or expression bodies are not transformed.
+- Transformations limited to inline arrow or function expressions with block statement bodies.
+  Callbacks with index parameters or expression bodies are not transformed.
 
 #### `Array.from()` → [Array spread [...]][mdn-spread]
 
@@ -159,8 +161,7 @@ Supports:
 +const arr = [...iterable];
 ```
 
-> [!NOTE]
-> `Array.from()` with a mapping function or thisArg is not converted.
+`Array.from()` with a mapping function or thisArg is not converted.
 
 #### `Object.assign({}, ...)` → [Object spread {...}][mdn-spread]
 
@@ -207,8 +208,7 @@ Supports:
 +items.map(item => { return item.name; });
 ```
 
-> [!NOTE]
-> Functions using `this`, `arguments`, or `super` are not converted to preserve semantics.
+Functions using `this`, `arguments`, or `super` are not converted to preserve semantics.
 
 #### Constructor functions → [Classes][mdn-classes]
 
@@ -241,15 +241,14 @@ Supports:
 +}
 ```
 
-> [!NOTE]
-> Transforms constructor functions (both function declarations and variable declarations) that meet these criteria:
->
-> - Function name starts with an uppercase letter
-> - Constructor bodies are limited to simple statements (variable declarations and expression statements)
-> - No control flow statements (`if`, `for`, `while`, `return`, `throw`, etc.) in constructor body
-> - At least one prototype method is defined
-> - Prototype methods must be function expressions (not arrow functions)
-> - Prototype object literals with getters, setters, or computed properties are skipped
+Transforms constructor functions (both function declarations and variable declarations) that meet these criteria:
+
+- Function name starts with an uppercase letter
+- Constructor bodies are limited to simple statements (variable declarations and expression statements)
+- No control flow statements (`if`, `for`, `while`, `return`, `throw`, etc.) in constructor body
+- At least one prototype method is defined
+- Prototype methods must be function expressions (not arrow functions)
+- Prototype object literals with getters, setters, or computed properties are skipped
 
 #### `console.log()` → [console.info()][mdn-console]
 
@@ -260,14 +259,8 @@ Supports:
 +console.info({ userId, action: 'login' });
 ```
 
-> [!CAUTION]
-> While `console.log` and `console.info` are functionally identical in most JavaScript environments, this transformation may cause issues in:
->
-> - Environments where logging frameworks intercept and handle these methods differently
-> - Custom console implementations that treat log levels differently
-> - Testing environments with mocked console objects that differentiate between methods
->
-> This transformation provides semantic clarity by using an explicit log level, but review your logging infrastructure before applying.
+While `console.log` and `console.info` are functionally identical in browsers.
+This transformation provides semantic clarity by using an explicit log level, but review your logging infrastructure before applying.
 
 #### Remove redundant `'use strict'` from [modules][mdn-strict-mode]
 
@@ -280,8 +273,7 @@ Supports:
  }
 ```
 
-> [!NOTE]
-> ES6 modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation applies to files with `import` or `export` statements.
+ES6 modules are automatically in strict mode, making explicit `'use strict'` directives redundant. This transformation applies to files with `import` or `export` statements.
 
 #### Global context → [globalThis][mdn-globalthis]
 
@@ -344,8 +336,7 @@ Supports:
 
 ### Newly available
 
-> [!CAUTION]
-> These transformations are mainly to harden code for future releases and should be used with caution.
+These transformations are mainly to harden code for future releases and should be used with caution.
 
 #### `new Promise((resolve) => { ... })` → [Promise.try][mdn-promise-try]
 
