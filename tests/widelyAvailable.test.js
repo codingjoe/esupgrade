@@ -2188,10 +2188,15 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("chained array methods with slice - should not transform", () => {
-      const result = transform(`const result = arr.map(x => x * 2).filter(x => x > 5).slice(0);`)
+      const result = transform(
+        `const result = arr.map(x => x * 2).filter(x => x > 5).slice(0);`,
+      )
 
       assert(!result.modified, "skip slice on unknown method chain")
-      assert.match(result.code, /arr\.map\(x => x \* 2\)\.filter\(x => x > 5\)\.slice\(0\)/)
+      assert.match(
+        result.code,
+        /arr\.map\(x => x \* 2\)\.filter\(x => x > 5\)\.slice\(0\)/,
+      )
     })
 
     test("slice in arrow function - should not transform", () => {
