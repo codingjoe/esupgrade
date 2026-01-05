@@ -1,6 +1,9 @@
-When writing code, you MUST ALWAYS follow the [naming-things](https://raw.githubusercontent.com/codingjoe/naming-things/refs/heads/main/README.md) guidelines.
+When writing code, you MUST ALWAYS follow the [naming guidelines](https://raw.githubusercontent.com/codingjoe/naming-things/refs/heads/main/README.md).
 
 All code must be fully tested with a 100% coverage. Unreachable code must be removed.
+Follow the [CONTRIBUTING.md](./CONTRIBUTING.md) guidelines for testing and linting.
+The test suite will fail if the line coverage is below 100%.
+The test coverage will be written to stdout or the `lcov.info` file in the project root.
 
 All transformers must be documented in the README.md.
 
