@@ -273,7 +273,9 @@ export class VariableChecker {
         return
       }
 
-      if (VariableChecker.isAssignmentShadowed(j, varName, declarationPath, assignPath)) {
+      if (
+        VariableChecker.isAssignmentShadowed(j, varName, declarationPath, assignPath)
+      ) {
         return
       }
 
@@ -291,7 +293,9 @@ export class VariableChecker {
         return
       }
 
-      if (VariableChecker.isAssignmentShadowed(j, varName, declarationPath, updatePath)) {
+      if (
+        VariableChecker.isAssignmentShadowed(j, varName, declarationPath, updatePath)
+      ) {
         return
       }
 
