@@ -75,7 +75,10 @@ export function concatToTemplateLiteral(root) {
       const containsStringLiteral = (node) => {
         if (isStringLiteral(node)) return true
         if (j.BinaryExpression.check(node) && node.operator === "+") {
-          return containsStringLiteral(node.left) || containsStringLiteral(node.right)
+          return (
+            containsStringLiteral(node.left) ||
+            containsStringLiteral(node.right)
+          )
         }
         return false
       }
@@ -132,7 +135,10 @@ export function concatToTemplateLiteral(root) {
             const leftHasString = containsStringLiteral(node.left)
 
             // Process left side
-            if (j.BinaryExpression.check(node.left) && node.left.operator === "+") {
+            if (
+              j.BinaryExpression.check(node.left) &&
+              node.left.operator === "+"
+            ) {
               // Left is also a + expression - recurse
               flatten(node.left, stringContext)
             } else if (isStringLiteral(node.left)) {
@@ -145,7 +151,10 @@ export function concatToTemplateLiteral(root) {
 
             // Process right side - it's in string context if left had a string
             const rightInStringContext = stringContext || leftHasString
-            if (j.BinaryExpression.check(node.right) && node.right.operator === "+") {
+            if (
+              j.BinaryExpression.check(node.right) &&
+              node.right.operator === "+"
+            ) {
               // If right is a + expression with no strings and we're in string context, keep it as a unit
               if (!containsStringLiteral(node.right) && rightInStringContext) {
                 addExpression(node.right)
@@ -209,7 +218,9 @@ export function objectAssignToSpread(root) {
     .filter((path) => {
       // First argument must be empty object literal
       const firstArg = path.node.arguments[0]
-      return j.ObjectExpression.check(firstArg) && firstArg.properties.length === 0
+      return (
+        j.ObjectExpression.check(firstArg) && firstArg.properties.length === 0
+      )
     })
     .forEach((path) => {
       const spreadProperties = path.node.arguments
@@ -280,7 +291,8 @@ export function arrayFromForEachToForOf(root) {
         //    This handles cases like Array.from(Object.entries(obj)).forEach(([k, v]) => ...)
         const params = callback.params
         const canTransform =
-          params.length === 1 || (params.length >= 2 && j.ArrayPattern.check(params[0]))
+          params.length === 1 ||
+          (params.length >= 2 && j.ArrayPattern.check(params[0]))
 
         if (canTransform) {
           const itemParam = callback.params[0]
@@ -436,7 +448,10 @@ export function forLoopToForOf(root) {
         return false
       }
       const indexVar = initDeclarator.id.name
-      if (!j.Literal.check(initDeclarator.init) || initDeclarator.init.value !== 0) {
+      if (
+        !j.Literal.check(initDeclarator.init) ||
+        initDeclarator.init.value !== 0
+      ) {
         return false
       }
 
@@ -447,7 +462,10 @@ export function forLoopToForOf(root) {
       if (node.test.operator !== "<") {
         return false
       }
-      if (!j.Identifier.check(node.test.left) || node.test.left.name !== indexVar) {
+      if (
+        !j.Identifier.check(node.test.left) ||
+        node.test.left.name !== indexVar
+      ) {
         return false
       }
       if (!j.MemberExpression.check(node.test.right)) {
@@ -566,7 +584,9 @@ export function forLoopToForOf(root) {
 
       // Create for...of loop
       const forOfLoop = j.forOfStatement(
-        j.variableDeclaration(itemKind, [j.variableDeclarator(j.identifier(itemVar))]),
+        j.variableDeclaration(itemKind, [
+          j.variableDeclarator(j.identifier(itemVar)),
+        ]),
         j.identifier(arrayVar),
         newBody,
       )
@@ -624,7 +644,9 @@ export function iterableForEachToForOf(root) {
 
       // Check if this is a property access pattern like window.frames
       if (j.MemberExpression.check(object) && !j.CallExpression.check(object)) {
-        const objectName = j.Identifier.check(object.object) ? object.object.name : null
+        const objectName = j.Identifier.check(object.object)
+          ? object.object.name
+          : null
         const propertyName = j.Identifier.check(object.property)
           ? object.property.name
           : null
@@ -919,7 +941,11 @@ export function anonymousFunctionToArrow(root) {
       const node = path.node
 
       // Create arrow function with same params and body
-      const arrowFunction = j.arrowFunctionExpression(node.params, node.body, false)
+      const arrowFunction = j.arrowFunctionExpression(
+        node.params,
+        node.body,
+        false,
+      )
 
       // Preserve async property
       if (node.async) {
@@ -1470,7 +1496,10 @@ export function globalContextToGlobalThis(root) {
     .forEach((path) => {
       // Check if the Function call result is immediately invoked
       const parent = path.parent
-      if (j.CallExpression.check(parent.node) && parent.node.callee === path.node) {
+      if (
+        j.CallExpression.check(parent.node) &&
+        parent.node.callee === path.node
+      ) {
         // Replace the entire call expression with globalThis
         j(parent).replaceWith(j.identifier("globalThis"))
         modified = true
@@ -1659,7 +1688,10 @@ export function nullishCoalescingOperator(root) {
       const node = path.node
 
       // Test must be a logical AND expression
-      if (!j.LogicalExpression.check(node.test) || node.test.operator !== "&&") {
+      if (
+        !j.LogicalExpression.check(node.test) ||
+        node.test.operator !== "&&"
+      ) {
         return false
       }
 
@@ -1679,7 +1711,11 @@ export function nullishCoalescingOperator(root) {
           return false
         }
 
-        return validateChecks(nullCheckSwapped, undefinedCheckSwapped, node.consequent)
+        return validateChecks(
+          nullCheckSwapped,
+          undefinedCheckSwapped,
+          node.consequent,
+        )
       }
 
       return validateChecks(nullCheck, undefinedCheck, node.consequent)
@@ -1706,7 +1742,11 @@ export function nullishCoalescingOperator(root) {
       }
 
       // Create nullish coalescing expression: value ?? default
-      const nullishCoalescing = j.logicalExpression("??", valueNode, node.alternate)
+      const nullishCoalescing = j.logicalExpression(
+        "??",
+        valueNode,
+        node.alternate,
+      )
 
       j(path).replaceWith(nullishCoalescing)
 

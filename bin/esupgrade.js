@@ -60,10 +60,15 @@ class FileProcessor {
    */
   async processFile(filePath, options) {
     try {
-      const workerResult = await this.workerRunner.run(filePath, options.baseline)
+      const workerResult = await this.workerRunner.run(
+        filePath,
+        options.baseline,
+      )
 
       if (!workerResult.success) {
-        console.error(`\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error}`)
+        console.error(
+          `\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error}`,
+        )
         return { modified: false, error: true }
       }
 
@@ -149,7 +154,10 @@ class WorkerPool {
       while (fileIndex < files.length) {
         const currentIndex = fileIndex++
         const file = files[currentIndex]
-        results[currentIndex] = await this.fileProcessor.processFile(file, options)
+        results[currentIndex] = await this.fileProcessor.processFile(
+          file,
+          options,
+        )
       }
     }
 
@@ -304,7 +312,10 @@ program
       .choices(["widely-available", "newly-available"])
       .default("widely-available"),
   )
-  .option("--check", "Report which files need upgrading and exit with code 1 if any do")
+  .option(
+    "--check",
+    "Report which files need upgrading and exit with code 1 if any do",
+  )
   .option("--write", "Write changes to files")
   .action(async (files, options) => {
     // Handle check/write options - they are not mutually exclusive

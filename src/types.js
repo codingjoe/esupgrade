@@ -87,7 +87,10 @@ export class NodeTest {
     }
 
     // Both are member expressions
-    if (j.MemberExpression.check(this.node) && j.MemberExpression.check(other)) {
+    if (
+      j.MemberExpression.check(this.node) &&
+      j.MemberExpression.check(other)
+    ) {
       return (
         new NodeTest(this.node.object).isEqual(other.object) &&
         new NodeTest(this.node.property).isEqual(other.property) &&
@@ -143,13 +146,18 @@ function patternContainsIdentifier(node, varName) {
     )
   }
   if (j.ArrayPattern.check(node)) {
-    return node.elements.some((element) => patternContainsIdentifier(element, varName))
+    return node.elements.some((element) =>
+      patternContainsIdentifier(element, varName),
+    )
   }
   if (j.AssignmentPattern.check(node)) {
     return patternContainsIdentifier(node.left, varName)
   }
   // RestElement is the only remaining valid pattern type
-  return j.RestElement.check(node) && patternContainsIdentifier(node.argument, varName)
+  return (
+    j.RestElement.check(node) &&
+    patternContainsIdentifier(node.argument, varName)
+  )
 }
 
 /**
