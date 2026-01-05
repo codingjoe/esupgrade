@@ -41,7 +41,8 @@ repos:
       - id: prettier
         name: prettier
         entry: prettier --check --write --ignore-unknown
-        args: [--no-config, --no-semi]
+        args:
+          - --config=package.json
         language: node
         additional_dependencies: ["prettier"]
         types_or: [javascript]
