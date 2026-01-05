@@ -75,10 +75,7 @@ suite("newly-available", () => {
     })
 
     test("skip with non-function argument", () => {
-      const result = transform(
-        `const p = new Promise(executor);`,
-        "newly-available",
-      )
+      const result = transform(`const p = new Promise(executor);`, "newly-available")
       assert(!result.modified)
       assert.match(result.code, /new Promise\(executor\)/)
     })

@@ -37,13 +37,9 @@ describe("CLI", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = 1;`)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
 
     assert.match(
       fs.readFileSync(testFile, "utf8"),
@@ -61,13 +57,9 @@ describe("CLI", () => {
       `var x = 1;\nconst p = new Promise((resolve) => resolve(getData()));`,
     )
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
 
     const transformedCode = fs.readFileSync(testFile, "utf8")
     assert.match(transformedCode, /const x = 1/, "transforms var to const")
@@ -109,13 +101,9 @@ describe("CLI", () => {
     const originalCode = `var x = 1;`
     fs.writeFileSync(testFile, originalCode)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--check"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
 
     assert.equal(
       fs.readFileSync(testFile, "utf8"),
@@ -136,13 +124,9 @@ describe("CLI", () => {
     const originalCode = `const x = 1;`
     fs.writeFileSync(testFile, originalCode)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--check"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
 
     assert.equal(
       fs.readFileSync(testFile, "utf8"),
@@ -175,11 +159,7 @@ describe("CLI", () => {
       "transforms var to const",
     )
     assert.match(result.stdout, /✗/, "indicates changes needed")
-    assert.match(
-      result.stdout,
-      /Changes have been written/,
-      "reports changes written",
-    )
+    assert.match(result.stdout, /Changes have been written/, "reports changes written")
     assert.equal(result.status, 1, "exits with 1 with --check")
   })
 
@@ -196,16 +176,8 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(
-      fs.readFileSync(file1, "utf8"),
-      /const x = 1/,
-      "transforms file1",
-    )
-    assert.match(
-      fs.readFileSync(file2, "utf8"),
-      /const y = 2/,
-      "transforms file2",
-    )
+    assert.match(fs.readFileSync(file1, "utf8"), /const x = 1/, "transforms file1")
+    assert.match(fs.readFileSync(file2, "utf8"), /const y = 2/, "transforms file2")
     assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
@@ -298,19 +270,11 @@ describe("CLI", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = 1;\nvar y = 2;`)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--check"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
 
-    assert.match(
-      result.stdout,
-      /- var x = 1;/,
-      "shows var to let or const changes",
-    )
+    assert.match(result.stdout, /- var x = 1;/, "shows var to let or const changes")
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -320,24 +284,12 @@ describe("CLI", () => {
     fs.writeFileSync(file1, `var x = 1;`)
     fs.writeFileSync(file2, `var y = 2;`)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, file1, file2, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, file1, file2, "--write"], {
+      encoding: "utf8",
+    })
 
-    assert.match(
-      fs.readFileSync(file1, "utf8"),
-      /const x = 1/,
-      "transforms file1",
-    )
-    assert.match(
-      fs.readFileSync(file2, "utf8"),
-      /const y = 2/,
-      "transforms file2",
-    )
+    assert.match(fs.readFileSync(file1, "utf8"), /const x = 1/, "transforms file1")
+    assert.match(fs.readFileSync(file2, "utf8"), /const y = 2/, "transforms file2")
     assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
@@ -347,13 +299,9 @@ describe("CLI", () => {
     const originalCode = `const x = 1;`
     fs.writeFileSync(testFile, originalCode)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
 
     assert.equal(
       fs.readFileSync(testFile, "utf8"),
@@ -373,13 +321,9 @@ describe("CLI", () => {
     const originalCode = `const x = 1;`
     fs.writeFileSync(testFile, originalCode)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
 
     assert.match(
       result.stdout,
@@ -393,13 +337,9 @@ describe("CLI", () => {
     const emptyDir = path.join(tempDir, "empty")
     fs.mkdirSync(emptyDir)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, emptyDir, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, emptyDir, "--write"], {
+      encoding: "utf8",
+    })
 
     assert.match(
       result.stdout,
@@ -413,19 +353,11 @@ describe("CLI", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = 1;\nvar y = 2;\nvar z = 3;`)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--check"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
 
-    assert.match(
-      result.stdout,
-      /- var x = 1;/,
-      "shows var to let or const changes",
-    )
+    assert.match(result.stdout, /- var x = 1;/, "shows var to let or const changes")
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -433,13 +365,9 @@ describe("CLI", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = {{{;`)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
 
     assert.match(result.stderr, /Error:/, "displays error for syntax issues")
     assert.equal(result.status, 128, "exits with 1 on errors")
@@ -449,13 +377,9 @@ describe("CLI", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `const a;\na = 'asdf'`)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--check"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
 
     assert.match(result.stderr, /Error:/, "displays error for parsing issues")
     assert.equal(result.status, 128, "exits with 1 on errors with --check")
@@ -546,24 +470,12 @@ describe("CLI", () => {
     fs.writeFileSync(file1, `var x = 1;`)
     fs.writeFileSync(file2, `var y = 2;`)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, file1, subDir, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, file1, subDir, "--write"], {
+      encoding: "utf8",
+    })
 
-    assert.match(
-      fs.readFileSync(file1, "utf8"),
-      /const x = 1/,
-      "transforms file1",
-    )
-    assert.match(
-      fs.readFileSync(file2, "utf8"),
-      /const y = 2/,
-      "transforms file2",
-    )
+    assert.match(fs.readFileSync(file1, "utf8"), /const x = 1/, "transforms file1")
+    assert.match(fs.readFileSync(file2, "utf8"), /const y = 2/, "transforms file2")
     assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
   })
@@ -574,13 +486,9 @@ describe("CLI", () => {
     fs.writeFileSync(file1, `var x = 1;`)
     fs.writeFileSync(file2, `const y = 2;`) // Already upgraded
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, file1, file2, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, file1, file2, "--write"], {
+      encoding: "utf8",
+    })
 
     assert.match(result.stdout, /✓/, "shows check mark for modified file")
     assert.match(result.stdout, /test2\.js/, "shows unmodified file path")
@@ -593,13 +501,9 @@ describe("CLI", () => {
     // Make file read-only to trigger write error
     fs.chmodSync(testFile, 0o444)
 
-    const result = spawnSync(
-      process.execPath,
-      [CLI_PATH, testFile, "--write"],
-      {
-        encoding: "utf8",
-      },
-    )
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
 
     assert.match(result.stderr, /Error:/, "displays error for write issues")
     assert.equal(result.status, 128, "exits with 1 on write errors")

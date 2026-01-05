@@ -8,8 +8,7 @@
     "esupgrade": "./bin/esupgrade.js"
   },
   "scripts": {
-    "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=lcov.info --test-coverage-exclude=tests/* tests/*.test.js",
-    "lint": "prettier --write --config=package.json --plugin=prettier-plugin-organize-imports --plugin=prettier-plugin-jsdoc  src/**/*.js"
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=lcov.info --test-coverage-exclude=tests/* tests/*.test.js"
   },
   "keywords": [
     "javascript",
@@ -32,7 +31,6 @@
     "node": ">=24.0.0"
   },
   "prettier": {
-    "trailingComma": "all",
     "semi": false
   },
   "repository": {
@@ -40,8 +38,5 @@
     "url": "https://github.com/codingjoe/esupgrade.git"
   },
   "devDependencies": {
-    "prettier": "^3.7.4",
-    "prettier-plugin-jsdoc": "^1.8.0",
-    "prettier-plugin-organize-imports": "^4.3.0"
   }
 }

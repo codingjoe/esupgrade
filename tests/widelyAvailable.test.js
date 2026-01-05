@@ -17,9 +17,7 @@ suite("widely-available", () => {
     })
 
     test("Array.from().forEach() with arrow function expression", () => {
-      const result = transform(
-        `Array.from(numbers).forEach(n => console.log(n));`,
-      )
+      const result = transform(`Array.from(numbers).forEach(n => console.log(n));`)
 
       assert(result.modified, "transform Array.from().forEach()")
       assert.match(result.code, /for \(const n of numbers\)/)
@@ -50,10 +48,7 @@ suite("widely-available", () => {
     });
   `)
 
-      assert(
-        result.modified,
-        "transform Array.from().forEach() with destructuring",
-      )
+      assert(result.modified, "transform Array.from().forEach() with destructuring")
       assert.match(
         result.code,
         /for \(const \[key, value\] of Object\.entries\(obj\)\)/,
@@ -114,10 +109,7 @@ suite("widely-available", () => {
     test("Array.from().forEach() with non-function callback", () => {
       const result = transform(`Array.from(items).forEach(callback);`)
 
-      assert(
-        !result.modified,
-        "skip Array.from().forEach() with non-function callback",
-      )
+      assert(!result.modified, "skip Array.from().forEach() with non-function callback")
       assert.match(result.code, /forEach\(callback\)/)
     })
 
@@ -144,9 +136,7 @@ suite("widely-available", () => {
 
   describe("arrayFromToSpread", () => {
     test("Array.from() with map()", () => {
-      const result = transform(
-        `const doubled = Array.from(numbers).map(n => n * 2);`,
-      )
+      const result = transform(`const doubled = Array.from(numbers).map(n => n * 2);`)
 
       assert(result.modified, "transform Array.from() with map()")
       assert.match(result.code, /\[\.\.\.numbers\]\.map/)
@@ -154,9 +144,7 @@ suite("widely-available", () => {
     })
 
     test("Array.from() with filter()", () => {
-      const result = transform(
-        `const filtered = Array.from(items).filter(x => x > 5);`,
-      )
+      const result = transform(`const filtered = Array.from(items).filter(x => x > 5);`)
 
       assert(result.modified, "transform Array.from() with filter()")
       assert.match(result.code, /\[\.\.\.items\]\.filter/)
@@ -213,9 +201,7 @@ suite("widely-available", () => {
     })
 
     test("Array.from().forEach() prioritizes over spread", () => {
-      const result = transform(
-        `Array.from(items).forEach(item => console.log(item));`,
-      )
+      const result = transform(`Array.from(items).forEach(item => console.log(item));`)
 
       assert(result.modified, "prioritize over spread")
       assert.match(result.code, /for \(const item of items\)/)
@@ -223,9 +209,7 @@ suite("widely-available", () => {
     })
 
     test("Array.from() with mapping function", () => {
-      const result = transform(
-        `const doubled = Array.from(numbers, n => n * 2);`,
-      )
+      const result = transform(`const doubled = Array.from(numbers, n => n * 2);`)
 
       assert(!result.modified, "skip Array.from() with mapping function")
       assert.match(result.code, /Array\.from\(numbers, n => n \* 2\)/)
@@ -255,10 +239,7 @@ suite("widely-available", () => {
       )
 
       assert(result.modified, "transform Array.from() with complex iterable")
-      assert.match(
-        result.code,
-        /\[\.\.\.document\.querySelectorAll\('\.item'\)\]/,
-      )
+      assert.match(result.code, /\[\.\.\.document\.querySelectorAll\('\.item'\)\]/)
     })
   })
 
@@ -341,10 +322,7 @@ suite("widely-available", () => {
     x = 3;
   `)
 
-      assert(
-        result.modified,
-        "transform multiple vars with partial reassignment",
-      )
+      assert(result.modified, "transform multiple vars with partial reassignment")
       assert.match(result.code, /let x = 1/)
       assert.match(result.code, /const y = 2/)
     })
@@ -387,10 +365,7 @@ suite("widely-available", () => {
     x = 5;
   `)
 
-      assert(
-        result.modified,
-        "transform multiple declarators with reassignment",
-      )
+      assert(result.modified, "transform multiple declarators with reassignment")
       assert.match(result.code, /let x = 1/)
       assert.match(result.code, /const y = 2/)
       assert.doesNotMatch(result.code, /var/)
@@ -401,10 +376,7 @@ suite("widely-available", () => {
     var x = 1, { y, z } = obj;
   `)
 
-      assert(
-        result.modified,
-        "transform multiple declarators with destructuring",
-      )
+      assert(result.modified, "transform multiple declarators with destructuring")
       assert.match(result.code, /const x = 1/)
       assert.match(result.code, /const \{ y, z \} = obj/)
       assert.doesNotMatch(result.code, /var/)
@@ -572,10 +544,7 @@ suite("widely-available", () => {
     }
   `)
 
-      assert(
-        result.modified,
-        "outer var not reassigned due to rest param shadowing",
-      )
+      assert(result.modified, "outer var not reassigned due to rest param shadowing")
       assert.match(result.code, /const rest = 1/)
       assert.doesNotMatch(result.code, /let rest/)
     })
@@ -588,10 +557,7 @@ suite("widely-available", () => {
     }
   `)
 
-      assert(
-        result.modified,
-        "outer var not reassigned due to array param shadowing",
-      )
+      assert(result.modified, "outer var not reassigned due to array param shadowing")
       assert.match(result.code, /const a = 1/)
       assert.doesNotMatch(result.code, /let a/)
     })
@@ -604,10 +570,7 @@ suite("widely-available", () => {
     }
   `)
 
-      assert(
-        result.modified,
-        "outer var not reassigned due to default param shadowing",
-      )
+      assert(result.modified, "outer var not reassigned due to default param shadowing")
       assert.match(result.code, /const x = 1/)
       assert.doesNotMatch(result.code, /let x/)
     })
@@ -694,10 +657,7 @@ suite("widely-available", () => {
     };
   `)
 
-      assert(
-        result.modified,
-        "inner var shadowing outer const, reassigned in loop",
-      )
+      assert(result.modified, "inner var shadowing outer const, reassigned in loop")
       // The outer const pixels should remain const
       assert.match(result.code, /const pixels = \[\]/)
       // The inner var pixels should become let (not const) since it's reassigned
@@ -726,10 +686,7 @@ suite("widely-available", () => {
     test("starting with expression", () => {
       const result = transform(`const msg = prefix + ' world';`)
 
-      assert(
-        result.modified,
-        "transform concatenation starting with expression",
-      )
+      assert(result.modified, "transform concatenation starting with expression")
       assert.match(result.code, /`\$\{prefix\} world`/)
     })
 
@@ -748,18 +705,14 @@ suite("widely-available", () => {
     })
 
     test("complex nested", () => {
-      const result = transform(
-        `const msg = 'Start ' + (a + 'middle') + ' end';`,
-      )
+      const result = transform(`const msg = 'Start ' + (a + 'middle') + ' end';`)
 
       assert(result.modified, "transform complex nested concatenation")
       assert.match(result.code, /`/)
     })
 
     test("numeric addition followed by string", () => {
-      const result = transform(
-        `cal_box.style.left = findPosX(cal_link) + 17 + 'px';`,
-      )
+      const result = transform(`cal_box.style.left = findPosX(cal_link) + 17 + 'px';`)
 
       assert(
         result.modified,
@@ -791,10 +744,7 @@ suite("widely-available", () => {
     test("numeric addition in middle", () => {
       const result = transform(`const result = 'start' + (a + b) + 'end';`)
 
-      assert(
-        result.modified,
-        "transform numeric addition in middle of concatenations",
-      )
+      assert(result.modified, "transform numeric addition in middle of concatenations")
       assert.match(result.code, /`start\$\{(\()?a \+ b(\))?\}end`/)
     })
 
@@ -886,9 +836,7 @@ suite("widely-available", () => {
     })
 
     test("escapes complex dollar-brace pattern", () => {
-      const result = transform(
-        `const str = 'Template: \${name}' + myvar + ' end';`,
-      )
+      const result = transform(`const str = 'Template: \${name}' + myvar + ' end';`)
 
       assert(result.modified, "transform and escape complex dollar-brace")
       assert.match(result.code, /`Template: \\\$\{name\}\$\{myvar\} end`/)
@@ -1129,10 +1077,7 @@ for (let i = 0; i < items.length; i++) {
 }
       `)
 
-      assert(
-        !result.modified,
-        "skip when first statement is not variable declaration",
-      )
+      assert(!result.modified, "skip when first statement is not variable declaration")
       assert.match(result.code, /for \(let i = 0/)
     })
 
@@ -1292,10 +1237,7 @@ for (let i = 0; i < items.length; j++) {
 }
       `)
 
-      assert(
-        !result.modified,
-        "skip when update argument is not index variable",
-      )
+      assert(!result.modified, "skip when update argument is not index variable")
     })
 
     test("update operator not ++", () => {
@@ -1326,10 +1268,7 @@ for (let i = 0; i < items.length; i++) {
 }
       `)
 
-      assert(
-        !result.modified,
-        "skip when first statement has multiple declarations",
-      )
+      assert(!result.modified, "skip when first statement has multiple declarations")
     })
 
     test("first statement id not identifier", () => {
@@ -1365,10 +1304,7 @@ for (let i = 0; i < items.length; i++) {
 }
       `)
 
-      assert(
-        !result.modified,
-        "skip when member expression object name doesn't match",
-      )
+      assert(!result.modified, "skip when member expression object name doesn't match")
     })
 
     test("member expression property not matching index", () => {
@@ -1430,10 +1366,7 @@ for (let i = 0; i < items.length; i++) {
     });
   `)
 
-      assert(
-        result.modified,
-        "transform document.getElementsByTagName().forEach()",
-      )
+      assert(result.modified, "transform document.getElementsByTagName().forEach()")
       assert.match(
         result.code,
         /for \(const div of document\.getElementsByTagName\(['"]div['"]\)\)/,
@@ -1447,10 +1380,7 @@ for (let i = 0; i < items.length; i++) {
     });
   `)
 
-      assert(
-        result.modified,
-        "transform document.getElementsByClassName().forEach()",
-      )
+      assert(result.modified, "transform document.getElementsByClassName().forEach()")
       assert.match(
         result.code,
         /for \(const button of document\.getElementsByClassName\(['"]button['"]\)\)/,
@@ -1464,10 +1394,7 @@ for (let i = 0; i < items.length; i++) {
     });
   `)
 
-      assert(
-        result.modified,
-        "transform document.getElementsByName().forEach()",
-      )
+      assert(result.modified, "transform document.getElementsByName().forEach()")
       assert.match(
         result.code,
         /for \(const input of document\.getElementsByName\(['"]email['"]\)\)/,
@@ -1577,10 +1504,7 @@ for (let i = 0; i < items.length; i++) {
     });
   `)
 
-      assert(
-        !result.modified,
-        "skip non-document objects with querySelectorAll",
-      )
+      assert(!result.modified, "skip non-document objects with querySelectorAll")
       assert.match(result.code, /myObject\.querySelectorAll/)
     })
 
@@ -1642,10 +1566,7 @@ document.querySelectorAll('.item').forEach(item => {
     });
   `)
 
-      assert(
-        result.modified,
-        "transform and preserve multiline function bodies",
-      )
+      assert(result.modified, "transform and preserve multiline function bodies")
       assert.match(result.code, /for \(const item of/)
       assert.match(result.code, /const value = item\.value/)
       assert.match(result.code, /process\(value\)/)
@@ -1659,10 +1580,7 @@ document.querySelectorAll('.item').forEach(item => {
     });
   `)
 
-      assert(
-        !result.modified,
-        "skip element variables with getElementsByTagName",
-      )
+      assert(!result.modified, "skip element variables with getElementsByTagName")
       assert.match(result.code, /container\.getElementsByTagName/)
     })
 
@@ -1673,10 +1591,7 @@ document.querySelectorAll('.item').forEach(item => {
     });
   `)
 
-      assert(
-        !result.modified,
-        "skip element variables with getElementsByClassName",
-      )
+      assert(!result.modified, "skip element variables with getElementsByClassName")
       assert.match(result.code, /section\.getElementsByClassName/)
     })
 
@@ -1710,10 +1625,7 @@ document.querySelectorAll('.item').forEach(item => {
     });
   `)
 
-      assert(
-        !result.modified,
-        "skip when forEach object is not a member expression",
-      )
+      assert(!result.modified, "skip when forEach object is not a member expression")
       assert.match(result.code, /items\.forEach/)
     })
 
@@ -1855,10 +1767,7 @@ document.querySelectorAll('.item').forEach(item => {
         result.modified,
         "transform document property access with querySelectorAll",
       )
-      assert.match(
-        result.code,
-        /for \(const div of document\.body\.querySelectorAll/,
-      )
+      assert.match(result.code, /for \(const div of document\.body\.querySelectorAll/)
     })
   })
 
@@ -1882,10 +1791,7 @@ document.querySelectorAll('.item').forEach(item => {
     };
   `)
 
-      assert(
-        result.modified,
-        "transform anonymous function with multiple parameters",
-      )
+      assert(result.modified, "transform anonymous function with multiple parameters")
       assert.match(result.code, /const add = \(a, b\) =>/)
     })
 
@@ -1967,10 +1873,7 @@ document.querySelectorAll('.item').forEach(item => {
     };
   `)
 
-      assert(
-        result.modified,
-        "transform nested function that doesn't use 'this'",
-      )
+      assert(result.modified, "transform nested function that doesn't use 'this'")
       assert.match(result.code, /const outer = x =>/)
       assert.match(result.code, /return y =>/)
     })
@@ -2095,9 +1998,7 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("[].concat(item1, item2, item3)", () => {
-      const result = transform(
-        `const result = [].concat(other1, other2, other3);`,
-      )
+      const result = transform(`const result = [].concat(other1, other2, other3);`)
 
       assert(result.modified, "transform [].concat() with multiple arguments")
       assert.match(
@@ -2127,9 +2028,7 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /arr\.concat\(\)/)
     })
     test("in arrow function", () => {
-      const result = transform(
-        `const fn = (arr, other) => [1, 2].concat(other);`,
-      )
+      const result = transform(`const fn = (arr, other) => [1, 2].concat(other);`)
 
       assert(result.modified, "transform concat in arrow function")
       assert.match(result.code, /\[\.\..\[1, 2\], \.\.\.other\]/)
@@ -2176,16 +2075,11 @@ document.querySelectorAll('.item').forEach(item => {
       )
 
       assert(result.modified, "transform concat on String.slice() result")
-      assert.match(
-        result.code,
-        /\[\.\.\."lorem ipsum"\.slice\(0, 10\), \.\.\.more\]/,
-      )
+      assert.match(result.code, /\[\.\.\."lorem ipsum"\.slice\(0, 10\), \.\.\.more\]/)
     })
 
     test("String.split() result", () => {
-      const result = transform(
-        `const result = "foo,bar".split(',').concat(more);`,
-      )
+      const result = transform(`const result = "foo,bar".split(',').concat(more);`)
 
       assert(result.modified, "transform concat on String.split() result")
       assert.match(result.code, /\[\.\.\."foo,bar"\.split\(','\), \.\.\.more\]/)
@@ -2561,10 +2455,7 @@ Widget.prototype = {
 };
       `)
 
-      assert(
-        !result.modified,
-        "skip prototype object without function expressions",
-      )
+      assert(!result.modified, "skip prototype object without function expressions")
       assert.match(result.code, /function Widget/)
     })
 
@@ -2861,10 +2752,7 @@ Widget.prototype = {
 };
       `)
 
-      assert(
-        result.modified,
-        "transform constructor ignoring non-function property",
-      )
+      assert(result.modified, "transform constructor ignoring non-function property")
       assert.match(result.code, /class Widget/)
     })
 
@@ -3262,10 +3150,7 @@ import foo from 'bar';
     test("replace window property access", () => {
       const result = transform(`const loc = window.location.href;`)
 
-      assert(
-        result.modified,
-        "transform window.location to globalThis.location",
-      )
+      assert(result.modified, "transform window.location to globalThis.location")
       assert.match(result.code, /const loc = globalThis\.location\.href/)
     })
 
@@ -3287,10 +3172,7 @@ import foo from 'bar';
     test("replace Function('return this')() pattern", () => {
       const result = transform(`const global = Function('return this')();`)
 
-      assert(
-        result.modified,
-        "transform Function('return this')() to globalThis",
-      )
+      assert(result.modified, "transform Function('return this')() to globalThis")
       assert.match(result.code, /const global = globalThis/)
       assert.doesNotMatch(result.code, /Function/)
     })
@@ -3429,10 +3311,7 @@ window.frames.forEach(frame => {
 });
       `)
 
-      assert(
-        result.modified,
-        "transform window.frames and window to globalThis",
-      )
+      assert(result.modified, "transform window.frames and window to globalThis")
       assert.match(result.code, /for \(const frame of globalThis\.frames\)/)
     })
 
@@ -3456,16 +3335,11 @@ window.frames.forEach(frame => {
       )
 
       assert(result.modified, "transform window in ternary")
-      assert.match(
-        result.code,
-        /typeof globalThis !== 'undefined' \? globalThis/,
-      )
+      assert.match(result.code, /typeof globalThis !== 'undefined' \? globalThis/)
     })
 
     test("transform self in typeof check", () => {
-      const result = transform(
-        `if (typeof self !== 'undefined') { use(self); }`,
-      )
+      const result = transform(`if (typeof self !== 'undefined') { use(self); }`)
 
       assert(result.modified, "transform self in typeof check")
       assert.match(result.code, /typeof globalThis !== 'undefined'/)
@@ -3542,9 +3416,7 @@ class MyClass {
     })
 
     test("transform window.location in chain", () => {
-      const result = transform(
-        `const path = window.location.pathname.split('/');`,
-      )
+      const result = transform(`const path = window.location.pathname.split('/');`)
 
       assert(result.modified, "transform window.location chain")
       assert.match(result.code, /globalThis\.location\.pathname/)
@@ -3629,10 +3501,7 @@ const obj = {
 };
       `)
 
-      assert(
-        result.modified,
-        "transform window in method body but not in method name",
-      )
+      assert(result.modified, "transform window in method body but not in method name")
       assert.match(result.code, /window\(\)/)
       assert.match(result.code, /return globalThis/)
     })
@@ -3671,10 +3540,7 @@ const obj = {
         `const value = obj.prop !== null && obj.prop !== undefined ? obj.prop : defaultValue;`,
       )
 
-      assert(
-        result.modified,
-        "transform member expression null/undefined check",
-      )
+      assert(result.modified, "transform member expression null/undefined check")
       assert.match(result.code, /const value = obj\.prop \?\? defaultValue/)
     })
 
@@ -3729,9 +3595,7 @@ const obj = {
     })
 
     test("should not transform only undefined check", () => {
-      const result = transform(
-        `const value = x !== undefined ? x : defaultValue;`,
-      )
+      const result = transform(`const value = x !== undefined ? x : defaultValue;`)
 
       assert(!result.modified, "skip only undefined check")
       assert.match(result.code, /x !== undefined \? x : defaultValue/)
@@ -3743,10 +3607,7 @@ const obj = {
       )
 
       assert(!result.modified, "skip when consequent is different variable")
-      assert.match(
-        result.code,
-        /x !== null && x !== undefined \? y : defaultValue/,
-      )
+      assert.match(result.code, /x !== null && x !== undefined \? y : defaultValue/)
     })
 
     test("should not transform === checks", () => {
@@ -3876,10 +3737,7 @@ const obj = {
       )
 
       assert(!result.modified, "skip when consequent is different variable")
-      assert.match(
-        result.code,
-        /x !== null && x !== undefined \? y : defaultValue/,
-      )
+      assert.match(result.code, /x !== null && x !== undefined \? y : defaultValue/)
     })
 
     test("should not transform swapped order when consequent differs", () => {
@@ -3888,10 +3746,7 @@ const obj = {
       )
 
       assert(!result.modified, "skip swapped when consequent differs")
-      assert.match(
-        result.code,
-        /x !== undefined && x !== null \? y : defaultValue/,
-      )
+      assert.match(result.code, /x !== undefined && x !== null \? y : defaultValue/)
     })
 
     test("should not transform non-null/undefined comparisons", () => {
@@ -3915,10 +3770,7 @@ const obj = {
         `const value = obj.a[b].c !== null && obj.a[b].c !== undefined ? obj.a[b].c : 0;`,
       )
 
-      assert(
-        result.modified,
-        "transform deeply nested computed member expression",
-      )
+      assert(result.modified, "transform deeply nested computed member expression")
       assert.match(result.code, /const value = obj\.a\[b\]\.c \?\? 0/)
     })
 
@@ -3946,10 +3798,7 @@ const obj = {
       )
 
       assert(!result.modified, "skip when nested objects differ")
-      assert.match(
-        result.code,
-        /obj1\.prop !== null && obj2\.prop !== undefined/,
-      )
+      assert.match(result.code, /obj1\.prop !== null && obj2\.prop !== undefined/)
     })
 
     test("should not transform computed vs non-computed for same property name", () => {
@@ -3958,10 +3807,7 @@ const obj = {
       )
 
       assert(!result.modified, "skip when one is computed and one is not")
-      assert.match(
-        result.code,
-        /obj\.prop !== null && obj\[prop\] !== undefined/,
-      )
+      assert.match(result.code, /obj\.prop !== null && obj\[prop\] !== undefined/)
     })
 
     test("both computed with same key should transform", () => {
@@ -4020,9 +3866,7 @@ const obj = {
     })
 
     test("nested property access", () => {
-      const result = transform(
-        `const value = obj && obj.prop && obj.prop.nested;`,
-      )
+      const result = transform(`const value = obj && obj.prop && obj.prop.nested;`)
 
       assert(result.modified, "transform nested property access")
       assert.match(result.code, /const value = obj\?\.prop\?\.nested/)
@@ -4046,18 +3890,14 @@ const obj = {
     })
 
     test("function call with arguments", () => {
-      const result = transform(
-        `const result = callback && callback(arg1, arg2);`,
-      )
+      const result = transform(`const result = callback && callback(arg1, arg2);`)
 
       assert(result.modified, "transform callback && callback(args)")
       assert.match(result.code, /const result = callback\?\.\(arg1, arg2\)/)
     })
 
     test("deeply nested property access", () => {
-      const result = transform(
-        `const value = obj && obj.a && obj.a.b && obj.a.b.c;`,
-      )
+      const result = transform(`const value = obj && obj.a && obj.a.b && obj.a.b.c;`)
 
       assert(result.modified, "transform deeply nested property access")
       assert.match(result.code, /const value = obj\?\.a\?\.b\?\.c/)
@@ -4065,9 +3905,7 @@ const obj = {
     })
 
     test("method call with property access", () => {
-      const result = transform(
-        `const value = obj && obj.method && obj.method();`,
-      )
+      const result = transform(`const value = obj && obj.method && obj.method();`)
 
       assert(result.modified, "transform obj && obj.method && obj.method()")
       assert.match(result.code, /const value = obj\?\.method\?\.\(\)/)
@@ -4120,9 +3958,7 @@ const obj = {
     })
 
     test("ternary with optional chaining pattern", () => {
-      const result = transform(
-        `const value = (obj && obj.prop) || defaultValue;`,
-      )
+      const result = transform(`const value = (obj && obj.prop) || defaultValue;`)
 
       assert(result.modified, "transform in ternary pattern")
       assert.match(result.code, /obj\?\.prop/)
@@ -4143,9 +3979,7 @@ const obj = {
     })
 
     test("nested computed property access", () => {
-      const result = transform(
-        `const value = obj && obj[key] && obj[key].prop;`,
-      )
+      const result = transform(`const value = obj && obj[key] && obj[key].prop;`)
 
       assert(result.modified, "transform nested computed property access")
       assert.match(result.code, /const value = obj\?\.\[key\]\?\.prop/)
@@ -4170,9 +4004,7 @@ const obj = {
     })
 
     test("skip complex method chaining", () => {
-      const result = transform(
-        `const value = obj && obj.method && obj.method().prop;`,
-      )
+      const result = transform(`const value = obj && obj.method && obj.method().prop;`)
 
       assert(!result.modified, "skip when accessing property on method result")
       assert.match(result.code, /obj && obj\.method && obj\.method\(\)\.prop/)
@@ -4207,9 +4039,7 @@ const obj = {
     })
 
     test("transform function calls with multiple same arguments", () => {
-      const result = transform(
-        `const value = fn && fn(x, y) && fn(x, y).result;`,
-      )
+      const result = transform(`const value = fn && fn(x, y) && fn(x, y).result;`)
 
       assert(result.modified, "transform when multiple arguments are same")
       assert.match(result.code, /const value = fn\?\.\(x, y\)\?\.result/)
