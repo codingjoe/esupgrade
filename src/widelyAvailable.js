@@ -119,6 +119,62 @@ function areNodesEquivalent(j, node1, node2) {
 }
 
 /**
+ * Check if an expression is statically verifiable as iterable.
+ * Used by transformers to ensure they only transform known iterable types.
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').ASTNode} node - The AST node to check
+ * @returns {boolean} True if the node can be verified as iterable
+ */
+function isVerifiableIterable(j, node) {
+  // Array literal: [1, 2, 3]
+  if (j.ArrayExpression.check(node)) {
+    return true
+  }
+
+  // Array.from(), Array.of(), etc.
+  if (
+    j.CallExpression.check(node) &&
+    j.MemberExpression.check(node.callee) &&
+    j.Identifier.check(node.callee.object) &&
+    node.callee.object.name === "Array"
+  ) {
+    return true
+  }
+
+  // new Array()
+  if (
+    j.NewExpression.check(node) &&
+    j.Identifier.check(node.callee) &&
+    node.callee.name === "Array"
+  ) {
+    return true
+  }
+
+  // String literal methods that return iterables
+  const STRING_METHODS_RETURNING_ITERABLE = [
+    "matchAll",
+    "split",
+    "slice",
+    "substr",
+    "substring",
+    "toLowerCase",
+    "toUpperCase",
+    "trim",
+    "trimStart",
+    "trimEnd",
+  ]
+
+  // String literal methods (e.g., "a,b,c".split(','), "hello".slice(0))
+  return !!(
+    j.CallExpression.check(node) &&
+    j.MemberExpression.check(node.callee) &&
+    j.Identifier.check(node.callee.property) &&
+    j.StringLiteral.check(node.callee.object) &&
+    STRING_METHODS_RETURNING_ITERABLE.includes(node.callee.property.name)
+  )
+}
+
+/**
  * Check if an assignment/update expression is shadowed by a closer variable declaration
  * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {string} varName - The variable name to check
@@ -1228,59 +1284,6 @@ export function anonymousFunctionToArrow(j, root) {
 export function arrayConcatToSpread(j, root) {
   let modified = false
 
-  // Helper to check if an expression is statically verifiable as an array
-  const isVerifiableArray = (node) => {
-    // Array literal: [1, 2, 3]
-    if (j.ArrayExpression.check(node)) {
-      return true
-    }
-
-    // Array.from(), Array.of(), etc.
-    if (
-      j.CallExpression.check(node) &&
-      j.MemberExpression.check(node.callee) &&
-      j.Identifier.check(node.callee.object) &&
-      node.callee.object.name === "Array"
-    ) {
-      return true
-    }
-
-    // new Array()
-    if (
-      j.NewExpression.check(node) &&
-      j.Identifier.check(node.callee) &&
-      node.callee.name === "Array"
-    ) {
-      return true
-    }
-
-    const STRING_METHODS_RETURNING_ARRAY = [
-      "matchAll",
-      "split",
-      "slice",
-      "substr",
-      "substring",
-      "toLowerCase",
-      "toUpperCase",
-      "trim",
-      "trimStart",
-      "trimEnd",
-    ]
-
-    // .split() on strings returns arrays
-    if (
-      j.CallExpression.check(node) &&
-      j.MemberExpression.check(node.callee) &&
-      j.Identifier.check(node.callee.property) &&
-      j.StringLiteral.check(node.callee.object) &&
-      STRING_METHODS_RETURNING_ARRAY.includes(node.callee.property.name)
-    ) {
-      return true
-    }
-
-    return false
-  }
-
   root
     .find(j.CallExpression)
     .filter((path) => {
@@ -1300,9 +1303,9 @@ export function arrayConcatToSpread(j, root) {
         return false
       }
 
-      // Only transform if we can verify the object is an array
+      // Only transform if we can verify the object is an iterable
       const object = node.callee.object
-      if (!isVerifiableArray(object)) {
+      if (!isVerifiableIterable(j, object)) {
         return false
       }
 
@@ -2027,6 +2030,63 @@ export function nullishCoalescingOperator(j, root) {
       const nullishCoalescing = j.logicalExpression("??", valueNode, node.alternate)
 
       j(path).replaceWith(nullishCoalescing)
+
+      modified = true
+    })
+
+  return modified
+}
+
+/**
+ * Transform Array.slice(0) and Array.slice() to array spread syntax.
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+ * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
+ * @param {import('jscodeshift').Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ */
+export function arraySliceToSpread(j, root) {
+  let modified = false
+
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check if this is a .slice() call
+      if (
+        !j.MemberExpression.check(node.callee) ||
+        !j.Identifier.check(node.callee.property) ||
+        node.callee.property.name !== "slice"
+      ) {
+        return false
+      }
+
+      // Only transform slice() with no arguments or slice(0)
+      if (node.arguments.length === 0) {
+        // slice() with no arguments is valid
+      } else if (node.arguments.length === 1) {
+        // slice(0) is valid
+        const arg = node.arguments[0]
+        if (!j.Literal.check(arg) || arg.value !== 0) {
+          return false
+        }
+      } else {
+        // slice with 2+ arguments is not a copying operation
+        return false
+      }
+
+      // Only transform if we can verify the object is an iterable
+      const object = node.callee.object
+      return isVerifiableIterable(j, object)
+    })
+    .forEach((path) => {
+      const node = path.node
+      const arrayExpr = node.callee.object
+
+      // Create array with spread element
+      const spreadArray = j.arrayExpression([j.spreadElement(arrayExpr)])
+
+      j(path).replaceWith(spreadArray)
 
       modified = true
     })
