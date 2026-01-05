@@ -1904,11 +1904,10 @@ export function optionalChaining(root) {
  * Also handles negative checks: arr.indexOf(item) === -1 to !arr.includes(item).
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
  * @param {import('jscodeshift').Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
  */
-export function indexOfToIncludes(j, root) {
+export function indexOfToIncludes(root) {
   let modified = false
 
   // Helper to get numeric value from a node (handles -1 as UnaryExpression)
