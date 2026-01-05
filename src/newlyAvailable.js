@@ -1,11 +1,13 @@
+import { default as j } from "jscodeshift"
+
 /**
  * Transform new Promise((resolve, reject) => { resolve(fn()) }) to Promise.try(fn).
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
- * @param {import('jscodeshift').JSCodeshift} j - The jscodeshift API
- * @param {import('jscodeshift').Collection} root - The root AST collection
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
  */
-export function promiseTry(j, root) {
+export function promiseTry(root) {
   let modified = false
 
   root

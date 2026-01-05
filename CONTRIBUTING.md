@@ -19,4 +19,6 @@ Or instead run the linters once with:
 
 ```console
 uvx pre-commit run --all-files
+# to run prettier with plugins use
+npm run lint
 ```

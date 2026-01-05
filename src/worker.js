@@ -1,10 +1,8 @@
-import { parentPort, workerData } from "worker_threads"
 import fs from "fs"
+import { parentPort, workerData } from "worker_threads"
 import { transform } from "./index.js"
 
-/**
- * Worker thread for processing files in parallel.
- */
+/** Worker thread for processing files in parallel. */
 
 const { filePath, baseline } = workerData
 

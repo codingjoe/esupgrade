@@ -1,9 +1,10 @@
 import jscodeshift from "jscodeshift"
-import * as widelyAvailable from "./widelyAvailable.js"
 import * as newlyAvailable from "./newlyAvailable.js"
+import * as widelyAvailable from "./widelyAvailable.js"
 
 /**
  * Result of a transformation.
+ *
  * @typedef {Object} TransformResult
  * @property {string} code - The transformed code
  * @property {boolean} modified - Whether the code was modified
@@ -11,6 +12,7 @@ import * as newlyAvailable from "./newlyAvailable.js"
 
 /**
  * Transform JavaScript code using the specified transformers.
+ *
  * @param {string} code - The source code to transform.
  * @param {string} baseline - Baseline level ('widely-available' or 'newly-available').
  * @returns {TransformResult} Object with transformed code and modification status.
@@ -27,8 +29,7 @@ export function transform(code, baseline = "widely-available") {
       : widelyAvailable
 
   for (const transformer of Object.values(transformers)) {
-    const wasModified = transformer(j, root)
-    if (wasModified) {
+    if (transformer(root)) {
       modified = true
     }
   }
