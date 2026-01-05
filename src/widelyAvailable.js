@@ -1,4 +1,4 @@
-import { PatternChecker, NodeChecker, VariableChecker } from "./checks.js"
+import * as nodes from "./nodes.js"
 
 /**
  * Determine the appropriate kind (const or let) for a declarator
@@ -10,14 +10,14 @@ import { PatternChecker, NodeChecker, VariableChecker } from "./checks.js"
  */
 function determineDeclaratorKind(j, root, declarator, declarationPath) {
   if (j.Identifier.check(declarator.id)) {
-    return VariableChecker.isReassigned(j, root, declarator.id.name, declarationPath)
+    return nodes.isReassigned(j, root, declarator.id.name, declarationPath)
       ? "let"
       : "const"
   }
 
   // Destructuring pattern - check if any identifier is reassigned
-  for (const varName of PatternChecker.extractIdentifiers(j, declarator.id)) {
-    if (VariableChecker.isReassigned(j, root, varName, declarationPath)) {
+  for (const varName of nodes.extractIdentifiers(j, declarator.id)) {
+    if (nodes.isReassigned(j, root, varName, declarationPath)) {
       return "let"
     }
   }
@@ -1026,7 +1026,7 @@ export function arrayConcatToSpread(j, root) {
 
       // Only transform if we can verify the object is an iterable
       const object = node.callee.object
-      if (!NodeChecker.isVerifiableIterable(j, object)) {
+      if (!nodes.isVerifiableIterable(j, object)) {
         return false
       }
 
@@ -1683,12 +1683,12 @@ export function nullishCoalescingOperator(j, root) {
     }
 
     // Both checks must be on the same value
-    if (!NodeChecker.areEquivalent(j, nullCheck.value, undefinedCheck.value)) {
+    if (!nodes.areEquivalent(j, nullCheck.value, undefinedCheck.value)) {
       return false
     }
 
     // Consequent must be the same value
-    if (!NodeChecker.areEquivalent(j, nullCheck.value, consequent)) {
+    if (!nodes.areEquivalent(j, nullCheck.value, consequent)) {
       return false
     }
 
@@ -1798,7 +1798,7 @@ export function arraySliceToSpread(j, root) {
 
       // Only transform if we can verify the object is an iterable
       const object = node.callee.object
-      return NodeChecker.isVerifiableIterable(j, object)
+      return nodes.isVerifiableIterable(j, object)
     })
     .forEach((path) => {
       const node = path.node
@@ -1837,10 +1837,10 @@ export function optionalChaining(j, root) {
    */
   const isAccessOnBase = (node, base) => {
     if (j.MemberExpression.check(node)) {
-      return NodeChecker.areEquivalent(j, node.object, base)
+      return nodes.areEquivalent(j, node.object, base)
     }
     if (j.CallExpression.check(node)) {
-      return NodeChecker.areEquivalent(j, node.callee, base)
+      return nodes.areEquivalent(j, node.callee, base)
     }
     return false
   }
