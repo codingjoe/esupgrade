@@ -180,6 +180,15 @@ Supports:
 +const withItem = [...array, item];
 ```
 
+#### `Array.slice(0)` → [Array spread [...]][mdn-spread]
+
+```diff
+-const copy = [1, 2, 3].slice(0);
+-const clone = Array.from(items).slice();
++const copy = [...[1, 2, 3]];
++const clone = [...Array.from(items)];
+```
+
 #### `Math.pow()` → [Exponentiation operator \*\*][mdn-exponentiation]
 
 ```diff
