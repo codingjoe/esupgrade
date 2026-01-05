@@ -3962,7 +3962,10 @@ const obj = {
       `)
 
       assert(result.modified, "transform with member expression")
-      assert.match(result.code, /Object\.entries\(user\.settings\)\.forEach\(\(\[key, value\]\)/)
+      assert.match(
+        result.code,
+        /Object\.entries\(user\.settings\)\.forEach\(\(\[key, value\]\)/,
+      )
       assert.match(result.code, /apply\(key, value\)/)
     })
 

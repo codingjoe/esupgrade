@@ -2276,7 +2276,10 @@ export function objectKeysForEachToEntries(j, root) {
       objectKeysCall.callee.property.name = "entries"
 
       // 2. Change callback parameter from `key` to `[key, value]`
-      callback.params[0] = j.arrayPattern([j.identifier(keyName), j.identifier(valueName)])
+      callback.params[0] = j.arrayPattern([
+        j.identifier(keyName),
+        j.identifier(valueName),
+      ])
 
       // 3. Remove the first statement (const value = obj[key])
       callback.body.body = body.slice(1)

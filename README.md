@@ -183,12 +183,6 @@ Supports:
 +});
 ```
 
-> [!NOTE]
-> Only transforms when:
-> - Callback has exactly one parameter (the key)
-> - First statement in callback body assigns `obj[key]` to a variable
-> - The object being accessed matches the object passed to `Object.keys()`
-
 #### `Array.concat()` → [Array spread [...]][mdn-spread]
 
 ```diff
