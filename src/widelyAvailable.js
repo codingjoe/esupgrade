@@ -1025,7 +1025,12 @@ export function namedArrowFunctionToNamedFunction(root) {
 
       // If we encounter a nested function, don't traverse into it
       // as it has its own 'arguments' binding
-      if (n.type === "FunctionExpression" || n.type === "FunctionDeclaration") {
+      // Arrow functions also don't have 'arguments', so skip them too
+      if (
+        n.type === "FunctionExpression" ||
+        n.type === "FunctionDeclaration" ||
+        n.type === "ArrowFunctionExpression"
+      ) {
         return
       }
 

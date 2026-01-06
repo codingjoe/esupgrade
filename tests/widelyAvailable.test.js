@@ -1780,7 +1780,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform simple anonymous function")
-      // Function expression in variable declaration transforms to function declaration
       assert.match(result.code, /function greet\(name\)/)
       assert.match(result.code, /return/)
     })
@@ -1793,7 +1792,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform anonymous function with multiple parameters")
-      // Function expression in variable declaration transforms to function declaration
       assert.match(result.code, /function add\(a, b\)/)
     })
 
@@ -1805,7 +1803,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform anonymous function with no parameters")
-      // Function expression in variable declaration transforms to function declaration
       assert.match(result.code, /function getValue\(\)/)
     })
 
@@ -1877,9 +1874,7 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform nested function that doesn't use 'this'")
-      // Outer function expression in variable declaration transforms to function declaration
       assert.match(result.code, /function outer\(x\)/)
-      // Inner function is still transformed to arrow
       assert.match(result.code, /return y =>/)
     })
 
@@ -1907,7 +1902,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform async function")
-      // Async function expression in variable declaration transforms to async function declaration
       assert.match(result.code, /async function fetchData\(url\)/)
     })
 
@@ -1923,7 +1917,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform function with complex body")
-      // Function expression in variable declaration transforms to function declaration
       assert.match(result.code, /function process\(data\)/)
     })
 
@@ -1934,7 +1927,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform multiple functions")
-      // Both function expressions in variable declarations transform to function declarations
       assert.match(result.code, /function fn1\(x\)/)
       assert.match(result.code, /function fn2\(y\)/)
     })
@@ -1952,9 +1944,7 @@ document.querySelectorAll('.item').forEach(item => {
         result.modified,
         "transform outer function, not inner when 'this' is in nested scope",
       )
-      // Outer function expression in variable declaration transforms to function declaration
       assert.match(result.code, /function outer\(x\)/)
-      // Inner function uses 'this' so it stays as function expression
       assert.match(result.code, /return function\(\)/)
     })
 
