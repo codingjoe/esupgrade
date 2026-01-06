@@ -98,6 +98,11 @@ export function concatToTemplateLiteral(root) {
             .replace(/\$\{/g, "\\${")
         }
         const rawWithoutQuotes = node.extra.raw.slice(1, -1)
+        // Note: We intentionally do NOT escape backslashes here because node.extra.raw
+        // already contains the escape sequences as they appear in the source code.
+        // This is safe because extra.raw comes from the trusted parser and already
+        // has the correct escaping. We only need to escape template literal-specific
+        // characters that would break the template literal syntax.
         return rawWithoutQuotes
           .replace(/`/g, "\\`")
           .replace(/\$\{/g, "\\${")
