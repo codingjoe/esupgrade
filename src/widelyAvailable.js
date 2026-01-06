@@ -89,6 +89,14 @@ export function concatToTemplateLiteral(root) {
         // - Backtick ` needs to be escaped as \`
         // - Dollar-brace ${ needs to be escaped as \${ to prevent template expression evaluation
         // We do NOT double backslashes because extra.raw already contains them as written in source
+        if (!node.extra || !node.extra.raw || node.extra.raw.length < 2) {
+          // Fallback to using the value if extra.raw is not available
+          // This should not happen with the tsx parser, but provides a safe fallback
+          return String(node.value)
+            .replace(/\\/g, "\\\\")
+            .replace(/`/g, "\\`")
+            .replace(/\$\{/g, "\\${")
+        }
         const rawWithoutQuotes = node.extra.raw.slice(1, -1)
         return rawWithoutQuotes
           .replace(/`/g, "\\`")
