@@ -178,7 +178,7 @@ Supports:
 > You might need to manually adjust the type after transformation:
 >
 > ```ts
-> {...(myGenericObject as object)}
+> const object_with_generic_type: object = { ...(myGenericObject as object) }
 > ```
 
 #### `Array.concat()` → [Array spread [...]][mdn-spread]
