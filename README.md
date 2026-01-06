@@ -172,6 +172,15 @@ Supports:
 +const copy = { ...original };
 ```
 
+> [!NOTE]
+> TypeScript does not support generic object spread yet:
+> https://github.com/Microsoft/TypeScript/issues/10727
+> You might need to manually adjust the type after transformation:
+>
+> ```ts
+> {...(myGenericObject as object)}
+> ```
+
 #### `Array.concat()` → [Array spread [...]][mdn-spread]
 
 ```diff
