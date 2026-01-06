@@ -910,6 +910,13 @@ export function anonymousFunctionToArrow(root) {
         return false
       }
 
+      // Skip if this function expression is the init of a variable declarator
+      // because namedArrowFunctionToNamedFunction will handle those
+      const parent = path.parent.node
+      if (j.VariableDeclarator.check(parent) && parent.init === node) {
+        return false
+      }
+
       // Note: We don't need to check for 'super' because using super in a
       // function expression is a syntax error and will never parse successfully
 
@@ -927,6 +934,220 @@ export function anonymousFunctionToArrow(root) {
       }
 
       j(path).replaceWith(arrowFunction)
+
+      modified = true
+    })
+
+  return modified
+}
+
+/**
+ * Transform named arrow function and anonymous function expression assignments to
+ * named function declarations. Converts:
+ *
+ * - Const myFunc = () => {} to: function myFunc() {}
+ * - Const myFunc = function() {} to: function myFunc() {}
+ *
+ * Only transforms when safe (function doesn't use outer 'this' or 'arguments'). Note:
+ * Arrow functions never have their own 'this' or 'arguments', so this transformation
+ * is generally safe for arrow functions, but we check to ensure they don't use 'this'
+ * at all to avoid potential issues.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions
+ */
+export function namedArrowFunctionToNamedFunction(root) {
+  let modified = false
+
+  /**
+   * Check if a node or its descendants use 'this'.
+   *
+   * @param {import("ast-types").ASTNode} node - The node to check
+   * @returns {boolean} True if 'this' is used
+   */
+  const usesThis = (node) => {
+    let found = false
+
+    const checkNode = (astNode) => {
+      if (!astNode || typeof astNode !== "object" || found) return
+
+      // Found 'this' identifier
+      if (astNode.type === "ThisExpression") {
+        found = true
+        return
+      }
+
+      // Don't traverse into nested function declarations or expressions
+      // as they have their own 'this' context
+      if (
+        astNode.type === "FunctionDeclaration" ||
+        astNode.type === "FunctionExpression" ||
+        astNode.type === "ArrowFunctionExpression"
+      ) {
+        return
+      }
+
+      // Traverse all properties
+      for (const key in astNode) {
+        if (
+          key === "loc" ||
+          key === "start" ||
+          key === "end" ||
+          key === "tokens" ||
+          key === "comments"
+        )
+          continue
+        const value = astNode[key]
+        if (Array.isArray(value)) {
+          value.forEach(checkNode)
+        } else if (value && typeof value === "object") {
+          checkNode(value)
+        }
+      }
+    }
+
+    checkNode(node)
+    return found
+  }
+
+  /**
+   * Check if a node or its descendants use 'arguments'.
+   *
+   * @param {import("ast-types").ASTNode} node - The node to check
+   * @returns {boolean} True if 'arguments' is used
+   */
+  const usesArguments = (node) => {
+    let found = false
+
+    const visit = (n) => {
+      if (!n || typeof n !== "object" || found) return
+
+      // If we encounter a nested function, don't traverse into it
+      // as it has its own 'arguments' binding
+      if (n.type === "FunctionExpression" || n.type === "FunctionDeclaration") {
+        return
+      }
+
+      // Check if this is an 'arguments' identifier
+      if (n.type === "Identifier" && n.name === "arguments") {
+        found = true
+        return
+      }
+
+      // Traverse all child nodes
+      for (const key in n) {
+        if (
+          key === "loc" ||
+          key === "start" ||
+          key === "end" ||
+          key === "tokens" ||
+          key === "comments" ||
+          key === "type"
+        ) {
+          continue
+        }
+        const value = n[key]
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            visit(item)
+            if (found) return
+          }
+        } else if (value && typeof value === "object") {
+          visit(value)
+        }
+      }
+    }
+
+    // Start visiting from the function body's child nodes
+    if (node.type === "BlockStatement" && node.body) {
+      for (const statement of node.body) {
+        visit(statement)
+        if (found) break
+      }
+    }
+
+    return found
+  }
+
+  root
+    .find(j.VariableDeclaration)
+    .filter((path) => {
+      const node = path.node
+
+      // Transform const, let, and var declarations
+      if (node.kind !== "const" && node.kind !== "let" && node.kind !== "var") {
+        return false
+      }
+
+      // Must have exactly one declarator
+      if (node.declarations.length !== 1) {
+        return false
+      }
+
+      const declarator = node.declarations[0]
+
+      // Declarator must have an identifier (simple variable name)
+      if (!j.Identifier.check(declarator.id)) {
+        return false
+      }
+
+      // Init must be an arrow function or anonymous function expression
+      const isArrowFunction = j.ArrowFunctionExpression.check(declarator.init)
+      const isFunctionExpression =
+        j.FunctionExpression.check(declarator.init) && !declarator.init.id
+
+      if (!isArrowFunction && !isFunctionExpression) {
+        return false
+      }
+
+      const func = declarator.init
+
+      // Skip if it's a generator function
+      if (func.generator) {
+        return false
+      }
+
+      // Skip if the function uses 'this'
+      if (usesThis(func.body)) {
+        return false
+      }
+
+      // Skip if the function uses 'arguments' (only relevant for function expressions)
+      if (isFunctionExpression && usesArguments(func.body)) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const declarator = node.declarations[0]
+      const functionName = declarator.id.name
+      const func = declarator.init
+
+      // Convert function body to block statement if needed (for arrow functions with expression bodies)
+      let functionBody
+      if (j.BlockStatement.check(func.body)) {
+        functionBody = func.body
+      } else {
+        // Expression body - wrap in return statement
+        functionBody = j.blockStatement([j.returnStatement(func.body)])
+      }
+
+      // Create function declaration
+      const functionDeclaration = j.functionDeclaration(
+        j.identifier(functionName),
+        func.params,
+        functionBody,
+      )
+
+      // Preserve async property
+      if (func.async) {
+        functionDeclaration.async = true
+      }
+
+      j(path).replaceWith(functionDeclaration)
 
       modified = true
     })

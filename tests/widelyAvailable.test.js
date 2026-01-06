@@ -1780,7 +1780,8 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform simple anonymous function")
-      assert.match(result.code, /const greet = name =>/)
+      // Function expression in variable declaration transforms to function declaration
+      assert.match(result.code, /function greet\(name\)/)
       assert.match(result.code, /return/)
     })
 
@@ -1792,7 +1793,8 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform anonymous function with multiple parameters")
-      assert.match(result.code, /const add = \(a, b\) =>/)
+      // Function expression in variable declaration transforms to function declaration
+      assert.match(result.code, /function add\(a, b\)/)
     })
 
     test("no parameters", () => {
@@ -1803,7 +1805,8 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform anonymous function with no parameters")
-      assert.match(result.code, /const getValue = \(\) =>/)
+      // Function expression in variable declaration transforms to function declaration
+      assert.match(result.code, /function getValue\(\)/)
     })
 
     test("callback function", () => {
@@ -1874,7 +1877,9 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform nested function that doesn't use 'this'")
-      assert.match(result.code, /const outer = x =>/)
+      // Outer function expression in variable declaration transforms to function declaration
+      assert.match(result.code, /function outer\(x\)/)
+      // Inner function is still transformed to arrow
       assert.match(result.code, /return y =>/)
     })
 
@@ -1902,7 +1907,8 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform async function")
-      assert.match(result.code, /const fetchData = async url =>/)
+      // Async function expression in variable declaration transforms to async function declaration
+      assert.match(result.code, /async function fetchData\(url\)/)
     })
 
     test("complex body", () => {
@@ -1917,7 +1923,8 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform function with complex body")
-      assert.match(result.code, /const process = data =>/)
+      // Function expression in variable declaration transforms to function declaration
+      assert.match(result.code, /function process\(data\)/)
     })
 
     test("multiple transformations", () => {
@@ -1927,8 +1934,9 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(result.modified, "transform multiple functions")
-      assert.match(result.code, /const fn1 = x =>/)
-      assert.match(result.code, /const fn2 = y =>/)
+      // Both function expressions in variable declarations transform to function declarations
+      assert.match(result.code, /function fn1\(x\)/)
+      assert.match(result.code, /function fn2\(y\)/)
     })
 
     test("'this' in nested function scope", () => {
@@ -1944,7 +1952,9 @@ document.querySelectorAll('.item').forEach(item => {
         result.modified,
         "transform outer function, not inner when 'this' is in nested scope",
       )
-      assert.match(result.code, /const outer = x =>/)
+      // Outer function expression in variable declaration transforms to function declaration
+      assert.match(result.code, /function outer\(x\)/)
+      // Inner function uses 'this' so it stays as function expression
       assert.match(result.code, /return function\(\)/)
     })
 
@@ -1979,6 +1989,149 @@ document.querySelectorAll('.item').forEach(item => {
 
       assert(!result.modified, "skip named function expression")
       assert.match(result.code, /function fact\(n\)/)
+    })
+  })
+
+  describe("namedArrowFunctionToNamedFunction", () => {
+    test("simple const arrow function", () => {
+      const result = transform(`const myFunc = () => {}`)
+
+      assert(result.modified, "transform const arrow function to function declaration")
+      assert.match(result.code, /function myFunc\(\)/)
+      assert.doesNotMatch(result.code, /const myFunc/)
+    })
+
+    test("arrow function with parameters", () => {
+      const result = transform(`const add = (a, b) => { return a + b; }`)
+
+      assert(result.modified, "transform arrow function with parameters")
+      assert.match(result.code, /function add\(a, b\)/)
+      assert.match(result.code, /return a \+ b/)
+    })
+
+    test("arrow function with expression body", () => {
+      const result = transform(`const double = x => x * 2`)
+
+      assert(result.modified, "transform arrow function with expression body")
+      assert.match(result.code, /function double\(x\)/)
+      assert.match(result.code, /return x \* 2/)
+    })
+
+    test("arrow function with no parameters", () => {
+      const result = transform(`const getValue = () => 42`)
+
+      assert(result.modified, "transform arrow function with no parameters")
+      assert.match(result.code, /function getValue\(\)/)
+      assert.match(result.code, /return 42/)
+    })
+
+    test("async arrow function", () => {
+      const result = transform(`const fetchData = async () => { return await getData(); }`)
+
+      assert(result.modified, "transform async arrow function")
+      assert.match(result.code, /async function fetchData\(\)/)
+      assert.match(result.code, /return await getData\(\)/)
+    })
+
+    test("let arrow function", () => {
+      const result = transform(`let myFunc = () => { console.log('test'); }`)
+
+      assert(result.modified, "transform let arrow function")
+      assert.match(result.code, /function myFunc\(\)/)
+      assert.match(result.code, /console\.info\('test'\)/)
+    })
+
+    test("skip arrow function using this", () => {
+      const result = transform(`const method = () => { return this.value; }`)
+
+      assert(!result.modified, "skip arrow function using this")
+      assert.match(result.code, /const method = \(\) =>/)
+    })
+
+    test("skip arrow function in callback", () => {
+      const result = transform(`items.map(item => item * 2)`)
+
+      assert(!result.modified, "skip arrow function in callback position")
+      assert.match(result.code, /items\.map\(item => item \* 2\)/)
+    })
+
+    test("skip multiple declarators", () => {
+      const result = transform(`const a = () => {}, b = () => {}`)
+
+      assert(!result.modified, "skip variable declaration with multiple declarators")
+      assert.match(result.code, /const a = \(\) =>/)
+    })
+
+    test("skip destructuring assignment", () => {
+      const result = transform(`const { func } = obj`)
+
+      assert(!result.modified, "skip destructuring assignment")
+      assert.match(result.code, /const \{ func \} = obj/)
+    })
+
+    test("skip var declarations", () => {
+      const result = transform(`var myFunc = () => {}`)
+
+      // var gets transformed to const, then const arrow gets transformed to function
+      assert(result.modified, "transform var to const to function")
+      assert.match(result.code, /function myFunc\(\)/)
+    })
+
+    test("arrow function with multiple statements", () => {
+      const result = transform(`
+    const process = (data) => {
+      const result = data * 2;
+      console.log(result);
+      return result;
+    }
+  `)
+
+      assert(result.modified, "transform arrow function with multiple statements")
+      assert.match(result.code, /function process\(data\)/)
+      assert.match(result.code, /const result = data \* 2/)
+      assert.match(result.code, /console\.info\(result\)/)
+    })
+
+    test("arrow function with rest parameters", () => {
+      const result = transform(`const sum = (...args) => args.reduce((a, b) => a + b, 0)`)
+
+      assert(result.modified, "transform arrow function with rest parameters")
+      assert.match(result.code, /function sum\(\.\.\.args\)/)
+      assert.match(result.code, /return args\.reduce/)
+    })
+
+    test("arrow function with default parameters", () => {
+      const result = transform(`const greet = (name = 'World') => { return 'Hello ' + name; }`)
+
+      assert(result.modified, "transform arrow function with default parameters")
+      assert.match(result.code, /function greet\(name = 'World'\)/)
+      // String concatenation gets transformed to template literal
+      assert.match(result.code, /return `Hello \$\{name\}`/)
+    })
+
+    test("nested arrow functions are all transformed", () => {
+      const result = transform(`const outer = () => { const inner = () => {}; return inner; }`)
+
+      assert(result.modified, "transform both outer and inner arrow functions")
+      assert.match(result.code, /function outer\(\)/)
+      // Inner also gets transformed since it's a const declaration
+      assert.match(result.code, /function inner\(\)/)
+    })
+
+    test("arrow function with array pattern parameter", () => {
+      const result = transform(`const sum = ([a, b]) => a + b`)
+
+      assert(result.modified, "transform arrow function with array pattern parameter")
+      assert.match(result.code, /function sum\(\[a, b\]\)/)
+      assert.match(result.code, /return a \+ b/)
+    })
+
+    test("arrow function with object pattern parameter", () => {
+      const result = transform(`const getName = ({ name }) => name`)
+
+      assert(result.modified, "transform arrow function with object pattern parameter")
+      assert.match(result.code, /function getName\(\{ name \}\)/)
+      assert.match(result.code, /return name/)
     })
   })
 
@@ -2199,10 +2352,12 @@ document.querySelectorAll('.item').forEach(item => {
       )
     })
 
-    test("slice in arrow function - should not transform", () => {
+    test("slice in arrow function - transforms arrow to function", () => {
       const result = transform(`const fn = arr => arr.map(x => x).slice(0);`)
 
-      assert(!result.modified, "skip slice on unknown method chain")
+      assert(result.modified, "transform arrow function to named function")
+      assert.match(result.code, /function fn\(arr\)/)
+      // slice(0) on method chain is not transformed
       assert.match(result.code, /arr\.map\(x => x\)\.slice\(0\)/)
     })
 
@@ -3290,7 +3445,9 @@ const s = self;
       const result = transform(`const getGlobal = () => window;`)
 
       assert(result.modified, "transform window in arrow function")
-      assert.match(result.code, /const getGlobal = \(\) => globalThis/)
+      // Arrow function gets transformed to function declaration AND window gets transformed to globalThis
+      assert.match(result.code, /function getGlobal\(\)/)
+      assert.match(result.code, /return globalThis/)
     })
 
     test("do not transform when window is destructured parameter", () => {
