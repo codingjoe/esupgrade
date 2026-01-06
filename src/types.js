@@ -127,6 +127,7 @@ export class NodeTest {
  * @returns {boolean} True if the pattern contains the identifier
  */
 function patternContainsIdentifier(node, varName) {
+  // Check for null or undefined (loose equality is intentional)
   if (node == null) {
     return false
   }
