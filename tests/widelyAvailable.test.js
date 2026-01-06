@@ -1980,6 +1980,18 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /\(\(\) =>/)
     })
 
+    test("async function expression as callback", () => {
+      const result = transform(`
+    promises.then(async function(value) {
+      await process(value);
+      return result;
+    });
+  `)
+
+      assert(result.modified, "transform async function expression")
+      assert.match(result.code, /promises\.then\(async value =>/)
+    })
+
     test("named function expression", () => {
       const result = transform(`
     const factorial = function fact(n) {
