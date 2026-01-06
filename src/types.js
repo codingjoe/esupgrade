@@ -122,11 +122,14 @@ export class NodeTest {
  * Check if a pattern (identifier, destructuring, etc.) contains a specific variable
  * name
  *
- * @param {import("ast-types").ASTNode} node - The AST node to check
+ * @param {import("ast-types").ASTNode | null | undefined} node - The AST node to check
  * @param {string} varName - The variable name to search for
  * @returns {boolean} True if the pattern contains the identifier
  */
 function patternContainsIdentifier(node, varName) {
+  if (node == null) {
+    return false
+  }
   if (j.Identifier.check(node)) {
     return node.name === varName
   }
