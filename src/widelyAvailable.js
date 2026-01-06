@@ -82,15 +82,15 @@ export function concatToTemplateLiteral(root) {
 
       // Helper to get the raw value of a string literal (preserving escape sequences)
       const getRawStringValue = (node) => {
-        // In string literals, backslashes are used for escape sequences
-        // In template literals, backslashes in the raw value also need escaping
-        // So we need to double the backslashes: \\ -> \\\\
-        // Template literals also have special characters that need escaping:
+        // node.extra.raw contains the original source code including quotes
+        // e.g., for source "foo\r\n", extra.raw is the string "foo\r\n" (with actual escape sequences as written in source)
+        // We need to strip the quotes and escape template literal-specific characters
+        // Template literals need escaping for:
         // - Backtick ` needs to be escaped as \`
         // - Dollar-brace ${ needs to be escaped as \${ to prevent template expression evaluation
-        // Note: node.extra.rawValue is always defined for string literals with the current parser
-        return node.extra.rawValue
-          .replace(/\\/g, "\\\\")
+        // We do NOT double backslashes because extra.raw already contains them as written in source
+        const rawWithoutQuotes = node.extra.raw.slice(1, -1)
+        return rawWithoutQuotes
           .replace(/`/g, "\\`")
           .replace(/\$\{/g, "\\${")
       }
