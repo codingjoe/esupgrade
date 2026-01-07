@@ -690,6 +690,62 @@ suite("widely-available", () => {
       assert.match(result.code, /let pixels;/)
       assert.doesNotMatch(result.code, /const pixels;/)
     })
+
+    test("for-of loop variable", () => {
+      const result = transform(`
+    const items = [1, 2, 3];
+    for (var item of items) {
+      console.log(item);
+    }
+  `)
+
+      assert(result.modified, "transform for-of loop variable")
+      assert.match(result.code, /for \(const item of items\)/)
+      assert.doesNotMatch(result.code, /var item/)
+      assert.doesNotMatch(result.code, /let item/)
+    })
+
+    test("for-in loop variable", () => {
+      const result = transform(`
+    const obj = { a: 1, b: 2 };
+    for (var key in obj) {
+      console.log(key);
+    }
+  `)
+
+      assert(result.modified, "transform for-in loop variable")
+      assert.match(result.code, /for \(const key in obj\)/)
+      assert.doesNotMatch(result.code, /var key/)
+      assert.doesNotMatch(result.code, /let key/)
+    })
+
+    test("for-of loop with array literal", () => {
+      const result = transform(`
+    for (var num of [1, 2, 3]) {
+      console.log(num);
+    }
+  `)
+
+      assert(result.modified, "transform for-of with array literal")
+      assert.match(result.code, /for \(const num of \[1, 2, 3\]\)/)
+      assert.doesNotMatch(result.code, /var num/)
+      assert.doesNotMatch(result.code, /let num/)
+    })
+
+    test("for-in loop with object properties", () => {
+      const result = transform(`
+    for (var prop in window) {
+      if (prop.startsWith('on')) {
+        console.log(prop);
+      }
+    }
+  `)
+
+      assert(result.modified, "transform for-in with object properties")
+      assert.match(result.code, /for \(const prop in/)
+      assert.doesNotMatch(result.code, /var prop/)
+      assert.doesNotMatch(result.code, /let prop/)
+    })
   })
 
   describe("stringConcatToTemplate", () => {
@@ -842,6 +898,30 @@ suite("widely-available", () => {
         result.code,
         /`foo\\r\nbar`/,
         "output should be template literal with \\r escape and actual newline",
+      )
+    })
+
+    test("regression: no extra backslash with \\r\\n on multiline concatenation", () => {
+      // Regression test for issue #94
+      // When "foo\r\n" + "bar" spans multiple lines, the \n at the end of the first string
+      // should prevent adding a line continuation backslash
+      const result = transform(`const myVar = "foo\\r\\n" +
+              "bar"`)
+
+      assert(result.modified, "transform multiline concatenation with \\r\\n")
+      assert.ok(result.code.includes("\\r"), "preserve \\r escape sequence")
+      // \n should become an actual newline in template literal
+      assert.ok(result.code.includes("\n"), "\\n should become actual newline")
+      // Should NOT have an extra backslash after the newline
+      assert.match(
+        result.code,
+        /`foo\\r\nbar`/,
+        "should not have extra line continuation after \\n",
+      )
+      // Verify no double backslash or extra continuation
+      assert.ok(
+        !result.code.includes("\\\n\\\n"),
+        "should not have double line continuation",
       )
     })
 
@@ -2257,21 +2337,33 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("skip arrow function with variable type annotation and no function return type", () => {
-      const result = transform(`const Template: StoryFn<MyType> = () => { return <div>Hello</div>; }`)
+      const result = transform(
+        `const Template: StoryFn<MyType> = () => { return <div>Hello</div>; }`,
+      )
 
-      assert(!result.modified, "skip arrow function with variable type and no function return type")
+      assert(
+        !result.modified,
+        "skip arrow function with variable type and no function return type",
+      )
       assert.match(result.code, /const Template: StoryFn<MyType> = \(\) =>/)
     })
 
     test("skip function expression with variable type annotation and no function return type", () => {
-      const result = transform(`const handler: EventHandler = function() { return true; }`)
+      const result = transform(
+        `const handler: EventHandler = function() { return true; }`,
+      )
 
-      assert(!result.modified, "skip function expression with variable type and no function return type")
+      assert(
+        !result.modified,
+        "skip function expression with variable type and no function return type",
+      )
       assert.match(result.code, /const handler: EventHandler = function\(\)/)
     })
 
     test("transform function with return type annotation", () => {
-      const result = transform(`let myAdd = function (x: number, y: number): number { return x + y; }`)
+      const result = transform(
+        `let myAdd = function (x: number, y: number): number { return x + y; }`,
+      )
 
       assert(result.modified, "transform function with return type annotation")
       assert.match(result.code, /function myAdd\(x: number, y: number\): number/)
@@ -2279,7 +2371,9 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("transform arrow function with return type annotation", () => {
-      const result = transform(`const myFunc = (x: number): string => { return x.toString(); }`)
+      const result = transform(
+        `const myFunc = (x: number): string => { return x.toString(); }`,
+      )
 
       assert(result.modified, "transform arrow function with return type")
       assert.match(result.code, /function myFunc\(x: number\): string/)
@@ -2288,13 +2382,18 @@ document.querySelectorAll('.item').forEach(item => {
     test("transform arrow function with variable and function return types", () => {
       const result = transform(`const myFunc: MyType = (x: number): number => x * 2`)
 
-      assert(result.modified, "transform when function has return type even with variable type")
+      assert(
+        result.modified,
+        "transform when function has return type even with variable type",
+      )
       assert.match(result.code, /function myFunc\(x: number\): number/)
       assert.match(result.code, /return x \* 2/)
     })
 
     test("transform function expression with parameter types only", () => {
-      const result = transform(`const add = function(a: number, b: number) { return a + b; }`)
+      const result = transform(
+        `const add = function(a: number, b: number) { return a + b; }`,
+      )
 
       assert(result.modified, "transform function with parameter types")
       assert.match(result.code, /function add\(a: number, b: number\)/)
