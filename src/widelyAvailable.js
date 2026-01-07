@@ -80,35 +80,9 @@ export function concatToTemplateLiteral(root) {
         return false
       }
 
-      // Helper to get the raw value of a string literal (preserving escape sequences)
-      const getRawStringValue = (node) => {
-        // node.extra.raw contains the original source code including quotes
-        // e.g., for source "foo\r\n", extra.raw is the string "foo\r\n" (with actual escape sequences as written in source)
-        // We need to strip the quotes and escape template literal-specific characters
-        // Template literals need escaping for:
-        // - Backtick ` needs to be escaped as \`
-        // - Dollar-brace ${ needs to be escaped as \${ to prevent template expression evaluation
-        // We do NOT double backslashes because extra.raw already contains them as written in source
-        if (!node.extra || !node.extra.raw || node.extra.raw.length < 2) {
-          // Fallback to using the value if extra.raw is not available
-          // This should not happen with the tsx parser, but provides a safe fallback
-          return String(node.value)
-            .replace(/\\/g, "\\\\")
-            .replace(/`/g, "\\`")
-            .replace(/\$\{/g, "\\${")
-        }
-        const rawWithoutQuotes = node.extra.raw.slice(1, -1)
-        // Note: We intentionally do NOT escape backslashes here because node.extra.raw
-        // already contains the escape sequences as they appear in the source code.
-        // This is safe because extra.raw comes from the trusted parser and already
-        // has the correct escaping. We only need to escape template literal-specific
-        // characters that would break the template literal syntax.
-        return rawWithoutQuotes.replace(/`/g, "\\`").replace(/\$\{/g, "\\${")
-      }
-
       const addStringPart = (stringNode) => {
         // Store both the raw and cooked values
-        const rawValue = getRawStringValue(stringNode)
+        const rawValue = new NodeTest(stringNode).getRawStringValue()
         const cookedValue = stringNode.value
 
         if (parts.length === 0 || expressions.length >= parts.length) {

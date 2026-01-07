@@ -1,6 +1,7 @@
 import { describe, suite, test } from "node:test"
 import assert from "node:assert/strict"
 import { transform } from "../src/index.js"
+import { NodeTest } from "../src/types.js"
 
 suite("widely-available", () => {
   describe("arrayFromForEachToForOf", () => {
@@ -873,6 +874,36 @@ suite("widely-available", () => {
       assert.ok(result.code.includes("\\\\"))
       assert.ok(result.code.includes("\\`"))
       assert.ok(result.code.includes("\\${"))
+    })
+
+    test("fallback when extra.raw is missing", () => {
+      // Test NodeTest.getRawStringValue() fallback for nodes without extra.raw
+      // This simulates edge cases where the parser doesn't provide extra.raw
+      const mockNode = {
+        type: "Literal",
+        value: "hello\nworld",
+      }
+
+      const nodeTest = new NodeTest(mockNode)
+      const result = nodeTest.getRawStringValue()
+
+      // Should use fallback and escape newlines (result should be "hello\nworld")
+      assert.ok(result.includes("\\n"), "should escape newlines in fallback")
+      assert.strictEqual(result, "hello\\nworld")
+    })
+
+    test("fallback escapes special chars", () => {
+      // Test that fallback path properly escapes backticks and ${
+      const mockNode = {
+        type: "Literal",
+        value: "test`${value}",
+      }
+
+      const nodeTest = new NodeTest(mockNode)
+      const result = nodeTest.getRawStringValue()
+
+      assert.ok(result.includes("\\`"), "should escape backticks in fallback")
+      assert.ok(result.includes("\\${"), "should escape dollar-brace in fallback")
     })
   })
 
