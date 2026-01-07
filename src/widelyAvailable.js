@@ -1165,6 +1165,17 @@ export function namedArrowFunctionToNamedFunction(root) {
         functionDeclaration.returnType = func.returnType
       }
 
+      // Preserve comments from the original variable declaration
+      if (node.comments) {
+        functionDeclaration.comments = node.comments
+      }
+      if (node.leadingComments) {
+        functionDeclaration.leadingComments = node.leadingComments
+      }
+      if (node.trailingComments) {
+        functionDeclaration.trailingComments = node.trailingComments
+      }
+
       j(path).replaceWith(functionDeclaration)
 
       modified = true

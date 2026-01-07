@@ -2398,6 +2398,41 @@ document.querySelectorAll('.item').forEach(item => {
       assert(result.modified, "transform function with parameter types")
       assert.match(result.code, /function add\(a: number, b: number\)/)
     })
+
+    test("preserve leading line comment", () => {
+      const result = transform(`// This is a comment\nconst myFunc = () => { return 42; }`)
+
+      assert(result.modified, "transform arrow function")
+      assert.match(result.code, /\/\/ This is a comment/)
+      assert.match(result.code, /function myFunc\(\)/)
+    })
+
+    test("preserve JSDoc comment", () => {
+      const result = transform(`/**\n * JSDoc comment\n */\nconst greet = function(name) { return "Hello"; }`)
+
+      assert(result.modified, "transform function expression")
+      assert.match(result.code, /\/\*\*/)
+      assert.match(result.code, /\* JSDoc comment/)
+      assert.match(result.code, /\*\//)
+      assert.match(result.code, /function greet\(name\)/)
+    })
+
+    test("preserve multiple leading comments", () => {
+      const result = transform(`// Comment 1\n// Comment 2\nconst add = (a, b) => a + b`)
+
+      assert(result.modified, "transform arrow function")
+      assert.match(result.code, /\/\/ Comment 1/)
+      assert.match(result.code, /\/\/ Comment 2/)
+      assert.match(result.code, /function add\(a, b\)/)
+    })
+
+    test("preserve block comment", () => {
+      const result = transform(`/* Block comment */\nconst multiply = (x, y) => x * y`)
+
+      assert(result.modified, "transform arrow function")
+      assert.match(result.code, /\/\* Block comment \*\//)
+      assert.match(result.code, /function multiply\(x, y\)/)
+    })
   })
 
   describe("arrayConcatToSpread", () => {
