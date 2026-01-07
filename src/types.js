@@ -69,13 +69,11 @@ export class NodeTest {
    * Check if two AST nodes are structurally equivalent. Compares identifiers, literals,
    * member expressions, and call expressions recursively.
    *
-   * @param {import("ast-types").ASTNode | null | undefined} other - Second node to
+   * @param {import("ast-types").ASTNode} other - Second node to
    *   compare
    * @returns {boolean} True if nodes are structurally equivalent
    */
   isEqual(other) {
-    if (!this.node || !other) return false
-
     // Both are identifiers with same name
     if (j.Identifier.check(this.node) && j.Identifier.check(other)) {
       return this.node.name === other.name
@@ -116,20 +114,56 @@ export class NodeTest {
 
     return false
   }
+
+  /**
+   * Get the raw value of a string literal, preserving escape sequences.
+   *
+   * @returns {string} The raw string content with template literal characters escaped
+   */
+  getRawStringValue() {
+    // node.extra.raw contains the original source code including quotes.
+    // For example, for source "foo\r\n", extra.raw is the literal text "\"foo\\r\\n\"", where "\r" and "\n"
+    // are the two-character escape sequences backslash-r and backslash-n from the source, not control characters.
+    // We need to strip the quotes and escape template literal-specific characters.
+    // Template literals need escaping for:
+    // - Backtick ` needs to be escaped as \`
+    // - Dollar-brace ${ needs to be escaped as \${ to prevent template expression evaluation
+    if (!this.node.extra || !this.node.extra.raw || this.node.extra.raw.length < 2) {
+      // Fallback to using the value if extra.raw is not available
+      // This should not happen with the tsx parser, but provides a safe fallback
+      // When using node.value, we need to escape control characters and backslashes
+      return String(this.node.value)
+        .replace(/\\/g, "\\\\")
+        .replace(/\r/g, "\\r")
+        .replace(/\t/g, "\\t")
+        .replace(/`/g, "\\`")
+        .replace(/\$\{/g, "\\${")
+      // Note: We don't escape \n here because template literals can contain actual newlines
+    }
+    const rawWithoutQuotes = this.node.extra.raw.slice(1, -1)
+    // Note: We intentionally do NOT escape backslashes here because node.extra.raw
+    // already contains the escape sequences as they appear in the source code.
+    // We replace \n escape sequences (backslash-n, not actual newline characters) with actual newlines
+    // to leverage template literal multiline capability.
+    // However, we keep \r as an escape sequence since carriage returns are not typically used in source.
+    // We only need to escape template literal-specific characters that would break the template literal syntax.
+    return rawWithoutQuotes
+      .replace(/\\n/g, "\n")
+      .replace(/`/g, "\\`")
+      .replace(/\$\{/g, "\\${")
+  }
 }
 
 /**
  * Check if a pattern (identifier, destructuring, etc.) contains a specific variable
  * name
  *
- * @param {import("ast-types").ASTNode | null | undefined} node - The AST node to check
+ * @param {import("ast-types").ASTNode} node - The AST node to check
  * @param {string} varName - The variable name to search for
  * @returns {boolean} True if the pattern contains the identifier
  */
 function patternContainsIdentifier(node, varName) {
-  if (!node) {
-    return false
-  }
+  // Check for null or undefined (loose equality is intentional)
   if (j.Identifier.check(node)) {
     return node.name === varName
   }
@@ -155,14 +189,12 @@ function patternContainsIdentifier(node, varName) {
 /**
  * Extract all identifier names from a pattern (handles destructuring)
  *
- * @param {import("ast-types").ASTNode | null | undefined} pattern - The pattern node to
+ * @param {import("ast-types").ASTNode} pattern - The pattern node to
  *   extract identifiers from
  * @yields {string} Identifier names found in the pattern
  * @returns {Generator<string, void, unknown>}
  */
 function* extractIdentifiersFromPattern(pattern) {
-  if (!pattern) return
-
   if (j.Identifier.check(pattern)) {
     yield pattern.name
   } else if (j.ObjectPattern.check(pattern)) {
@@ -303,6 +335,20 @@ function isVariableReassigned(root, varName, declarationPath) {
  * @returns {"const" | "let"} The appropriate variable kind
  */
 export function determineDeclaratorKind(root, declarator, declarationPath) {
+  // Check if this is a for-of or for-in loop variable declaration
+  const isLoopVariable =
+    declarationPath.parent &&
+    declarationPath.parent.node &&
+    (j.ForOfStatement.check(declarationPath.parent.node) ||
+      j.ForInStatement.check(declarationPath.parent.node)) &&
+    declarationPath.parent.node.left === declarationPath.node
+
+  // Variables without initialization must use let (const requires initialization)
+  // Exception: for-of and for-in loop variables don't need initialization
+  if (!declarator.init && !isLoopVariable) {
+    return "let"
+  }
+
   if (j.Identifier.check(declarator.id)) {
     return isVariableReassigned(root, declarator.id.name, declarationPath)
       ? "let"

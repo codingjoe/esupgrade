@@ -1,6 +1,7 @@
 import { describe, suite, test } from "node:test"
 import assert from "node:assert/strict"
 import { transform } from "../src/index.js"
+import { NodeTest } from "../src/types.js"
 
 suite("widely-available", () => {
   describe("arrayFromForEachToForOf", () => {
@@ -644,6 +645,31 @@ suite("widely-available", () => {
       assert.match(result.code, /let b/)
     })
 
+    test("uninitialized var must become let", () => {
+      const result = transform(`
+    var key;
+    for (key in obj) {
+      console.log(key);
+    }
+  `)
+
+      assert(result.modified, "transform uninitialized var to let")
+      assert.match(result.code, /let key/)
+      assert.doesNotMatch(result.code, /const key/)
+      assert.doesNotMatch(result.code, /var key/)
+    })
+
+    test("array destructuring with holes and reassignment", () => {
+      const result = transform(`
+    var [a, , b] = arr;
+    a = 5;
+  `)
+
+      assert(result.modified, "transform var with array holes and reassignment")
+      assert.match(result.code, /let \[a, , b\]/)
+      assert.doesNotMatch(result.code, /var/)
+    })
+
     test("inner var shadows outer const and is reassigned", () => {
       const result = transform(`
     const pixels = [];
@@ -787,10 +813,66 @@ suite("widely-available", () => {
     })
 
     test("preserves newline escapes", () => {
-      const result = transform(`const str = "Line 1\\\\n" + "Line 2";`)
+      // Use single backslash which represents the escape sequence in source code
+      const result = transform('const str = "Line 1\\n" + "Line 2";')
 
-      assert(result.modified, "transform and preserve newline escapes")
-      assert.ok(result.code.includes("\\\\n"), "preserve \\\\n escape sequence")
+      assert(result.modified, "transform and convert \\n to actual newline")
+      // \n should become an actual newline in template literal
+      assert.ok(result.code.includes("\n"), "\\n should become actual newline")
+      assert.match(
+        result.code,
+        /`Line 1\nLine 2`/,
+        "should have template literal with newline",
+      )
+    })
+
+    test("preserves carriage return and newline escapes", () => {
+      // Use single backslash which represents the escape sequence in source code
+      const result = transform('const a = "foo\\r\\n" + "bar"')
+
+      assert(
+        result.modified,
+        "transform and preserve \\r escape, convert \\n to newline",
+      )
+      assert.ok(result.code.includes("\\r"), "preserve \\r escape sequence")
+      // \n should become an actual newline in template literal
+      assert.ok(result.code.includes("\n"), "\\n should become actual newline")
+      // Should match `foo\r<newline>bar` pattern
+      assert.match(
+        result.code,
+        /`foo\\r\nbar`/,
+        "output should be template literal with \\r escape and actual newline",
+      )
+    })
+
+    test("preserves multiline formatting with line continuation", () => {
+      const result = transform(`const myVar = "foo" +
+              "bar"`)
+
+      assert(result.modified, "transform multiline concatenation")
+      assert.match(
+        result.code,
+        /`foo\\\nbar`/,
+        "should have line continuation backslash",
+      )
+    })
+
+    test("preserves multiline formatting with multiple strings", () => {
+      const result = transform(`const myVar = "foo" +
+              "bar" +
+              "baz"`)
+
+      assert(result.modified, "transform multiline concatenation with multiple strings")
+      // Should have two line continuations
+      assert.match(result.code, /`foo\\\nbar\\\nbaz`/, "should have line continuations")
+    })
+
+    test("single line concatenation has no line continuation", () => {
+      const result = transform(`const myVar = "foo" + "bar"`)
+
+      assert(result.modified, "transform single line concatenation")
+      assert.match(result.code, /`foobar`/, "should not have line continuation")
+      assert.ok(!result.code.includes("\\"), "should not have backslash")
     })
 
     test("preserves tab escapes", () => {
@@ -860,6 +942,36 @@ suite("widely-available", () => {
       assert.ok(result.code.includes("\\\\"))
       assert.ok(result.code.includes("\\`"))
       assert.ok(result.code.includes("\\${"))
+    })
+
+    test("fallback when extra.raw is missing", () => {
+      // Test NodeTest.getRawStringValue() fallback for nodes without extra.raw.
+      // Exercise fallback behavior for nodes that lack extra.raw without going through transform.
+      const mockNode = {
+        type: "Literal",
+        value: "hello\nworld",
+      }
+
+      const nodeTest = new NodeTest(mockNode)
+      const result = nodeTest.getRawStringValue()
+
+      // Should use fallback and keep newline as actual newline (result should be "hello\nworld" with actual newline)
+      assert.ok(result.includes("\n"), "should have actual newline")
+      assert.strictEqual(result, "hello\nworld")
+    })
+
+    test("fallback escapes special chars", () => {
+      // Test that fallback path properly escapes backticks and ${
+      const mockNode = {
+        type: "Literal",
+        value: "test`${value}",
+      }
+
+      const nodeTest = new NodeTest(mockNode)
+      const result = nodeTest.getRawStringValue()
+
+      assert.ok(result.includes("\\`"), "should escape backticks in fallback")
+      assert.ok(result.includes("\\${"), "should escape dollar-brace in fallback")
     })
   })
 
