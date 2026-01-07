@@ -99,6 +99,25 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +const message = `You have ${count} items`;
 ```
 
+Special handling for escape sequences and formatting:
+
+- **Escape sequences**: `\r` (carriage return) is preserved, while `\n` (newline) is converted to actual newlines
+
+  ```diff
+  -const text = "Line 1\n" + "Line 2";
+  +const text = `Line 1
+  +Line 2`;
+  ```
+
+- **Multiline concatenation**: Visual structure is preserved with line continuation backslashes
+
+  ```diff
+  -const longText = "First part " +
+  -                 "second part";
+  +const longText = `First part \
+  +second part`;
+  ```
+
 #### Traditional `for` loops → [`for...of` loops][mdn-for-of]
 
 ```diff
@@ -171,6 +190,15 @@ Supports:
 +const obj = { ...obj1, ...obj2 };
 +const copy = { ...original };
 ```
+
+> [!NOTE]
+> TypeScript does not support generic object spread yet:
+> https://github.com/Microsoft/TypeScript/issues/10727
+> You might need to manually adjust the type after transformation:
+>
+> ```ts
+> const object_with_generic_type: object = { ...(myGenericObject as object) }
+> ```
 
 #### `Array.concat()` → [Array spread [...]][mdn-spread]
 
