@@ -123,13 +123,13 @@ export class NodeTest {
    * @returns {string} The raw string content with template literal characters escaped
    */
   getRawStringValue() {
-    // node.extra.raw contains the original source code including quotes
-    // e.g., for source "foo\r\n", extra.raw is the string "foo\r\n" (with actual escape sequences as written in source)
-    // We need to strip the quotes and escape template literal-specific characters
+    // node.extra.raw contains the original source code including quotes.
+    // For example, for source "foo\r\n", extra.raw is the literal text "\"foo\\r\\n\"", where "\r" and "\n"
+    // are the two-character escape sequences backslash-r and backslash-n from the source, not control characters.
+    // We need to strip the quotes and escape template literal-specific characters.
     // Template literals need escaping for:
     // - Backtick ` needs to be escaped as \`
     // - Dollar-brace ${ needs to be escaped as \${ to prevent template expression evaluation
-    // We do NOT double backslashes because extra.raw already contains them as written in source
     if (!this.node.extra || !this.node.extra.raw || this.node.extra.raw.length < 2) {
       // Fallback to using the value if extra.raw is not available
       // This should not happen with the tsx parser, but provides a safe fallback
@@ -137,18 +137,22 @@ export class NodeTest {
       return String(this.node.value)
         .replace(/\\/g, "\\\\")
         .replace(/\r/g, "\\r")
-        .replace(/\n/g, "\\n")
         .replace(/\t/g, "\\t")
         .replace(/`/g, "\\`")
         .replace(/\$\{/g, "\\${")
+        // Note: We don't escape \n here because template literals can contain actual newlines
     }
     const rawWithoutQuotes = this.node.extra.raw.slice(1, -1)
     // Note: We intentionally do NOT escape backslashes here because node.extra.raw
     // already contains the escape sequences as they appear in the source code.
-    // This is safe because extra.raw comes from the trusted parser and already
-    // has the correct escaping. We only need to escape template literal-specific
-    // characters that would break the template literal syntax.
-    return rawWithoutQuotes.replace(/`/g, "\\`").replace(/\$\{/g, "\\${")
+    // We replace \n escape sequences (backslash-n, not actual newline characters) with actual newlines
+    // to leverage template literal multiline capability.
+    // However, we keep \r as an escape sequence since carriage returns are not typically used in source.
+    // We only need to escape template literal-specific characters that would break the template literal syntax.
+    return rawWithoutQuotes
+      .replace(/\\n/g, "\n")
+      .replace(/`/g, "\\`")
+      .replace(/\$\{/g, "\\${")
   }
 }
 

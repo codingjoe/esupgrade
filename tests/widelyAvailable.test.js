@@ -788,22 +788,28 @@ suite("widely-available", () => {
     })
 
     test("preserves newline escapes", () => {
-      const result = transform(`const str = "Line 1\\\\n" + "Line 2";`)
+      // Use single backslash which represents the escape sequence in source code
+      const result = transform('const str = "Line 1\\n" + "Line 2";')
 
-      assert(result.modified, "transform and preserve newline escapes")
-      assert.ok(result.code.includes("\\\\n"), "preserve \\\\n escape sequence")
+      assert(result.modified, "transform and convert \\n to actual newline")
+      // \n should become an actual newline in template literal
+      assert.ok(result.code.includes("\n"), "\\n should become actual newline")
+      assert.match(result.code, /`Line 1\nLine 2`/, "should have template literal with newline")
     })
 
     test("preserves carriage return and newline escapes", () => {
-      const result = transform(`const a = "foo\\\\r\\\\n" + "bar"`)
+      // Use single backslash which represents the escape sequence in source code
+      const result = transform('const a = "foo\\r\\n" + "bar"')
 
-      assert(result.modified, "transform and preserve \\\\r\\\\n escape sequences")
-      assert.ok(result.code.includes("\\\\r"), "preserve \\\\r escape sequence")
-      assert.ok(result.code.includes("\\\\n"), "preserve \\\\n escape sequence")
+      assert(result.modified, "transform and preserve \\r escape, convert \\n to newline")
+      assert.ok(result.code.includes("\\r"), "preserve \\r escape sequence")
+      // \n should become an actual newline in template literal
+      assert.ok(result.code.includes("\n"), "\\n should become actual newline")
+      // Should match `foo\r<newline>bar` pattern
       assert.match(
         result.code,
-        /`foo\\\\r\\\\nbar`/,
-        "output should be template literal with both escapes",
+        /`foo\\r\nbar`/,
+        "output should be template literal with \\r escape and actual newline",
       )
     })
 
@@ -877,8 +883,8 @@ suite("widely-available", () => {
     })
 
     test("fallback when extra.raw is missing", () => {
-      // Test NodeTest.getRawStringValue() fallback for nodes without extra.raw
-      // This simulates edge cases where the parser doesn't provide extra.raw
+      // Test NodeTest.getRawStringValue() fallback for nodes without extra.raw.
+      // Exercise fallback behavior for nodes that lack extra.raw without going through transform.
       const mockNode = {
         type: "Literal",
         value: "hello\nworld",
@@ -887,9 +893,9 @@ suite("widely-available", () => {
       const nodeTest = new NodeTest(mockNode)
       const result = nodeTest.getRawStringValue()
 
-      // Should use fallback and escape newlines (result should be "hello\nworld")
-      assert.ok(result.includes("\\n"), "should escape newlines in fallback")
-      assert.strictEqual(result, "hello\\nworld")
+      // Should use fallback and keep newline as actual newline (result should be "hello\nworld" with actual newline)
+      assert.ok(result.includes("\n"), "should have actual newline")
+      assert.strictEqual(result, "hello\nworld")
     })
 
     test("fallback escapes special chars", () => {
