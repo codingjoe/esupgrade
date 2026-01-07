@@ -253,6 +253,17 @@ TypeScript parameter and return type annotations are preserved:
 +}
 ```
 
+Generic type parameters are also preserved:
+
+```diff
+-export const useHook = <T extends object>(props: T): T => {
+-  return props;
+-};
++export function useHook<T extends object>(props: T): T {
++  return props;
++}
+```
+
 Variables with TypeScript type annotations but no function return type are skipped:
 
 ```typescript
