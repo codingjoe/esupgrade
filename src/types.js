@@ -114,6 +114,44 @@ export class NodeTest {
 
     return false
   }
+
+  /**
+   * Get the raw value of a string literal, preserving escape sequences.
+   *
+   * @returns {string} The raw string content with template literal characters escaped
+   */
+  getRawStringValue() {
+    // node.extra.raw contains the original source code including quotes.
+    // For example, for source "foo\r\n", extra.raw is the literal text "\"foo\\r\\n\"", where "\r" and "\n"
+    // are the two-character escape sequences backslash-r and backslash-n from the source, not control characters.
+    // We need to strip the quotes and escape template literal-specific characters.
+    // Template literals need escaping for:
+    // - Backtick ` needs to be escaped as \`
+    // - Dollar-brace ${ needs to be escaped as \${ to prevent template expression evaluation
+    if (!this.node.extra || !this.node.extra.raw || this.node.extra.raw.length < 2) {
+      // Fallback to using the value if extra.raw is not available
+      // This should not happen with the tsx parser, but provides a safe fallback
+      // When using node.value, we need to escape control characters and backslashes
+      return String(this.node.value)
+        .replace(/\\/g, "\\\\")
+        .replace(/\r/g, "\\r")
+        .replace(/\t/g, "\\t")
+        .replace(/`/g, "\\`")
+        .replace(/\$\{/g, "\\${")
+      // Note: We don't escape \n here because template literals can contain actual newlines
+    }
+    const rawWithoutQuotes = this.node.extra.raw.slice(1, -1)
+    // Note: We intentionally do NOT escape backslashes here because node.extra.raw
+    // already contains the escape sequences as they appear in the source code.
+    // We replace \n escape sequences (backslash-n, not actual newline characters) with actual newlines
+    // to leverage template literal multiline capability.
+    // However, we keep \r as an escape sequence since carriage returns are not typically used in source.
+    // We only need to escape template literal-specific characters that would break the template literal syntax.
+    return rawWithoutQuotes
+      .replace(/\\n/g, "\n")
+      .replace(/`/g, "\\`")
+      .replace(/\$\{/g, "\\${")
+  }
 }
 
 /**
