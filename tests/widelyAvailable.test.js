@@ -644,6 +644,31 @@ suite("widely-available", () => {
       assert.match(result.code, /let b/)
     })
 
+    test("uninitialized var must become let", () => {
+      const result = transform(`
+    var key;
+    for (key in obj) {
+      console.log(key);
+    }
+  `)
+
+      assert(result.modified, "transform uninitialized var to let")
+      assert.match(result.code, /let key/)
+      assert.doesNotMatch(result.code, /const key/)
+      assert.doesNotMatch(result.code, /var key/)
+    })
+
+    test("array destructuring with holes and reassignment", () => {
+      const result = transform(`
+    var [a, , b] = arr;
+    a = 5;
+  `)
+
+      assert(result.modified, "transform var with array holes and reassignment")
+      assert.match(result.code, /let \[a, , b\]/)
+      assert.doesNotMatch(result.code, /var/)
+    })
+
     test("inner var shadows outer const and is reassigned", () => {
       const result = transform(`
     const pixels = [];
