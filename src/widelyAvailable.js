@@ -105,7 +105,12 @@ export function concatToTemplateLiteral(root) {
           const lastPart = parts[parts.length - 1]
           if (needsLineContinuation) {
             // Add backslash and newline for line continuation
-            lastPart.raw += "\\\n" + rawValue
+            // But if the last part already ends with a newline, don't add another backslash+newline
+            if (lastPart.raw.endsWith("\n")) {
+              lastPart.raw += rawValue
+            } else {
+              lastPart.raw += "\\\n" + rawValue
+            }
             lastPart.cooked += cookedValue
           } else {
             lastPart.raw += rawValue
