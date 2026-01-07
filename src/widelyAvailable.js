@@ -103,9 +103,7 @@ export function concatToTemplateLiteral(root) {
         // This is safe because extra.raw comes from the trusted parser and already
         // has the correct escaping. We only need to escape template literal-specific
         // characters that would break the template literal syntax.
-        return rawWithoutQuotes
-          .replace(/`/g, "\\`")
-          .replace(/\$\{/g, "\\${")
+        return rawWithoutQuotes.replace(/`/g, "\\`").replace(/\$\{/g, "\\${")
       }
 
       const addStringPart = (stringNode) => {

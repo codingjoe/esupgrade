@@ -799,7 +799,11 @@ suite("widely-available", () => {
       assert(result.modified, "transform and preserve \\\\r\\\\n escape sequences")
       assert.ok(result.code.includes("\\\\r"), "preserve \\\\r escape sequence")
       assert.ok(result.code.includes("\\\\n"), "preserve \\\\n escape sequence")
-      assert.match(result.code, /`foo\\\\r\\\\nbar`/, "output should be template literal with both escapes")
+      assert.match(
+        result.code,
+        /`foo\\\\r\\\\nbar`/,
+        "output should be template literal with both escapes",
+      )
     })
 
     test("preserves tab escapes", () => {
