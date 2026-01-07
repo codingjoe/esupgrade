@@ -69,13 +69,11 @@ export class NodeTest {
    * Check if two AST nodes are structurally equivalent. Compares identifiers, literals,
    * member expressions, and call expressions recursively.
    *
-   * @param {import("ast-types").ASTNode | null | undefined} other - Second node to
+   * @param {import("ast-types").ASTNode} other - Second node to
    *   compare
    * @returns {boolean} True if nodes are structurally equivalent
    */
   isEqual(other) {
-    if (!this.node || !other) return false
-
     // Both are identifiers with same name
     if (j.Identifier.check(this.node) && j.Identifier.check(other)) {
       return this.node.name === other.name
@@ -127,6 +125,7 @@ export class NodeTest {
  * @returns {boolean} True if the pattern contains the identifier
  */
 function patternContainsIdentifier(node, varName) {
+  // Check for null or undefined (loose equality is intentional)
   if (j.Identifier.check(node)) {
     return node.name === varName
   }
@@ -152,14 +151,12 @@ function patternContainsIdentifier(node, varName) {
 /**
  * Extract all identifier names from a pattern (handles destructuring)
  *
- * @param {import("ast-types").ASTNode | null | undefined} pattern - The pattern node to
+ * @param {import("ast-types").ASTNode} pattern - The pattern node to
  *   extract identifiers from
  * @yields {string} Identifier names found in the pattern
  * @returns {Generator<string, void, unknown>}
  */
 function* extractIdentifiersFromPattern(pattern) {
-  if (!pattern) return
-
   if (j.Identifier.check(pattern)) {
     yield pattern.name
   } else if (j.ObjectPattern.check(pattern)) {
