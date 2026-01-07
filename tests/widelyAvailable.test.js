@@ -2400,7 +2400,9 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("preserve leading line comment", () => {
-      const result = transform(`// This is a comment\nconst myFunc = () => { return 42; }`)
+      const result = transform(
+        `// This is a comment\nconst myFunc = () => { return 42; }`,
+      )
 
       assert(result.modified, "transform arrow function")
       assert.match(result.code, /\/\/ This is a comment/)
@@ -2408,7 +2410,9 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("preserve JSDoc comment", () => {
-      const result = transform(`/**\n * JSDoc comment\n */\nconst greet = function(name) { return "Hello"; }`)
+      const result = transform(
+        `/**\n * JSDoc comment\n */\nconst greet = function(name) { return "Hello"; }`,
+      )
 
       assert(result.modified, "transform function expression")
       assert.match(result.code, /\/\*\*/)
@@ -2418,7 +2422,9 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("preserve multiple leading comments", () => {
-      const result = transform(`// Comment 1\n// Comment 2\nconst add = (a, b) => a + b`)
+      const result = transform(
+        `// Comment 1\n// Comment 2\nconst add = (a, b) => a + b`,
+      )
 
       assert(result.modified, "transform arrow function")
       assert.match(result.code, /\/\/ Comment 1/)
