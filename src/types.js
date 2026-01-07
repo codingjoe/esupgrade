@@ -140,7 +140,7 @@ export class NodeTest {
         .replace(/\t/g, "\\t")
         .replace(/`/g, "\\`")
         .replace(/\$\{/g, "\\${")
-        // Note: We don't escape \n here because template literals can contain actual newlines
+      // Note: We don't escape \n here because template literals can contain actual newlines
     }
     const rawWithoutQuotes = this.node.extra.raw.slice(1, -1)
     // Note: We intentionally do NOT escape backslashes here because node.extra.raw

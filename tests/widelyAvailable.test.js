@@ -794,14 +794,21 @@ suite("widely-available", () => {
       assert(result.modified, "transform and convert \\n to actual newline")
       // \n should become an actual newline in template literal
       assert.ok(result.code.includes("\n"), "\\n should become actual newline")
-      assert.match(result.code, /`Line 1\nLine 2`/, "should have template literal with newline")
+      assert.match(
+        result.code,
+        /`Line 1\nLine 2`/,
+        "should have template literal with newline",
+      )
     })
 
     test("preserves carriage return and newline escapes", () => {
       // Use single backslash which represents the escape sequence in source code
       const result = transform('const a = "foo\\r\\n" + "bar"')
 
-      assert(result.modified, "transform and preserve \\r escape, convert \\n to newline")
+      assert(
+        result.modified,
+        "transform and preserve \\r escape, convert \\n to newline",
+      )
       assert.ok(result.code.includes("\\r"), "preserve \\r escape sequence")
       // \n should become an actual newline in template literal
       assert.ok(result.code.includes("\n"), "\\n should become actual newline")
@@ -818,7 +825,11 @@ suite("widely-available", () => {
               "bar"`)
 
       assert(result.modified, "transform multiline concatenation")
-      assert.match(result.code, /`foo\\\nbar`/, "should have line continuation backslash")
+      assert.match(
+        result.code,
+        /`foo\\\nbar`/,
+        "should have line continuation backslash",
+      )
     })
 
     test("preserves multiline formatting with multiple strings", () => {
