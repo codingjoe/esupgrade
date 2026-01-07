@@ -1944,6 +1944,13 @@ export function indexOfToIncludes(root) {
         return false
       }
 
+      // Only transform if we can verify the object type is an array or string
+      // This ensures both indexOf and includes are available
+      const objectNode = indexOfCall.callee.object
+      if (!new NodeTest(objectNode).hasIndexOfAndIncludes()) {
+        return false
+      }
+
       // Comparison value must be -1 or 0
       const value = getNumericValue(comparisonValue)
       if (value !== -1 && value !== 0) {

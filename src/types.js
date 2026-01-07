@@ -66,6 +66,106 @@ export class NodeTest {
   }
 
   /**
+   * Check if an expression is statically verifiable as an array or string.
+   * Used by transformers to ensure they only transform known types that support
+   * both indexOf and includes methods.
+   *
+   * @returns {boolean} True if the node can be verified as an array or string
+   */
+  hasIndexOfAndIncludes() {
+    // Array literal: [1, 2, 3]
+    if (j.ArrayExpression.check(this.node)) {
+      return true
+    }
+
+    // String literal: "hello"
+    if (j.StringLiteral.check(this.node) || j.Literal.check(this.node)) {
+      return typeof this.node.value === "string"
+    }
+
+    // Template literal: `hello`
+    if (j.TemplateLiteral.check(this.node)) {
+      return true
+    }
+
+    // Array.from(), Array.of(), etc.
+    if (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.object) &&
+      this.node.callee.object.name === "Array"
+    ) {
+      return true
+    }
+
+    // new Array()
+    if (
+      j.NewExpression.check(this.node) &&
+      j.Identifier.check(this.node.callee) &&
+      this.node.callee.name === "Array"
+    ) {
+      return true
+    }
+
+    // String methods that return strings
+    const STRING_METHODS_RETURNING_STRING = [
+      "slice",
+      "substr",
+      "substring",
+      "toLowerCase",
+      "toUpperCase",
+      "trim",
+      "trimStart",
+      "trimEnd",
+      "trimLeft",
+      "trimRight",
+      "repeat",
+      "padStart",
+      "padEnd",
+      "concat",
+      "replace",
+      "replaceAll",
+    ]
+
+    // String literal methods (e.g., "hello".slice(0), "world".toLowerCase())
+    if (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.property) &&
+      j.StringLiteral.check(this.node.callee.object) &&
+      STRING_METHODS_RETURNING_STRING.includes(this.node.callee.property.name)
+    ) {
+      return true
+    }
+
+    // Array methods that return arrays
+    const ARRAY_METHODS_RETURNING_ARRAY = [
+      "slice",
+      "concat",
+      "map",
+      "filter",
+      "flat",
+      "flatMap",
+      "reverse",
+      "sort",
+      "splice",
+    ]
+
+    // Check for array method calls on known iterables
+    if (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.property) &&
+      ARRAY_METHODS_RETURNING_ARRAY.includes(this.node.callee.property.name)
+    ) {
+      // Recursively check if the object is a known iterable
+      return new NodeTest(this.node.callee.object).hasIndexOfAndIncludes()
+    }
+
+    return false
+  }
+
+  /**
    * Check if two AST nodes are structurally equivalent. Compares identifiers, literals,
    * member expressions, and call expressions recursively.
    *
