@@ -1,5 +1,12 @@
 import { default as j } from "jscodeshift"
 
+const SKIP_KEYS = new Set(["loc", "start", "end", "tokens", "comments", "type"])
+const FUNCTION_TYPES = new Set([
+  "FunctionDeclaration",
+  "FunctionExpression",
+  "ArrowFunctionExpression",
+])
+
 /**
  * Wrapper class for AST nodes providing utility methods.
  *
@@ -152,6 +159,79 @@ export class NodeTest {
       .replace(/`/g, "\\`")
       .replace(/\$\{/g, "\\${")
   }
+
+  /**
+   * Traverse an AST node recursively, calling a predicate on each node.
+   * Stop traversal into nested functions as they have their own scope.
+   *
+   * @param {import("ast-types").ASTNode} astNode - The node to traverse
+   * @param {function(import("ast-types").ASTNode): boolean} predicate - Return true if found
+   * @returns {boolean} True if predicate returned true for any node
+   */
+  #traverseForPredicate(astNode, predicate) {
+    if (predicate(astNode)) {
+      return true
+    }
+
+    if (FUNCTION_TYPES.has(astNode.type)) {
+      return false
+    }
+
+    for (const key in astNode) {
+      if (SKIP_KEYS.has(key)) {
+        continue
+      }
+      const value = astNode[key]
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (this.#traverseForPredicate(item, predicate)) {
+            return true
+          }
+        }
+      } else if (value && typeof value === "object") {
+        if (this.#traverseForPredicate(value, predicate)) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * Check if a node or its descendants use 'this'. Does not traverse into nested
+   * functions as they have their own 'this' context.
+   *
+   * @returns {boolean} True if 'this' is used in the node
+   */
+  usesThis() {
+    return this.#traverseForPredicate(
+      this.node,
+      (node) => node.type === "ThisExpression",
+    )
+  }
+
+  /**
+   * Check if a node or its descendants use 'arguments'. Does not traverse into nested
+   * functions as they have their own 'arguments' binding. Arrow functions also don't
+   * have 'arguments', so we skip them too.
+   *
+   * @returns {boolean} True if 'arguments' is used in the node
+   */
+  usesArguments() {
+    for (const statement of this.node.body) {
+      if (
+        this.#traverseForPredicate(
+          statement,
+          (node) => node.type === "Identifier" && node.name === "arguments",
+        )
+      ) {
+        return true
+      }
+    }
+
+    return false
+  }
 }
 
 /**
@@ -163,18 +243,18 @@ export class NodeTest {
  * @returns {boolean} True if the pattern contains the identifier
  */
 function patternContainsIdentifier(node, varName) {
-  // Check for null or undefined (loose equality is intentional)
   if (j.Identifier.check(node)) {
     return node.name === varName
   }
   if (j.ObjectPattern.check(node)) {
-    return node.properties.some(
-      (prop) =>
-        ((j.Property.check(prop) || j.ObjectProperty.check(prop)) &&
-          patternContainsIdentifier(prop.value, varName)) ||
-        (j.RestElement.check(prop) &&
-          patternContainsIdentifier(prop.argument, varName)),
-    )
+    return node.properties.some((prop) => {
+      if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
+        return patternContainsIdentifier(prop.value, varName)
+      }
+      if (j.RestElement.check(prop)) {
+        return patternContainsIdentifier(prop.argument, varName)
+      }
+    })
   }
   if (j.ArrayPattern.check(node)) {
     return node.elements.some((element) => patternContainsIdentifier(element, varName))
@@ -182,8 +262,10 @@ function patternContainsIdentifier(node, varName) {
   if (j.AssignmentPattern.check(node)) {
     return patternContainsIdentifier(node.left, varName)
   }
-  // RestElement is the only remaining valid pattern type
-  return j.RestElement.check(node) && patternContainsIdentifier(node.argument, varName)
+  if (j.RestElement.check(node)) {
+    return patternContainsIdentifier(node.argument, varName)
+  }
+  return false
 }
 
 /**
@@ -217,65 +299,83 @@ function* extractIdentifiersFromPattern(pattern) {
 }
 
 /**
+ * Check if function parameters contain a specific variable name.
+ *
+ * @param {import("ast-types").ASTNode[]} params - Function parameters
+ * @param {string} varName - The variable name to search for
+ * @returns {boolean} True if any parameter contains the variable name
+ */
+function paramsContainIdentifier(params, varName) {
+  return params.some((param) => patternContainsIdentifier(param, varName))
+}
+
+/**
+ * Check if a function body has a local declaration shadowing the variable.
+ *
+ * @param {import("ast-types").ASTNode} functionBody - The function body node
+ * @param {import("ast-types").NodePath} declarationPath - The path to the original
+ *   declaration
+ * @param {string} varName - The variable name to check
+ * @returns {{ hasShadowing: boolean; foundOurDeclaration: boolean }}
+ */
+function checkFunctionBodyForShadowing(functionBody, declarationPath, varName) {
+  let foundOurDeclaration = false
+  const hasShadowing = j(functionBody)
+    .find(j.VariableDeclarator)
+    .some((declPath) => {
+      if (declPath.parent.node === declarationPath.node) {
+        foundOurDeclaration = true
+        return false
+      }
+      return patternContainsIdentifier(declPath.node.id, varName)
+    })
+
+  return { hasShadowing, foundOurDeclaration }
+}
+
+/**
  * Check if an assignment/update expression is shadowed by a closer variable declaration
  *
  * @param {string} varName - The variable name to check
  * @param {import("ast-types").NodePath} declarationPath - The path to the original
  *   declaration
- * @param {import("ast-types").NodePath} usagePath - The path to the assignment/update
- *   expression
+ * @param {import("ast-types").NodePath} currentPath - The current path being checked
  * @returns {boolean} True if the assignment is shadowed by a closer declaration
  */
-function isAssignmentShadowed(varName, declarationPath, usagePath) {
-  let current = usagePath.parent
-
-  while (current) {
-    if (
-      j.FunctionDeclaration.check(current.node) ||
-      j.FunctionExpression.check(current.node) ||
-      j.ArrowFunctionExpression.check(current.node)
-    ) {
-      // Check function parameters
-      if (current.node.params) {
-        for (const param of current.node.params) {
-          if (patternContainsIdentifier(param, varName)) {
-            return true
-          }
-        }
-      }
-
-      // Check for var/let/const declarations in this function
-      const functionBody = current.node.body
-      if (functionBody) {
-        let foundOurDeclaration = false
-        const hasLocalDecl = j(functionBody)
-          .find(j.VariableDeclarator)
-          .some((declPath) => {
-            const declParent = declPath.parent.node
-            if (declParent === declarationPath.node) {
-              foundOurDeclaration = true
-              return false
-            }
-            return patternContainsIdentifier(declPath.node.id, varName)
-          })
-
-        // If we found a shadowing declaration (not our own), the assignment is shadowed
-        if (hasLocalDecl) {
-          return true
-        }
-
-        // If we found our declaration in this scope, stop traversing -
-        // the assignment is not shadowed, it belongs to our declaration
-        if (foundOurDeclaration) {
-          return false
-        }
-      }
-    }
-
-    current = current.parent
+function isAssignmentShadowed(varName, declarationPath, currentPath) {
+  if (!currentPath.parent) {
+    return false
   }
 
-  return false
+  const node = currentPath.parent.node
+
+  if (
+    j.FunctionDeclaration.check(node) ||
+    j.FunctionExpression.check(node) ||
+    j.ArrowFunctionExpression.check(node)
+  ) {
+    if (node.params && paramsContainIdentifier(node.params, varName)) {
+      return true
+    }
+
+    if (node.body) {
+      const { hasShadowing, foundOurDeclaration } = checkFunctionBodyForShadowing(
+        node.body,
+        declarationPath,
+        varName,
+      )
+
+      if (hasShadowing) {
+        return true
+      }
+
+      if (foundOurDeclaration) {
+        return false
+      }
+    }
+  }
+
+  return isAssignmentShadowed(varName, declarationPath, currentPath.parent)
 }
 
 /**

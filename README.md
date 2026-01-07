@@ -227,14 +227,49 @@ Supports:
 +const area = Math.PI * radius ** 2;
 ```
 
-#### Function expressions → [Arrow functions][mdn-arrow-functions]
+#### Named function assignments → [Function declarations][mdn-functions]
 
 ```diff
--const fn = function(x) { return x * 2; };
--items.map(function(item) { return item.name; });
-+const fn = x => { return x * 2; };
-+items.map(item => { return item.name; });
+-const myFunc = () => { return 42; };
+-const add = (a, b) => a + b;
+-const greet = function(name) { return "Hello " + name; };
++function myFunc() { return 42; }
++function add(a, b) { return a + b; }
++function greet(name) { return "Hello " + name; }
 ```
+
+Transforms arrow functions and anonymous function expressions assigned to variables into proper named function declarations. This provides better structure and semantics for top-level functions.
+
+Functions using `this` or `arguments` are not converted to preserve semantics.
+
+TypeScript parameter and return type annotations are preserved:
+
+```diff
+-let myAdd = function (x: number, y: number): number {
+-  return x + y;
+-};
++function myAdd(x: number, y: number): number {
++  return x + y;
++}
+```
+
+Variables with TypeScript type annotations but no function return type are skipped:
+
+```typescript
+// Not transformed - variable type annotation cannot be transferred
+const Template: StoryFn<MyType> = () => { return <div>Hello</div>; };
+```
+
+#### Anonymous function expressions → [Arrow functions][mdn-arrow-functions]
+
+```diff
+-items.map(function(item) { return item.name; });
+-button.addEventListener('click', function(event) { process(event); });
++items.map(item => { return item.name; });
++button.addEventListener('click', event => { process(event); });
+```
+
+Anonymous function expressions not in variable declarations (like callbacks and event handlers) are converted to arrow functions.
 
 Functions using `this`, `arguments`, or `super` are not converted to preserve semantics.
 
@@ -386,6 +421,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
+[mdn-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions
 [mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing

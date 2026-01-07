@@ -45,7 +45,7 @@ export function concatToTemplateLiteral(root) {
     .find(j.BinaryExpression, { operator: "+" })
     .filter((path) => {
       // Only transform if at least one operand is a string literal
-      const hasStringLiteral = (node) => {
+      function hasStringLiteral(node) {
         if (
           j.StringLiteral.check(node) ||
           (j.Literal.check(node) && typeof node.value === "string")
@@ -57,6 +57,7 @@ export function concatToTemplateLiteral(root) {
         }
         return false
       }
+
       return hasStringLiteral(path.node)
     })
     .forEach((path) => {
@@ -65,7 +66,7 @@ export function concatToTemplateLiteral(root) {
       let lastStringNode = null // Track the last string literal node
 
       // Helper to check if a node is a string literal
-      const isStringLiteral = (node) => {
+      function isStringLiteral(node) {
         return (
           j.StringLiteral.check(node) ||
           (j.Literal.check(node) && typeof node.value === "string")
@@ -73,7 +74,7 @@ export function concatToTemplateLiteral(root) {
       }
 
       // Helper to check if a node contains any string literal
-      const containsStringLiteral = (node) => {
+      function containsStringLiteral(node) {
         if (isStringLiteral(node)) return true
         if (j.BinaryExpression.check(node) && node.operator === "+") {
           return containsStringLiteral(node.left) || containsStringLiteral(node.right)
@@ -81,7 +82,7 @@ export function concatToTemplateLiteral(root) {
         return false
       }
 
-      const addStringPart = (stringNode) => {
+      function addStringPart(stringNode) {
         // Store both the raw and cooked values
         const rawValue = new NodeTest(stringNode).getRawStringValue()
         const cookedValue = stringNode.value
@@ -109,7 +110,8 @@ export function concatToTemplateLiteral(root) {
             if (lastPart.raw.endsWith("\n")) {
               lastPart.raw += rawValue
             } else {
-              lastPart.raw += "\\\n" + rawValue
+              lastPart.raw += `\\
+${rawValue}`
             }
             lastPart.cooked += cookedValue
           } else {
@@ -121,14 +123,14 @@ export function concatToTemplateLiteral(root) {
         lastStringNode = stringNode
       }
 
-      const addExpression = (expr) => {
+      function addExpression(expr) {
         if (parts.length === 0) {
           parts.push({ raw: "", cooked: "" })
         }
         expressions.push(expr)
       }
 
-      const flatten = (node, stringContext = false) => {
+      function flatten(node, stringContext = false) {
         // Note: node is always a BinaryExpression when called, as non-BinaryExpression
         // nodes are handled inline before recursing into flatten
         if (j.BinaryExpression.check(node) && node.operator === "+") {
@@ -532,7 +534,7 @@ export function forLoopToForOf(root) {
       let indexVarUsed = false
 
       // Recursively check if identifier is used in AST nodes
-      const checkNode = (astNode) => {
+      function checkNode(astNode) {
         if (!astNode || typeof astNode !== "object") return
 
         if (astNode.type === "Identifier" && astNode.name === indexVar) {
@@ -689,7 +691,7 @@ export function iterableForEachToForOf(root) {
           j.CallExpression.check(callerObject)
         ) {
           // Check if this eventually chains from document
-          const isFromDocument = (node) => {
+          function isFromDocument(node) {
             if (j.Identifier.check(node)) {
               return node.name === "document"
             }
@@ -793,108 +795,6 @@ export function iterableForEachToForOf(root) {
 export function anonymousFunctionToArrow(root) {
   let modified = false
 
-  // Helper to check if a node or its descendants use 'this'
-  const usesThis = (node) => {
-    let found = false
-
-    const checkNode = (astNode) => {
-      if (!astNode || typeof astNode !== "object" || found) return
-
-      // Found 'this' identifier
-      if (astNode.type === "ThisExpression") {
-        found = true
-        return
-      }
-
-      // Don't traverse into nested function declarations or expressions
-      // as they have their own 'this' context
-      if (
-        astNode.type === "FunctionDeclaration" ||
-        astNode.type === "FunctionExpression" ||
-        astNode.type === "ArrowFunctionExpression"
-      ) {
-        return
-      }
-
-      // Traverse all properties
-      for (const key in astNode) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments"
-        )
-          continue
-        const value = astNode[key]
-        if (Array.isArray(value)) {
-          value.forEach(checkNode)
-        } else if (value && typeof value === "object") {
-          checkNode(value)
-        }
-      }
-    }
-
-    checkNode(node)
-    return found
-  }
-
-  // Helper to check if a node or its descendants use 'arguments'
-  const usesArguments = (node) => {
-    let found = false
-
-    const visit = (n) => {
-      if (!n || typeof n !== "object" || found) return
-
-      // If we encounter a nested function, don't traverse into it
-      // as it has its own 'arguments' binding
-      if (n.type === "FunctionExpression" || n.type === "FunctionDeclaration") {
-        return
-      }
-
-      // Check if this is an 'arguments' identifier
-      if (n.type === "Identifier" && n.name === "arguments") {
-        found = true
-        return
-      }
-
-      // Traverse all child nodes
-      for (const key in n) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments" ||
-          key === "type"
-        ) {
-          continue
-        }
-        const value = n[key]
-        if (Array.isArray(value)) {
-          for (const item of value) {
-            visit(item)
-            if (found) return
-          }
-        } else if (value && typeof value === "object") {
-          visit(value)
-        }
-      }
-    }
-
-    // Start visiting from the function body's child nodes
-    // Don't check the body node itself, check its contents
-    // Note: FunctionExpression.body is always a BlockStatement
-    if (node.type === "BlockStatement" && node.body) {
-      for (const statement of node.body) {
-        visit(statement)
-        if (found) break
-      }
-    }
-
-    return found
-  }
-
   root
     .find(j.FunctionExpression)
     .filter((path) => {
@@ -912,13 +812,19 @@ export function anonymousFunctionToArrow(root) {
       }
 
       // Skip if it uses 'this'
-      if (usesThis(node.body)) {
+      if (new NodeTest(node.body).usesThis()) {
         return false
       }
 
       // Skip if it uses 'arguments'
-      const hasArguments = usesArguments(node.body)
-      if (hasArguments) {
+      if (new NodeTest(node.body).usesArguments()) {
+        return false
+      }
+
+      // Skip if this function expression is the init of a variable declarator
+      // because namedArrowFunctionToNamedFunction will handle those
+      const parent = path.parent.node
+      if (j.VariableDeclarator.check(parent) && parent.init === node) {
         return false
       }
 
@@ -939,6 +845,134 @@ export function anonymousFunctionToArrow(root) {
       }
 
       j(path).replaceWith(arrowFunction)
+
+      modified = true
+    })
+
+  return modified
+}
+
+/**
+ * Transform named arrow function and anonymous function expression assignments to
+ * named function declarations. Converts:
+ *
+ * - Const myFunc = () => {} to: function myFunc() {}
+ * - Const myFunc = function() {} to: function myFunc() {}
+ * - Let myFunc = function(x: number): number {...} to: function myFunc(x: number): number {...}
+ *
+ * Only transforms when safe (function doesn't use outer 'this' or 'arguments'). Note:
+ * Arrow functions never have their own 'this' or 'arguments', so this transformation
+ * is generally safe for arrow functions, but we check to ensure they don't use 'this'
+ * at all to avoid potential issues.
+ *
+ * TypeScript type annotations on function parameters and return types are preserved.
+ * Variables with type annotations are only skipped if the function itself doesn't
+ * have a return type annotation that can be preserved.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions
+ */
+export function namedArrowFunctionToNamedFunction(root) {
+  let modified = false
+
+  root
+    .find(j.VariableDeclaration)
+    .filter((path) => {
+      const node = path.node
+
+      // Must have exactly one declarator
+      if (node.declarations.length !== 1) {
+        return false
+      }
+
+      const declarator = node.declarations[0]
+
+      // Declarator must have an identifier (simple variable name)
+      if (!j.Identifier.check(declarator.id)) {
+        return false
+      }
+
+      // Init must be an arrow function or anonymous function expression
+      const isArrowFunction = j.ArrowFunctionExpression.check(declarator.init)
+      const isFunctionExpression =
+        j.FunctionExpression.check(declarator.init) && !declarator.init.id
+
+      if (!isArrowFunction && !isFunctionExpression) {
+        return false
+      }
+
+      const func = declarator.init
+
+      // Skip if the variable has a TypeScript type annotation but the function
+      // doesn't have its own return type annotation (which we can preserve)
+      // This handles cases like: const Template: StoryFn<MyType> = () => {...}
+      // where the type information would be lost in the transformation
+      if (declarator.id.typeAnnotation && !func.returnType) {
+        return false
+      }
+
+      // Skip if it's a generator function
+      if (func.generator) {
+        return false
+      }
+
+      // Skip if the function uses 'this'
+      if (new NodeTest(func.body).usesThis()) {
+        return false
+      }
+
+      // Skip if the function uses 'arguments' (only relevant for function expressions)
+      if (isFunctionExpression && new NodeTest(func.body).usesArguments()) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const declarator = node.declarations[0]
+      const functionName = declarator.id.name
+      const func = declarator.init
+
+      // Convert function body to block statement if needed (for arrow functions with expression bodies)
+      let functionBody
+      if (j.BlockStatement.check(func.body)) {
+        functionBody = func.body
+      } else {
+        // Expression body - wrap in return statement
+        functionBody = j.blockStatement([j.returnStatement(func.body)])
+      }
+
+      // Create function declaration
+      const functionDeclaration = j.functionDeclaration(
+        j.identifier(functionName),
+        func.params,
+        functionBody,
+      )
+
+      // Preserve async property
+      if (func.async) {
+        functionDeclaration.async = true
+      }
+
+      // Preserve TypeScript return type annotation
+      if (func.returnType) {
+        functionDeclaration.returnType = func.returnType
+      }
+
+      // Preserve comments from the original variable declaration
+      if (node.comments) {
+        functionDeclaration.comments = node.comments
+      }
+      if (node.leadingComments) {
+        functionDeclaration.leadingComments = node.leadingComments
+      }
+      if (node.trailingComments) {
+        functionDeclaration.trailingComments = node.trailingComments
+      }
+
+      j(path).replaceWith(functionDeclaration)
 
       modified = true
     })
@@ -1438,7 +1472,7 @@ export function globalContextToGlobalThis(root) {
    * @param {string} name - Name to check for shadowing
    * @returns {boolean} True if the identifier is shadowed
    */
-  const isShadowed = (path, name) => {
+  function isShadowed(path, name) {
     let scope = path.scope
 
     while (scope) {
@@ -1578,7 +1612,7 @@ export function nullishCoalescingOperator(root) {
    * @param {import("jscodeshift").BinaryExpression} node - The binary expression
    * @returns {{ value: import("ast-types").ASTNode; isNegated: boolean } | null}
    */
-  const getNullCheck = (node) => {
+  function getNullCheck(node) {
     if (!j.BinaryExpression.check(node)) {
       return null
     }
@@ -1614,7 +1648,7 @@ export function nullishCoalescingOperator(root) {
    * @param {import("jscodeshift").BinaryExpression} node - The binary expression
    * @returns {{ value: import("ast-types").ASTNode; isNegated: boolean } | null}
    */
-  const getUndefinedCheck = (node) => {
+  function getUndefinedCheck(node) {
     if (!j.BinaryExpression.check(node)) {
       return null
     }
@@ -1650,7 +1684,7 @@ export function nullishCoalescingOperator(root) {
    *   against
    * @returns {boolean} True if validation passes
    */
-  const validateChecks = (nullCheck, undefinedCheck, consequent) => {
+  function validateChecks(nullCheck, undefinedCheck, consequent) {
     // Both checks must be negated (!==)
     if (!nullCheck.isNegated || !undefinedCheck.isNegated) {
       return false
@@ -1806,7 +1840,7 @@ export function optionalChaining(root) {
    * @param {import("ast-types").ASTNode} base - The expected base
    * @returns {boolean} True if node accesses base
    */
-  const isAccessOnBase = (node, base) => {
+  function isAccessOnBase(node, base) {
     if (j.MemberExpression.check(node)) {
       return new NodeTest(node.object).isEqual(base)
     }
@@ -1823,7 +1857,7 @@ export function optionalChaining(root) {
    * @param {import("ast-types").ASTNode[]} accesses - The property/method accesses
    * @returns {import("ast-types").ASTNode} The optional chaining expression
    */
-  const buildOptionalChain = (base, accesses) => {
+  function buildOptionalChain(base, accesses) {
     let result = base
 
     for (const access of accesses) {
@@ -1852,7 +1886,7 @@ export function optionalChaining(root) {
    *   accesses: import("ast-types").ASTNode[]
    * } | null}
    */
-  const extractChain = (node) => {
+  function extractChain(node) {
     const parts = []
     let current = node
 
