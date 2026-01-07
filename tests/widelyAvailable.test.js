@@ -813,6 +813,32 @@ suite("widely-available", () => {
       )
     })
 
+    test("preserves multiline formatting with line continuation", () => {
+      const result = transform(`const myVar = "foo" +
+              "bar"`)
+
+      assert(result.modified, "transform multiline concatenation")
+      assert.match(result.code, /`foo\\\nbar`/, "should have line continuation backslash")
+    })
+
+    test("preserves multiline formatting with multiple strings", () => {
+      const result = transform(`const myVar = "foo" +
+              "bar" +
+              "baz"`)
+
+      assert(result.modified, "transform multiline concatenation with multiple strings")
+      // Should have two line continuations
+      assert.match(result.code, /`foo\\\nbar\\\nbaz`/, "should have line continuations")
+    })
+
+    test("single line concatenation has no line continuation", () => {
+      const result = transform(`const myVar = "foo" + "bar"`)
+
+      assert(result.modified, "transform single line concatenation")
+      assert.match(result.code, /`foobar`/, "should not have line continuation")
+      assert.ok(!result.code.includes("\\"), "should not have backslash")
+    })
+
     test("preserves tab escapes", () => {
       const result = transform(`const str = "Tab\\\\t" + value + "\\\\t";`)
 

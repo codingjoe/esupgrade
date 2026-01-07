@@ -62,6 +62,7 @@ export function concatToTemplateLiteral(root) {
     .forEach((path) => {
       const parts = []
       const expressions = []
+      let lastStringNode = null // Track the last string literal node
 
       // Helper to check if a node is a string literal
       const isStringLiteral = (node) => {
@@ -85,13 +86,34 @@ export function concatToTemplateLiteral(root) {
         const rawValue = new NodeTest(stringNode).getRawStringValue()
         const cookedValue = stringNode.value
 
+        // Check if we need to add a line continuation backslash
+        // This happens when two consecutive string literals are on different lines
+        let needsLineContinuation = false
+        if (
+          lastStringNode &&
+          lastStringNode.loc &&
+          stringNode.loc &&
+          lastStringNode.loc.end.line < stringNode.loc.start.line
+        ) {
+          // Strings are on different lines - add line continuation
+          needsLineContinuation = true
+        }
+
         if (parts.length === 0 || expressions.length >= parts.length) {
           parts.push({ raw: rawValue, cooked: cookedValue })
         } else {
           const lastPart = parts[parts.length - 1]
-          lastPart.raw += rawValue
-          lastPart.cooked += cookedValue
+          if (needsLineContinuation) {
+            // Add backslash and newline for line continuation
+            lastPart.raw += "\\\n" + rawValue
+            lastPart.cooked += cookedValue
+          } else {
+            lastPart.raw += rawValue
+            lastPart.cooked += cookedValue
+          }
         }
+
+        lastStringNode = stringNode
       }
 
       const addExpression = (expr) => {
