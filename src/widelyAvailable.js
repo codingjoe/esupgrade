@@ -1,6 +1,8 @@
 import { default as j } from "jscodeshift"
 import {
   NodeTest,
+  getIndexOfInfo,
+  getNumericValue,
   processMultipleDeclarators,
   processSingleDeclarator,
 } from "./types.js"
@@ -1917,78 +1919,6 @@ export function optionalChaining(root) {
  */
 export function indexOfToIncludes(root) {
   let modified = false
-
-  /**
-   * Get numeric value from a node (handles -1 as UnaryExpression).
-   *
-   * @param {import("ast-types").namedTypes.Node} node - The AST node to extract
-   *   numeric value from
-   * @returns {number | null} The numeric value, or null if not a number
-   */
-  const getNumericValue = (node) => {
-    // Handle direct literals (e.g., 0)
-    if (j.Literal.check(node) && typeof node.value === "number") {
-      return node.value
-    }
-    // Handle NumericLiteral (alternative node type)
-    if (node.type === "NumericLiteral" && typeof node.value === "number") {
-      return node.value
-    }
-    // Handle UnaryExpression with minus operator (e.g., -1)
-    if (
-      j.UnaryExpression.check(node) &&
-      node.operator === "-" &&
-      (j.Literal.check(node.argument) || node.argument.type === "NumericLiteral")
-    ) {
-      const argValue = node.argument.value
-      if (typeof argValue === "number") {
-        return -argValue
-      }
-    }
-    return null
-  }
-
-  /**
-   * Determine which side of the binary expression has the indexOf call.
-   *
-   * @param {import("ast-types").namedTypes.BinaryExpression} node - The binary
-   *   expression node to analyze
-   * @returns {{
-   *   indexOfCall: import("ast-types").namedTypes.CallExpression;
-   *   comparisonValue: import("ast-types").namedTypes.Node;
-   *   isLeftIndexOf: boolean;
-   * } | null}
-   *   Object with indexOf call info, or null if not found
-   */
-  const getIndexOfInfo = (node) => {
-    // Check left side
-    if (
-      j.CallExpression.check(node.left) &&
-      j.MemberExpression.check(node.left.callee) &&
-      j.Identifier.check(node.left.callee.property) &&
-      node.left.callee.property.name === "indexOf"
-    ) {
-      return {
-        indexOfCall: node.left,
-        comparisonValue: node.right,
-        isLeftIndexOf: true,
-      }
-    }
-    // Check right side
-    else if (
-      j.CallExpression.check(node.right) &&
-      j.MemberExpression.check(node.right.callee) &&
-      j.Identifier.check(node.right.callee.property) &&
-      node.right.callee.property.name === "indexOf"
-    ) {
-      return {
-        indexOfCall: node.right,
-        comparisonValue: node.left,
-        isLeftIndexOf: false,
-      }
-    }
-    return null
-  }
 
   root
     .find(j.BinaryExpression)
