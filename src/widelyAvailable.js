@@ -881,11 +881,6 @@ export function namedArrowFunctionToNamedFunction(root) {
     .filter((path) => {
       const node = path.node
 
-      // Transform const, let, and var declarations
-      if (!["const", "let", "var"].includes(node.kind)) {
-        return false
-      }
-
       // Must have exactly one declarator
       if (node.declarations.length !== 1) {
         return false

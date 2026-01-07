@@ -1,5 +1,12 @@
 import { default as j } from "jscodeshift"
 
+const SKIP_KEYS = new Set(["loc", "start", "end", "tokens", "comments", "type"])
+const FUNCTION_TYPES = new Set([
+  "FunctionDeclaration",
+  "FunctionExpression",
+  "ArrowFunctionExpression",
+])
+
 /**
  * Wrapper class for AST nodes providing utility methods.
  *
@@ -154,54 +161,54 @@ export class NodeTest {
   }
 
   /**
+   * Traverse an AST node recursively, calling a predicate on each node.
+   * Stop traversal into nested functions as they have their own scope.
+   *
+   * @param {import("ast-types").ASTNode} astNode - The node to traverse
+   * @param {function(import("ast-types").ASTNode): boolean} predicate - Return true if found
+   * @returns {boolean} True if predicate returned true for any node
+   */
+  #traverseForPredicate(astNode, predicate) {
+    if (predicate(astNode)) {
+      return true
+    }
+
+    if (FUNCTION_TYPES.has(astNode.type)) {
+      return false
+    }
+
+    for (const key in astNode) {
+      if (SKIP_KEYS.has(key)) {
+        continue
+      }
+      const value = astNode[key]
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (this.#traverseForPredicate(item, predicate)) {
+            return true
+          }
+        }
+      } else if (value && typeof value === "object") {
+        if (this.#traverseForPredicate(value, predicate)) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  /**
    * Check if a node or its descendants use 'this'. Does not traverse into nested
    * functions as they have their own 'this' context.
    *
    * @returns {boolean} True if 'this' is used in the node
    */
   usesThis() {
-    let found = false
-
-    const checkNode = (astNode) => {
-      if (!astNode || typeof astNode !== "object" || found) return
-
-      // Found 'this' identifier
-      if (astNode.type === "ThisExpression") {
-        found = true
-        return
-      }
-
-      // Don't traverse into nested function declarations or expressions
-      // as they have their own 'this' context
-      if (
-        astNode.type === "FunctionDeclaration" ||
-        astNode.type === "FunctionExpression" ||
-        astNode.type === "ArrowFunctionExpression"
-      ) {
-        return
-      }
-
-      // Traverse all properties
-      for (const key in astNode) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments"
-        )
-          continue
-        const value = astNode[key]
-        if (Array.isArray(value)) {
-          value.forEach(checkNode)
-        } else if (value && typeof value === "object") {
-          checkNode(value)
-        }
-      }
-    }
-
-    checkNode(this.node)
-    return found
+    return this.#traverseForPredicate(
+      this.node,
+      (node) => node.type === "ThisExpression",
+    )
   }
 
   /**
@@ -212,61 +219,18 @@ export class NodeTest {
    * @returns {boolean} True if 'arguments' is used in the node
    */
   usesArguments() {
-    let found = false
-
-    const visit = (n) => {
-      if (!n || typeof n !== "object" || found) return
-
-      // If we encounter a nested function, don't traverse into it
-      // as it has its own 'arguments' binding
-      // Arrow functions also don't have 'arguments', so skip them too
+    for (const statement of this.node.body) {
       if (
-        n.type === "FunctionExpression" ||
-        n.type === "FunctionDeclaration" ||
-        n.type === "ArrowFunctionExpression"
+        this.#traverseForPredicate(
+          statement,
+          (node) => node.type === "Identifier" && node.name === "arguments",
+        )
       ) {
-        return
-      }
-
-      // Check if this is an 'arguments' identifier
-      if (n.type === "Identifier" && n.name === "arguments") {
-        found = true
-        return
-      }
-
-      // Traverse all child nodes
-      for (const key in n) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments" ||
-          key === "type"
-        ) {
-          continue
-        }
-        const value = n[key]
-        if (Array.isArray(value)) {
-          for (const item of value) {
-            visit(item)
-            if (found) return
-          }
-        } else if (value && typeof value === "object") {
-          visit(value)
-        }
+        return true
       }
     }
 
-    // Start visiting from the function body's child nodes
-    if (this.node.type === "BlockStatement" && this.node.body) {
-      for (const statement of this.node.body) {
-        visit(statement)
-        if (found) break
-      }
-    }
-
-    return found
+    return false
   }
 }
 

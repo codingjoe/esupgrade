@@ -2442,6 +2442,15 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /\/\* Block comment \*\//)
       assert.match(result.code, /function multiply\(x, y\)/)
     })
+
+    test("preserve trailing comment", () => {
+      const result = transform(`const getValue = () => 42 // trailing comment`)
+
+      assert(result.modified, "transform arrow function")
+      assert.match(result.code, /function getValue\(\)/)
+      assert.match(result.code, /return 42/)
+      assert.match(result.code, /\/\/ trailing comment/)
+    })
   })
 
   describe("arrayConcatToSpread", () => {
