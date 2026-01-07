@@ -882,7 +882,7 @@ export function namedArrowFunctionToNamedFunction(root) {
       const node = path.node
 
       // Transform const, let, and var declarations
-      if (node.kind !== "const" && node.kind !== "let" && node.kind !== "var") {
+      if (!["const", "let", "var"].includes(node.kind)) {
         return false
       }
 
