@@ -690,6 +690,62 @@ suite("widely-available", () => {
       assert.match(result.code, /let pixels;/)
       assert.doesNotMatch(result.code, /const pixels;/)
     })
+
+    test("for-of loop variable", () => {
+      const result = transform(`
+    const items = [1, 2, 3];
+    for (var item of items) {
+      console.log(item);
+    }
+  `)
+
+      assert(result.modified, "transform for-of loop variable")
+      assert.match(result.code, /for \(const item of items\)/)
+      assert.doesNotMatch(result.code, /var item/)
+      assert.doesNotMatch(result.code, /let item/)
+    })
+
+    test("for-in loop variable", () => {
+      const result = transform(`
+    const obj = { a: 1, b: 2 };
+    for (var key in obj) {
+      console.log(key);
+    }
+  `)
+
+      assert(result.modified, "transform for-in loop variable")
+      assert.match(result.code, /for \(const key in obj\)/)
+      assert.doesNotMatch(result.code, /var key/)
+      assert.doesNotMatch(result.code, /let key/)
+    })
+
+    test("for-of loop with array literal", () => {
+      const result = transform(`
+    for (var num of [1, 2, 3]) {
+      console.log(num);
+    }
+  `)
+
+      assert(result.modified, "transform for-of with array literal")
+      assert.match(result.code, /for \(const num of \[1, 2, 3\]\)/)
+      assert.doesNotMatch(result.code, /var num/)
+      assert.doesNotMatch(result.code, /let num/)
+    })
+
+    test("for-in loop with object properties", () => {
+      const result = transform(`
+    for (var prop in window) {
+      if (prop.startsWith('on')) {
+        console.log(prop);
+      }
+    }
+  `)
+
+      assert(result.modified, "transform for-in with object properties")
+      assert.match(result.code, /for \(const prop in/)
+      assert.doesNotMatch(result.code, /var prop/)
+      assert.doesNotMatch(result.code, /let prop/)
+    })
   })
 
   describe("stringConcatToTemplate", () => {
