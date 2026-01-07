@@ -242,10 +242,21 @@ Transforms arrow functions and anonymous function expressions assigned to variab
 
 Functions using `this` or `arguments` are not converted to preserve semantics.
 
-Variables with TypeScript type annotations are preserved to maintain type information:
+TypeScript parameter and return type annotations are preserved:
+
+```diff
+-let myAdd = function (x: number, y: number): number {
+-  return x + y;
+-};
++function myAdd(x: number, y: number): number {
++  return x + y;
++}
+```
+
+Variables with TypeScript type annotations but no function return type are skipped:
 
 ```typescript
-// Not transformed - type annotation preserved
+// Not transformed - variable type annotation cannot be transferred
 const Template: StoryFn<MyType> = () => { return <div>Hello</div>; };
 ```
 

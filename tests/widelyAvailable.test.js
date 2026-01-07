@@ -2256,18 +2256,48 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /return name/)
     })
 
-    test("skip arrow function with TypeScript type annotation", () => {
+    test("skip arrow function with variable type annotation and no function return type", () => {
       const result = transform(`const Template: StoryFn<MyType> = () => { return <div>Hello</div>; }`)
 
-      assert(!result.modified, "skip arrow function with type annotation")
+      assert(!result.modified, "skip arrow function with variable type and no function return type")
       assert.match(result.code, /const Template: StoryFn<MyType> = \(\) =>/)
     })
 
-    test("skip function expression with TypeScript type annotation", () => {
+    test("skip function expression with variable type annotation and no function return type", () => {
       const result = transform(`const handler: EventHandler = function() { return true; }`)
 
-      assert(!result.modified, "skip function expression with type annotation")
+      assert(!result.modified, "skip function expression with variable type and no function return type")
       assert.match(result.code, /const handler: EventHandler = function\(\)/)
+    })
+
+    test("transform function with return type annotation", () => {
+      const result = transform(`let myAdd = function (x: number, y: number): number { return x + y; }`)
+
+      assert(result.modified, "transform function with return type annotation")
+      assert.match(result.code, /function myAdd\(x: number, y: number\): number/)
+      assert.match(result.code, /return x \+ y/)
+    })
+
+    test("transform arrow function with return type annotation", () => {
+      const result = transform(`const myFunc = (x: number): string => { return x.toString(); }`)
+
+      assert(result.modified, "transform arrow function with return type")
+      assert.match(result.code, /function myFunc\(x: number\): string/)
+    })
+
+    test("transform arrow function with variable and function return types", () => {
+      const result = transform(`const myFunc: MyType = (x: number): number => x * 2`)
+
+      assert(result.modified, "transform when function has return type even with variable type")
+      assert.match(result.code, /function myFunc\(x: number\): number/)
+      assert.match(result.code, /return x \* 2/)
+    })
+
+    test("transform function expression with parameter types only", () => {
+      const result = transform(`const add = function(a: number, b: number) { return a + b; }`)
+
+      assert(result.modified, "transform function with parameter types")
+      assert.match(result.code, /function add\(a: number, b: number\)/)
     })
   })
 

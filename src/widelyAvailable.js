@@ -949,15 +949,16 @@ export function anonymousFunctionToArrow(root) {
  *
  * - Const myFunc = () => {} to: function myFunc() {}
  * - Const myFunc = function() {} to: function myFunc() {}
+ * - Let myFunc = function(x: number): number {...} to: function myFunc(x: number): number {...}
  *
  * Only transforms when safe (function doesn't use outer 'this' or 'arguments'). Note:
  * Arrow functions never have their own 'this' or 'arguments', so this transformation
  * is generally safe for arrow functions, but we check to ensure they don't use 'this'
  * at all to avoid potential issues.
  *
- * Variables with TypeScript type annotations are skipped to preserve type information,
- * as type annotations cannot be transferred from variable declarations to function
- * declarations.
+ * TypeScript type annotations on function parameters and return types are preserved.
+ * Variables with type annotations are only skipped if the function itself doesn't
+ * have a return type annotation that can be preserved.
  *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
@@ -1091,12 +1092,6 @@ export function namedArrowFunctionToNamedFunction(root) {
         return false
       }
 
-      // Skip if the variable has a TypeScript type annotation
-      // Type annotations cannot be preserved when converting to function declarations
-      if (declarator.id.typeAnnotation) {
-        return false
-      }
-
       // Init must be an arrow function or anonymous function expression
       const isArrowFunction = j.ArrowFunctionExpression.check(declarator.init)
       const isFunctionExpression =
@@ -1107,6 +1102,14 @@ export function namedArrowFunctionToNamedFunction(root) {
       }
 
       const func = declarator.init
+
+      // Skip if the variable has a TypeScript type annotation but the function
+      // doesn't have its own return type annotation (which we can preserve)
+      // This handles cases like: const Template: StoryFn<MyType> = () => {...}
+      // where the type information would be lost in the transformation
+      if (declarator.id.typeAnnotation && !func.returnType) {
+        return false
+      }
 
       // Skip if it's a generator function
       if (func.generator) {
@@ -1150,6 +1153,11 @@ export function namedArrowFunctionToNamedFunction(root) {
       // Preserve async property
       if (func.async) {
         functionDeclaration.async = true
+      }
+
+      // Preserve TypeScript return type annotation
+      if (func.returnType) {
+        functionDeclaration.returnType = func.returnType
       }
 
       j(path).replaceWith(functionDeclaration)
