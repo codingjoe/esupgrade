@@ -242,6 +242,13 @@ Transforms arrow functions and anonymous function expressions assigned to variab
 
 Functions using `this` or `arguments` are not converted to preserve semantics.
 
+Variables with TypeScript type annotations are preserved to maintain type information:
+
+```typescript
+// Not transformed - type annotation preserved
+const Template: StoryFn<MyType> = () => { return <div>Hello</div>; };
+```
+
 #### Anonymous function expressions → [Arrow functions][mdn-arrow-functions]
 
 ```diff

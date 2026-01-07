@@ -955,6 +955,10 @@ export function anonymousFunctionToArrow(root) {
  * is generally safe for arrow functions, but we check to ensure they don't use 'this'
  * at all to avoid potential issues.
  *
+ * Variables with TypeScript type annotations are skipped to preserve type information,
+ * as type annotations cannot be transferred from variable declarations to function
+ * declarations.
+ *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions
@@ -1084,6 +1088,12 @@ export function namedArrowFunctionToNamedFunction(root) {
 
       // Declarator must have an identifier (simple variable name)
       if (!j.Identifier.check(declarator.id)) {
+        return false
+      }
+
+      // Skip if the variable has a TypeScript type annotation
+      // Type annotations cannot be preserved when converting to function declarations
+      if (declarator.id.typeAnnotation) {
         return false
       }
 

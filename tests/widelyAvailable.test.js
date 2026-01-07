@@ -2255,6 +2255,20 @@ document.querySelectorAll('.item').forEach(item => {
       assert.match(result.code, /function getName\(\{ name \}\)/)
       assert.match(result.code, /return name/)
     })
+
+    test("skip arrow function with TypeScript type annotation", () => {
+      const result = transform(`const Template: StoryFn<MyType> = () => { return <div>Hello</div>; }`)
+
+      assert(!result.modified, "skip arrow function with type annotation")
+      assert.match(result.code, /const Template: StoryFn<MyType> = \(\) =>/)
+    })
+
+    test("skip function expression with TypeScript type annotation", () => {
+      const result = transform(`const handler: EventHandler = function() { return true; }`)
+
+      assert(!result.modified, "skip function expression with type annotation")
+      assert.match(result.code, /const handler: EventHandler = function\(\)/)
+    })
   })
 
   describe("arrayConcatToSpread", () => {
