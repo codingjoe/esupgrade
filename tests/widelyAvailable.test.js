@@ -2140,7 +2140,9 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("async arrow function", () => {
-      const result = transform(`const fetchData = async () => { return await getData(); }`)
+      const result = transform(
+        `const fetchData = async () => { return await getData(); }`,
+      )
 
       assert(result.modified, "transform async arrow function")
       assert.match(result.code, /async function fetchData\(\)/)
@@ -2207,7 +2209,9 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("arrow function with rest parameters", () => {
-      const result = transform(`const sum = (...args) => args.reduce((a, b) => a + b, 0)`)
+      const result = transform(
+        `const sum = (...args) => args.reduce((a, b) => a + b, 0)`,
+      )
 
       assert(result.modified, "transform arrow function with rest parameters")
       assert.match(result.code, /function sum\(\.\.\.args\)/)
@@ -2215,7 +2219,9 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("arrow function with default parameters", () => {
-      const result = transform(`const greet = (name = 'World') => { return 'Hello ' + name; }`)
+      const result = transform(
+        `const greet = (name = 'World') => { return 'Hello ' + name; }`,
+      )
 
       assert(result.modified, "transform arrow function with default parameters")
       assert.match(result.code, /function greet\(name = 'World'\)/)
@@ -2224,7 +2230,9 @@ document.querySelectorAll('.item').forEach(item => {
     })
 
     test("nested arrow functions are all transformed", () => {
-      const result = transform(`const outer = () => { const inner = () => {}; return inner; }`)
+      const result = transform(
+        `const outer = () => { const inner = () => {}; return inner; }`,
+      )
 
       assert(result.modified, "transform both outer and inner arrow functions")
       assert.match(result.code, /function outer\(\)/)

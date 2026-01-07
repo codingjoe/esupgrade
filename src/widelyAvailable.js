@@ -44,8 +44,7 @@ export function concatToTemplateLiteral(root) {
   root
     .find(j.BinaryExpression, { operator: "+" })
     .filter((path) => {
-      // Only transform if at least one operand is a string literal
-      const hasStringLiteral = (node) => {
+      function hasStringLiteral(node) {
         if (
           j.StringLiteral.check(node) ||
           (j.Literal.check(node) && typeof node.value === "string")
@@ -57,6 +56,7 @@ export function concatToTemplateLiteral(root) {
         }
         return false
       }
+
       return hasStringLiteral(path.node)
     })
     .forEach((path) => {
@@ -64,16 +64,14 @@ export function concatToTemplateLiteral(root) {
       const expressions = []
       let lastStringNode = null // Track the last string literal node
 
-      // Helper to check if a node is a string literal
-      const isStringLiteral = (node) => {
+      function isStringLiteral(node) {
         return (
           j.StringLiteral.check(node) ||
           (j.Literal.check(node) && typeof node.value === "string")
         )
       }
 
-      // Helper to check if a node contains any string literal
-      const containsStringLiteral = (node) => {
+      function containsStringLiteral(node) {
         if (isStringLiteral(node)) return true
         if (j.BinaryExpression.check(node) && node.operator === "+") {
           return containsStringLiteral(node.left) || containsStringLiteral(node.right)
@@ -81,7 +79,7 @@ export function concatToTemplateLiteral(root) {
         return false
       }
 
-      const addStringPart = (stringNode) => {
+      function addStringPart(stringNode) {
         // Store both the raw and cooked values
         const rawValue = new NodeTest(stringNode).getRawStringValue()
         const cookedValue = stringNode.value
@@ -105,7 +103,8 @@ export function concatToTemplateLiteral(root) {
           const lastPart = parts[parts.length - 1]
           if (needsLineContinuation) {
             // Add backslash and newline for line continuation
-            lastPart.raw += "\\\n" + rawValue
+            lastPart.raw += `\\
+${rawValue}`
             lastPart.cooked += cookedValue
           } else {
             lastPart.raw += rawValue
@@ -116,14 +115,14 @@ export function concatToTemplateLiteral(root) {
         lastStringNode = stringNode
       }
 
-      const addExpression = (expr) => {
+      function addExpression(expr) {
         if (parts.length === 0) {
           parts.push({ raw: "", cooked: "" })
         }
         expressions.push(expr)
       }
 
-      const flatten = (node, stringContext = false) => {
+      function flatten(node, stringContext = false) {
         // Note: node is always a BinaryExpression when called, as non-BinaryExpression
         // nodes are handled inline before recursing into flatten
         if (j.BinaryExpression.check(node) && node.operator === "+") {
@@ -526,8 +525,7 @@ export function forLoopToForOf(root) {
       const bodyWithoutFirst = node.body.body.slice(1)
       let indexVarUsed = false
 
-      // Recursively check if identifier is used in AST nodes
-      const checkNode = (astNode) => {
+      function checkNode(astNode) {
         if (!astNode || typeof astNode !== "object") return
 
         if (astNode.type === "Identifier" && astNode.name === indexVar) {
@@ -683,8 +681,7 @@ export function iterableForEachToForOf(root) {
           j.MemberExpression.check(callerObject) ||
           j.CallExpression.check(callerObject)
         ) {
-          // Check if this eventually chains from document
-          const isFromDocument = (node) => {
+          function isFromDocument(node) {
             if (j.Identifier.check(node)) {
               return node.name === "document"
             }
@@ -788,11 +785,10 @@ export function iterableForEachToForOf(root) {
 export function anonymousFunctionToArrow(root) {
   let modified = false
 
-  // Helper to check if a node or its descendants use 'this'
-  const usesThis = (node) => {
+  function usesThis(node) {
     let found = false
 
-    const checkNode = (astNode) => {
+    function checkNode(astNode) {
       if (!astNode || typeof astNode !== "object" || found) return
 
       // Found 'this' identifier
@@ -834,11 +830,10 @@ export function anonymousFunctionToArrow(root) {
     return found
   }
 
-  // Helper to check if a node or its descendants use 'arguments'
-  const usesArguments = (node) => {
+  function usesArguments(node) {
     let found = false
 
-    const visit = (n) => {
+    function visit(n) {
       if (!n || typeof n !== "object" || found) return
 
       // If we encounter a nested function, don't traverse into it
@@ -967,16 +962,10 @@ export function anonymousFunctionToArrow(root) {
 export function namedArrowFunctionToNamedFunction(root) {
   let modified = false
 
-  /**
-   * Check if a node or its descendants use 'this'.
-   *
-   * @param {import("ast-types").ASTNode} node - The node to check
-   * @returns {boolean} True if 'this' is used
-   */
-  const usesThis = (node) => {
+  function usesThis(node) {
     let found = false
 
-    const checkNode = (astNode) => {
+    function checkNode(astNode) {
       if (!astNode || typeof astNode !== "object" || found) return
 
       // Found 'this' identifier
@@ -1018,16 +1007,10 @@ export function namedArrowFunctionToNamedFunction(root) {
     return found
   }
 
-  /**
-   * Check if a node or its descendants use 'arguments'.
-   *
-   * @param {import("ast-types").ASTNode} node - The node to check
-   * @returns {boolean} True if 'arguments' is used
-   */
-  const usesArguments = (node) => {
+  function usesArguments(node) {
     let found = false
 
-    const visit = (n) => {
+    function visit(n) {
       if (!n || typeof n !== "object" || found) return
 
       // If we encounter a nested function, don't traverse into it
@@ -1652,14 +1635,7 @@ export function removeUseStrictFromModules(root) {
 export function globalContextToGlobalThis(root) {
   let modified = false
 
-  /**
-   * Check if an identifier is shadowed by a local declaration or parameter.
-   *
-   * @param {import("ast-types").NodePath} path - Path to the identifier
-   * @param {string} name - Name to check for shadowing
-   * @returns {boolean} True if the identifier is shadowed
-   */
-  const isShadowed = (path, name) => {
+  function isShadowed(path, name) {
     let scope = path.scope
 
     while (scope) {
@@ -1793,13 +1769,7 @@ export function globalContextToGlobalThis(root) {
 export function nullishCoalescingOperator(root) {
   let modified = false
 
-  /**
-   * Determine if a binary expression is a null check (=== null or !== null).
-   *
-   * @param {import("jscodeshift").BinaryExpression} node - The binary expression
-   * @returns {{ value: import("ast-types").ASTNode; isNegated: boolean } | null}
-   */
-  const getNullCheck = (node) => {
+  function getNullCheck(node) {
     if (!j.BinaryExpression.check(node)) {
       return null
     }
@@ -1828,14 +1798,7 @@ export function nullishCoalescingOperator(root) {
     return null
   }
 
-  /**
-   * Determine if a binary expression is an undefined check (=== undefined or !==
-   * undefined).
-   *
-   * @param {import("jscodeshift").BinaryExpression} node - The binary expression
-   * @returns {{ value: import("ast-types").ASTNode; isNegated: boolean } | null}
-   */
-  const getUndefinedCheck = (node) => {
+  function getUndefinedCheck(node) {
     if (!j.BinaryExpression.check(node)) {
       return null
     }
@@ -1858,20 +1821,7 @@ export function nullishCoalescingOperator(root) {
     return null
   }
 
-  /**
-   * Validate that both checks are negated, operate on the same value, and match the
-   * consequent.
-   *
-   * @param {{ value: import("ast-types").ASTNode; isNegated: boolean }} nullCheck - The
-   *   null check result
-   * @param {{ value: import("ast-types").ASTNode; isNegated: boolean }} undefinedCheck
-   *   - The undefined check result
-   *
-   * @param {import("ast-types").ASTNode} consequent - The consequent node to validate
-   *   against
-   * @returns {boolean} True if validation passes
-   */
-  const validateChecks = (nullCheck, undefinedCheck, consequent) => {
+  function validateChecks(nullCheck, undefinedCheck, consequent) {
     // Both checks must be negated (!==)
     if (!nullCheck.isNegated || !undefinedCheck.isNegated) {
       return false
@@ -2020,14 +1970,7 @@ export function arraySliceToSpread(root) {
 export function optionalChaining(root) {
   let modified = false
 
-  /**
-   * Check if a node is a property access or call on a base.
-   *
-   * @param {import("ast-types").ASTNode} node - The node to check
-   * @param {import("ast-types").ASTNode} base - The expected base
-   * @returns {boolean} True if node accesses base
-   */
-  const isAccessOnBase = (node, base) => {
+  function isAccessOnBase(node, base) {
     if (j.MemberExpression.check(node)) {
       return new NodeTest(node.object).isEqual(base)
     }
@@ -2037,14 +1980,7 @@ export function optionalChaining(root) {
     return false
   }
 
-  /**
-   * Build an optional chaining expression from a base and accesses.
-   *
-   * @param {import("ast-types").ASTNode} base - The base expression
-   * @param {import("ast-types").ASTNode[]} accesses - The property/method accesses
-   * @returns {import("ast-types").ASTNode} The optional chaining expression
-   */
-  const buildOptionalChain = (base, accesses) => {
+  function buildOptionalChain(base, accesses) {
     let result = base
 
     for (const access of accesses) {
@@ -2063,17 +1999,7 @@ export function optionalChaining(root) {
     return result
   }
 
-  /**
-   * Process a logical expression chain to extract optional chaining candidates.
-   *
-   * @param {import("ast-types").ASTNode} node - The logical expression (must be &&
-   *   operator)
-   * @returns {{
-   *   base: import("ast-types").ASTNode
-   *   accesses: import("ast-types").ASTNode[]
-   * } | null}
-   */
-  const extractChain = (node) => {
+  function extractChain(node) {
     const parts = []
     let current = node
 
