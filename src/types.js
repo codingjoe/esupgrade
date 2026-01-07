@@ -152,6 +152,122 @@ export class NodeTest {
       .replace(/`/g, "\\`")
       .replace(/\$\{/g, "\\${")
   }
+
+  /**
+   * Check if a node or its descendants use 'this'. Does not traverse into nested
+   * functions as they have their own 'this' context.
+   *
+   * @returns {boolean} True if 'this' is used in the node
+   */
+  usesThis() {
+    let found = false
+
+    const checkNode = (astNode) => {
+      if (!astNode || typeof astNode !== "object" || found) return
+
+      // Found 'this' identifier
+      if (astNode.type === "ThisExpression") {
+        found = true
+        return
+      }
+
+      // Don't traverse into nested function declarations or expressions
+      // as they have their own 'this' context
+      if (
+        astNode.type === "FunctionDeclaration" ||
+        astNode.type === "FunctionExpression" ||
+        astNode.type === "ArrowFunctionExpression"
+      ) {
+        return
+      }
+
+      // Traverse all properties
+      for (const key in astNode) {
+        if (
+          key === "loc" ||
+          key === "start" ||
+          key === "end" ||
+          key === "tokens" ||
+          key === "comments"
+        )
+          continue
+        const value = astNode[key]
+        if (Array.isArray(value)) {
+          value.forEach(checkNode)
+        } else if (value && typeof value === "object") {
+          checkNode(value)
+        }
+      }
+    }
+
+    checkNode(this.node)
+    return found
+  }
+
+  /**
+   * Check if a node or its descendants use 'arguments'. Does not traverse into nested
+   * functions as they have their own 'arguments' binding. Arrow functions also don't
+   * have 'arguments', so we skip them too.
+   *
+   * @returns {boolean} True if 'arguments' is used in the node
+   */
+  usesArguments() {
+    let found = false
+
+    const visit = (n) => {
+      if (!n || typeof n !== "object" || found) return
+
+      // If we encounter a nested function, don't traverse into it
+      // as it has its own 'arguments' binding
+      // Arrow functions also don't have 'arguments', so skip them too
+      if (
+        n.type === "FunctionExpression" ||
+        n.type === "FunctionDeclaration" ||
+        n.type === "ArrowFunctionExpression"
+      ) {
+        return
+      }
+
+      // Check if this is an 'arguments' identifier
+      if (n.type === "Identifier" && n.name === "arguments") {
+        found = true
+        return
+      }
+
+      // Traverse all child nodes
+      for (const key in n) {
+        if (
+          key === "loc" ||
+          key === "start" ||
+          key === "end" ||
+          key === "tokens" ||
+          key === "comments" ||
+          key === "type"
+        ) {
+          continue
+        }
+        const value = n[key]
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            visit(item)
+            if (found) return
+          }
+        } else if (value && typeof value === "object") {
+          visit(value)
+        }
+      }
+    }
+
+    // Start visiting from the function body's child nodes
+    if (this.node.type === "BlockStatement" && this.node.body) {
+      for (const statement of this.node.body) {
+        visit(statement)
+        if (found) break
+      }
+    }
+
+    return found
+  }
 }
 
 /**

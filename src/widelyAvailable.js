@@ -795,108 +795,6 @@ export function iterableForEachToForOf(root) {
 export function anonymousFunctionToArrow(root) {
   let modified = false
 
-  // Helper to check if a node or its descendants use 'this'
-  function usesThis(node) {
-    let found = false
-
-    function checkNode(astNode) {
-      if (!astNode || typeof astNode !== "object" || found) return
-
-      // Found 'this' identifier
-      if (astNode.type === "ThisExpression") {
-        found = true
-        return
-      }
-
-      // Don't traverse into nested function declarations or expressions
-      // as they have their own 'this' context
-      if (
-        astNode.type === "FunctionDeclaration" ||
-        astNode.type === "FunctionExpression" ||
-        astNode.type === "ArrowFunctionExpression"
-      ) {
-        return
-      }
-
-      // Traverse all properties
-      for (const key in astNode) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments"
-        )
-          continue
-        const value = astNode[key]
-        if (Array.isArray(value)) {
-          value.forEach(checkNode)
-        } else if (value && typeof value === "object") {
-          checkNode(value)
-        }
-      }
-    }
-
-    checkNode(node)
-    return found
-  }
-
-  // Helper to check if a node or its descendants use 'arguments'
-  function usesArguments(node) {
-    let found = false
-
-    function visit(n) {
-      if (!n || typeof n !== "object" || found) return
-
-      // If we encounter a nested function, don't traverse into it
-      // as it has its own 'arguments' binding
-      if (n.type === "FunctionExpression" || n.type === "FunctionDeclaration") {
-        return
-      }
-
-      // Check if this is an 'arguments' identifier
-      if (n.type === "Identifier" && n.name === "arguments") {
-        found = true
-        return
-      }
-
-      // Traverse all child nodes
-      for (const key in n) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments" ||
-          key === "type"
-        ) {
-          continue
-        }
-        const value = n[key]
-        if (Array.isArray(value)) {
-          for (const item of value) {
-            visit(item)
-            if (found) return
-          }
-        } else if (value && typeof value === "object") {
-          visit(value)
-        }
-      }
-    }
-
-    // Start visiting from the function body's child nodes
-    // Don't check the body node itself, check its contents
-    // Note: FunctionExpression.body is always a BlockStatement
-    if (node.type === "BlockStatement" && node.body) {
-      for (const statement of node.body) {
-        visit(statement)
-        if (found) break
-      }
-    }
-
-    return found
-  }
-
   root
     .find(j.FunctionExpression)
     .filter((path) => {
@@ -914,13 +812,12 @@ export function anonymousFunctionToArrow(root) {
       }
 
       // Skip if it uses 'this'
-      if (usesThis(node.body)) {
+      if (new NodeTest(node.body).usesThis()) {
         return false
       }
 
       // Skip if it uses 'arguments'
-      const hasArguments = usesArguments(node.body)
-      if (hasArguments) {
+      if (new NodeTest(node.body).usesArguments()) {
         return false
       }
 
@@ -979,109 +876,6 @@ export function anonymousFunctionToArrow(root) {
 export function namedArrowFunctionToNamedFunction(root) {
   let modified = false
 
-  function usesThis(node) {
-    let found = false
-
-    function checkNode(astNode) {
-      if (!astNode || typeof astNode !== "object" || found) return
-
-      // Found 'this' identifier
-      if (astNode.type === "ThisExpression") {
-        found = true
-        return
-      }
-
-      // Don't traverse into nested function declarations or expressions
-      // as they have their own 'this' context
-      if (
-        astNode.type === "FunctionDeclaration" ||
-        astNode.type === "FunctionExpression" ||
-        astNode.type === "ArrowFunctionExpression"
-      ) {
-        return
-      }
-
-      // Traverse all properties
-      for (const key in astNode) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments"
-        )
-          continue
-        const value = astNode[key]
-        if (Array.isArray(value)) {
-          value.forEach(checkNode)
-        } else if (value && typeof value === "object") {
-          checkNode(value)
-        }
-      }
-    }
-
-    checkNode(node)
-    return found
-  }
-
-  function usesArguments(node) {
-    let found = false
-
-    function visit(n) {
-      if (!n || typeof n !== "object" || found) return
-
-      // If we encounter a nested function, don't traverse into it
-      // as it has its own 'arguments' binding
-      // Arrow functions also don't have 'arguments', so skip them too
-      if (
-        n.type === "FunctionExpression" ||
-        n.type === "FunctionDeclaration" ||
-        n.type === "ArrowFunctionExpression"
-      ) {
-        return
-      }
-
-      // Check if this is an 'arguments' identifier
-      if (n.type === "Identifier" && n.name === "arguments") {
-        found = true
-        return
-      }
-
-      // Traverse all child nodes
-      for (const key in n) {
-        if (
-          key === "loc" ||
-          key === "start" ||
-          key === "end" ||
-          key === "tokens" ||
-          key === "comments" ||
-          key === "type"
-        ) {
-          continue
-        }
-        const value = n[key]
-        if (Array.isArray(value)) {
-          for (const item of value) {
-            visit(item)
-            if (found) return
-          }
-        } else if (value && typeof value === "object") {
-          visit(value)
-        }
-      }
-    }
-
-    // Start visiting from the function body's child nodes
-    if (node.type === "BlockStatement" && node.body) {
-      for (const statement of node.body) {
-        visit(statement)
-        if (found) break
-      }
-    }
-
-    return found
-  }
-
   root
     .find(j.VariableDeclaration)
     .filter((path) => {
@@ -1129,12 +923,12 @@ export function namedArrowFunctionToNamedFunction(root) {
       }
 
       // Skip if the function uses 'this'
-      if (usesThis(func.body)) {
+      if (new NodeTest(func.body).usesThis()) {
         return false
       }
 
       // Skip if the function uses 'arguments' (only relevant for function expressions)
-      if (isFunctionExpression && usesArguments(func.body)) {
+      if (isFunctionExpression && new NodeTest(func.body).usesArguments()) {
         return false
       }
 

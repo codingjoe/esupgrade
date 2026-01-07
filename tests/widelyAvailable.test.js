@@ -1974,6 +1974,7 @@ document.querySelectorAll('.item').forEach(item => {
       assert(result.modified, "transform simple anonymous function")
       assert.match(result.code, /function greet\(name\)/)
       assert.match(result.code, /return/)
+      assert.doesNotMatch(result.code, /const greet = function/)
     })
 
     test("multiple parameters", () => {
@@ -1985,6 +1986,7 @@ document.querySelectorAll('.item').forEach(item => {
 
       assert(result.modified, "transform anonymous function with multiple parameters")
       assert.match(result.code, /function add\(a, b\)/)
+      assert.doesNotMatch(result.code, /const add = function/)
     })
 
     test("no parameters", () => {
@@ -1996,6 +1998,7 @@ document.querySelectorAll('.item').forEach(item => {
 
       assert(result.modified, "transform anonymous function with no parameters")
       assert.match(result.code, /function getValue\(\)/)
+      assert.doesNotMatch(result.code, /const getValue = function/)
     })
 
     test("callback function", () => {
