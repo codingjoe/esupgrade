@@ -2190,6 +2190,68 @@ document.querySelectorAll('.item').forEach(item => {
   })
 
   describe("namedArrowFunctionToNamedFunction", () => {
+    test("arrow function with generic type parameters", () => {
+      const result = transform(`const identity = <T>(value: T): T => value`)
+
+      assert(result.modified, "transform arrow function with generics")
+      assert.match(result.code, /function identity<T>\(value: T\): T/)
+      assert.match(result.code, /return value/)
+    })
+
+    test("arrow function with multiple generic type parameters", () => {
+      const result = transform(
+        `const merge = <T, U>(a: T, b: U): T & U => ({ ...a, ...b })`,
+      )
+
+      assert(result.modified, "transform arrow function with multiple generics")
+      assert.match(result.code, /function merge<T, U>\(a: T, b: U\): T & U/)
+    })
+
+    test("arrow function with constrained generic type parameters", () => {
+      const result = transform(
+        `const process = <T extends string>(value: T): T => { return value; }`,
+      )
+
+      assert(result.modified, "transform arrow function with constrained generics")
+      assert.match(result.code, /function process<T extends string>\(value: T\): T/)
+    })
+
+    test("arrow function with default generic type parameters", () => {
+      const result = transform(
+        `const create = <T = string>(value?: T): T | undefined => value`,
+      )
+
+      assert(result.modified, "transform arrow function with default generics")
+      assert.match(
+        result.code,
+        /function create<T = string>\(value\?: T\): T \| undefined/,
+      )
+    })
+
+    test("exported arrow function with generics", () => {
+      const result = transform(
+        `export const useHook = <T extends object>(props: T) => { return props; }`,
+      )
+
+      assert(result.modified, "transform exported arrow function with generics")
+      assert.match(result.code, /export function useHook<T extends object>\(props: T\)/)
+    })
+
+    test("arrow function with complex generic constraints", () => {
+      const result = transform(
+        `const manager = <TForm extends BaseForm<TAccount>, TAccount = unknown>(params: TForm): void => {}`,
+      )
+
+      assert(
+        result.modified,
+        "transform arrow function with complex generic constraints",
+      )
+      assert.match(
+        result.code,
+        /function manager<TForm extends BaseForm<TAccount>, TAccount = unknown>\(params: TForm\): void/,
+      )
+    })
+
     test("simple const arrow function", () => {
       const result = transform(`const myFunc = () => {}`)
 
