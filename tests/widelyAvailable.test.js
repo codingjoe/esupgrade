@@ -4658,18 +4658,28 @@ const obj = {
 
     describe("complex expressions", () => {
       test("array method chain", () => {
-        const result = transform(`const found = [1,2,3].map(x => x).indexOf(item) !== -1;`)
+        const result = transform(
+          `const found = [1,2,3].map(x => x).indexOf(item) !== -1;`,
+        )
 
         assert(result.modified, "transform with array method chain")
-        assert.match(result.code, /const found = \[1, ?2, ?3\]\.map\(x => x\)\.includes\(item\)/)
+        assert.match(
+          result.code,
+          /const found = \[1, ?2, ?3\]\.map\(x => x\)\.includes\(item\)/,
+        )
         assert.doesNotMatch(result.code, /indexOf/)
       })
 
       test("string method chain", () => {
-        const result = transform(`const found = "hello".toUpperCase().indexOf(item) !== -1;`)
+        const result = transform(
+          `const found = "hello".toUpperCase().indexOf(item) !== -1;`,
+        )
 
         assert(result.modified, "transform with string method chain")
-        assert.match(result.code, /const found = "hello"\.toUpperCase\(\)\.includes\(item\)/)
+        assert.match(
+          result.code,
+          /const found = "hello"\.toUpperCase\(\)\.includes\(item\)/,
+        )
         assert.doesNotMatch(result.code, /indexOf/)
       })
 
@@ -4807,12 +4817,13 @@ const obj = {
       })
 
       test("assigned to variable", () => {
-        const result = transform(
-          `const hasItem = [1, 2, 3].indexOf(searchValue) >= 0;`,
-        )
+        const result = transform(`const hasItem = [1, 2, 3].indexOf(searchValue) >= 0;`)
 
         assert(result.modified, "transform assigned to variable")
-        assert.match(result.code, /const hasItem = \[1, 2, 3\]\.includes\(searchValue\)/)
+        assert.match(
+          result.code,
+          /const hasItem = \[1, 2, 3\]\.includes\(searchValue\)/,
+        )
         assert.doesNotMatch(result.code, /indexOf/)
       })
     })
