@@ -845,6 +845,30 @@ suite("widely-available", () => {
       )
     })
 
+    test("regression: no extra backslash with \\r\\n on multiline concatenation", () => {
+      // Regression test for issue #94
+      // When "foo\r\n" + "bar" spans multiple lines, the \n at the end of the first string
+      // should prevent adding a line continuation backslash
+      const result = transform(`const myVar = "foo\\r\\n" +
+              "bar"`)
+
+      assert(result.modified, "transform multiline concatenation with \\r\\n")
+      assert.ok(result.code.includes("\\r"), "preserve \\r escape sequence")
+      // \n should become an actual newline in template literal
+      assert.ok(result.code.includes("\n"), "\\n should become actual newline")
+      // Should NOT have an extra backslash after the newline
+      assert.match(
+        result.code,
+        /`foo\\r\nbar`/,
+        "should not have extra line continuation after \\n",
+      )
+      // Verify no double backslash or extra continuation
+      assert.ok(
+        !result.code.includes("\\\n\\\n"),
+        "should not have double line continuation",
+      )
+    })
+
     test("preserves multiline formatting with line continuation", () => {
       const result = transform(`const myVar = "foo" +
               "bar"`)
