@@ -5206,4 +5206,300 @@ const obj = {
       })
     })
   })
+
+  describe("indexOfToStartsWith", () => {
+    describe("transformable patterns", () => {
+      test("string literal with indexOf === 0", () => {
+        const result = transform(`const found = "hello world".indexOf("hello") === 0;`)
+
+        assert(result.modified, "transform indexOf === 0")
+        assert.match(result.code, /"hello world"\.startsWith\("hello"\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("string literal with 0 === indexOf", () => {
+        const result = transform(`const found = 0 === "hello world".indexOf("hello");`)
+
+        assert(result.modified, "transform 0 === indexOf")
+        assert.match(result.code, /"hello world"\.startsWith\("hello"\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("string literal with indexOf !== 0", () => {
+        const result = transform(`const notFound = "hello world".indexOf("goodbye") !== 0;`)
+
+        assert(result.modified, "transform indexOf !== 0")
+        assert.match(result.code, /!"hello world"\.startsWith\("goodbye"\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("template literal with indexOf === 0", () => {
+        const result = transform("const found = `hello world`.indexOf('hello') === 0;")
+
+        assert(result.modified, "transform template literal indexOf")
+        assert.match(result.code, /`hello world`\.startsWith\('hello'\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("string method chain with indexOf === 0", () => {
+        const result = transform(
+          `const found = "HELLO".toLowerCase().indexOf("hello") === 0;`,
+        )
+
+        assert(result.modified, "transform string method chain indexOf")
+        assert.match(result.code, /"HELLO"\.toLowerCase\(\)\.startsWith\("hello"\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+    })
+
+    describe("non-transformable patterns", () => {
+      test("indexOf with two arguments", () => {
+        const result = transform(`const found = str.indexOf("test", 5) === 0;`)
+
+        assert(!result.modified, "skip indexOf with fromIndex")
+        assert.match(result.code, /indexOf/)
+      })
+
+      test("indexOf on unknown variable", () => {
+        const result = transform(`const found = str.indexOf("test") === 0;`)
+
+        assert(!result.modified, "skip indexOf on unknown variable")
+        assert.match(result.code, /indexOf/)
+      })
+
+      test("indexOf compared to non-zero", () => {
+        const result = transform(`const found = "test".indexOf("e") === 1;`)
+
+        assert(!result.modified, "skip indexOf === 1")
+        assert.match(result.code, /indexOf/)
+      })
+    })
+  })
+
+  describe("substringToStartsWith", () => {
+    describe("transformable patterns", () => {
+      test("substring(0, prefix.length) === prefix", () => {
+        const result = transform(
+          `const matches = "hello world".substring(0, prefix.length) === prefix;`,
+        )
+
+        assert(result.modified, "transform substring prefix check")
+        assert.match(result.code, /"hello world"\.startsWith\(prefix\)/)
+        assert.doesNotMatch(result.code, /substring/)
+      })
+
+      test("prefix === substring(0, prefix.length)", () => {
+        const result = transform(
+          `const matches = prefix === "hello world".substring(0, prefix.length);`,
+        )
+
+        assert(result.modified, "transform reversed substring prefix check")
+        assert.match(result.code, /"hello world"\.startsWith\(prefix\)/)
+        assert.doesNotMatch(result.code, /substring/)
+      })
+
+      test("substring(0, prefix.length) !== prefix", () => {
+        const result = transform(
+          `const noMatch = "hello world".substring(0, prefix.length) !== prefix;`,
+        )
+
+        assert(result.modified, "transform substring !== prefix")
+        assert.match(result.code, /!"hello world"\.startsWith\(prefix\)/)
+        assert.doesNotMatch(result.code, /substring/)
+      })
+
+      test("substring with string literal prefix", () => {
+        const result = transform(
+          `const matches = "hello world".substring(0, "hello".length) === "hello";`,
+        )
+
+        assert(result.modified, "transform substring with literal prefix")
+        assert.match(result.code, /"hello world"\.startsWith\("hello"\)/)
+        assert.doesNotMatch(result.code, /substring/)
+      })
+
+      test("substring on template literal", () => {
+        const result = transform(
+          "const matches = `test`.substring(0, prefix.length) === prefix;",
+        )
+
+        assert(result.modified, "transform substring on template literal")
+        assert.match(result.code, /`test`\.startsWith\(prefix\)/)
+        assert.doesNotMatch(result.code, /substring/)
+      })
+    })
+
+    describe("non-transformable patterns", () => {
+      test("substring with wrong argument count", () => {
+        const result = transform(
+          `const sub = "hello".substring(0) === prefix;`,
+        )
+
+        assert(!result.modified, "skip substring with one argument")
+        assert.match(result.code, /substring/)
+      })
+
+      test("substring with non-zero start", () => {
+        const result = transform(
+          `const sub = "hello".substring(1, prefix.length) === prefix;`,
+        )
+
+        assert(!result.modified, "skip substring with non-zero start")
+        assert.match(result.code, /substring/)
+      })
+
+      test("substring without length comparison", () => {
+        const result = transform(`const sub = "hello".substring(0, 3) === "hel";`)
+
+        assert(!result.modified, "skip substring without .length")
+        assert.match(result.code, /substring/)
+      })
+
+      test("substring on unknown variable", () => {
+        const result = transform(
+          `const matches = str.substring(0, prefix.length) === prefix;`,
+        )
+
+        assert(!result.modified, "skip substring on unknown variable")
+        assert.match(result.code, /substring/)
+      })
+
+      test("substring with wrong length reference", () => {
+        const result = transform(
+          `const matches = "test".substring(0, other.length) === prefix;`,
+        )
+
+        assert(!result.modified, "skip substring with mismatched length")
+        assert.match(result.code, /substring/)
+      })
+    })
+  })
+
+  describe("lastIndexOfToEndsWith", () => {
+    describe("transformable patterns", () => {
+      test("lastIndexOf === str.length - suffix.length", () => {
+        const result = transform(
+          `const matches = "hello world".lastIndexOf(suffix) === "hello world".length - suffix.length;`,
+        )
+
+        assert(result.modified, "transform lastIndexOf suffix check")
+        assert.match(result.code, /"hello world"\.endsWith\(suffix\)/)
+        assert.doesNotMatch(result.code, /lastIndexOf/)
+      })
+
+      test("str.length - suffix.length === lastIndexOf", () => {
+        const result = transform(
+          `const matches = "test".length - suffix.length === "test".lastIndexOf(suffix);`,
+        )
+
+        assert(result.modified, "transform reversed lastIndexOf check")
+        assert.match(result.code, /"test"\.endsWith\(suffix\)/)
+        assert.doesNotMatch(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf !== str.length - suffix.length", () => {
+        const result = transform(
+          `const noMatch = "test".lastIndexOf(suffix) !== "test".length - suffix.length;`,
+        )
+
+        assert(result.modified, "transform lastIndexOf !== suffix check")
+        assert.match(result.code, /!"test"\.endsWith\(suffix\)/)
+        assert.doesNotMatch(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf with string literal suffix", () => {
+        const result = transform(
+          `const matches = "hello world".lastIndexOf("world") === "hello world".length - "world".length;`,
+        )
+
+        assert(result.modified, "transform lastIndexOf with literal suffix")
+        assert.match(result.code, /"hello world"\.endsWith\("world"\)/)
+        assert.doesNotMatch(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf on string literal with identifier suffix", () => {
+        const result = transform(
+          'const matches = "test string".lastIndexOf(suffix) === "test string".length - suffix.length;',
+        )
+
+        assert(result.modified, "transform lastIndexOf on string literal")
+        assert.match(result.code, /"test string"\.endsWith\(suffix\)/)
+        assert.doesNotMatch(result.code, /lastIndexOf/)
+      })
+    })
+
+    describe("non-transformable patterns", () => {
+      test("lastIndexOf with non-subtraction comparison", () => {
+        const result = transform(
+          `const matches = "test".lastIndexOf(suffix) === 5;`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf with non-subtraction")
+        assert.match(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf with wrong operator in subtraction", () => {
+        const result = transform(
+          `const matches = "test".lastIndexOf(suffix) === "test".length + suffix.length;`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf with addition")
+        assert.match(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf with subtraction of non-length property", () => {
+        const result = transform(
+          `const matches = "test".lastIndexOf(suffix) === "test".length - suffix.size;`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf with wrong property")
+        assert.match(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf with two arguments", () => {
+        const result = transform(
+          `const found = str.lastIndexOf("test", 5) === str.length - "test".length;`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf with fromIndex")
+        assert.match(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf on unknown variable", () => {
+        const result = transform(
+          `const matches = str.lastIndexOf(suffix) === str.length - suffix.length;`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf on unknown variable")
+        assert.match(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf with wrong subtraction pattern", () => {
+        const result = transform(
+          `const matches = "test".lastIndexOf(suffix) === 10 - suffix.length;`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf with wrong subtraction")
+        assert.match(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf with mismatched string references", () => {
+        const result = transform(
+          `const matches = str1.lastIndexOf(suffix) === str2.length - suffix.length;`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf with mismatched strings")
+        assert.match(result.code, /lastIndexOf/)
+      })
+
+      test("lastIndexOf with mismatched suffix references", () => {
+        const result = transform(
+          `const matches = "test".lastIndexOf(suffix1) === "test".length - suffix2.length;`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf with mismatched suffixes")
+        assert.match(result.code, /lastIndexOf/)
+      })
+    })
+  })
 })
