@@ -516,69 +516,203 @@ export class NodeTest {
       this.node.arguments[0].name === "arguments"
     )
   }
-}
 
-/**
- * Check if a pattern (identifier, destructuring, etc.) contains a specific variable
- * name
- *
- * @param {import("ast-types").ASTNode} node - The AST node to check
- * @param {string} varName - The variable name to search for
- * @returns {boolean} True if the pattern contains the identifier
- */
-function patternContainsIdentifier(node, varName) {
-  if (j.Identifier.check(node)) {
-    return node.name === varName
+  /**
+   * Check if a pattern (identifier, destructuring, etc.) contains a specific variable name.
+   *
+   * @param {string} varName - Variable name to search for
+   * @returns {boolean} True if the pattern contains the identifier
+   */
+  patternContainsIdentifier(varName) {
+    if (j.Identifier.check(this.node)) {
+      return this.node.name === varName
+    }
+    if (j.ObjectPattern.check(this.node)) {
+      return this.node.properties.some((prop) => {
+        if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
+          return new NodeTest(prop.value).patternContainsIdentifier(varName)
+        }
+        if (j.RestElement.check(prop)) {
+          return new NodeTest(prop.argument).patternContainsIdentifier(varName)
+        }
+      })
+    }
+    if (j.ArrayPattern.check(this.node)) {
+      return this.node.elements.some((element) =>
+        new NodeTest(element).patternContainsIdentifier(varName),
+      )
+    }
+    if (j.AssignmentPattern.check(this.node)) {
+      return new NodeTest(this.node.left).patternContainsIdentifier(varName)
+    }
+    if (j.RestElement.check(this.node)) {
+      return new NodeTest(this.node.argument).patternContainsIdentifier(varName)
+    }
+    return false
   }
-  if (j.ObjectPattern.check(node)) {
-    return node.properties.some((prop) => {
-      if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
-        return patternContainsIdentifier(prop.value, varName)
-      }
-      if (j.RestElement.check(prop)) {
-        return patternContainsIdentifier(prop.argument, varName)
-      }
-    })
-  }
-  if (j.ArrayPattern.check(node)) {
-    return node.elements.some((element) => patternContainsIdentifier(element, varName))
-  }
-  if (j.AssignmentPattern.check(node)) {
-    return patternContainsIdentifier(node.left, varName)
-  }
-  if (j.RestElement.check(node)) {
-    return patternContainsIdentifier(node.argument, varName)
-  }
-  return false
-}
 
-/**
- * Extract all identifier names from a pattern (handles destructuring)
- *
- * @param {import("ast-types").ASTNode} pattern - The pattern node to
- *   extract identifiers from
- * @yields {string} Identifier names found in the pattern
- * @returns {Generator<string, void, unknown>}
- */
-function* extractIdentifiersFromPattern(pattern) {
-  if (j.Identifier.check(pattern)) {
-    yield pattern.name
-  } else if (j.ObjectPattern.check(pattern)) {
-    for (const prop of pattern.properties) {
-      if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
-        yield* extractIdentifiersFromPattern(prop.value)
-      } else if (j.RestElement.check(prop)) {
-        yield* extractIdentifiersFromPattern(prop.argument)
+  /**
+   * Extract all identifier names from a pattern (handles destructuring).
+   *
+   * @yields {string} Identifier names found in the pattern
+   * @returns {Generator<string, void, unknown>}
+   */
+  *extractIdentifiersFromPattern() {
+    if (j.Identifier.check(this.node)) {
+      yield this.node.name
+    } else if (j.ObjectPattern.check(this.node)) {
+      for (const prop of this.node.properties) {
+        if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
+          yield* new NodeTest(prop.value).extractIdentifiersFromPattern()
+        } else if (j.RestElement.check(prop)) {
+          yield* new NodeTest(prop.argument).extractIdentifiersFromPattern()
+        }
+      }
+    } else if (j.ArrayPattern.check(this.node)) {
+      for (const element of this.node.elements) {
+        yield* new NodeTest(element).extractIdentifiersFromPattern()
+      }
+    } else if (j.AssignmentPattern.check(this.node)) {
+      yield* new NodeTest(this.node.left).extractIdentifiersFromPattern()
+    } else if (j.RestElement.check(this.node)) {
+      yield* new NodeTest(this.node.argument).extractIdentifiersFromPattern()
+    }
+  }
+
+  /**
+   * Get numeric value from a node (handles -1 as UnaryExpression).
+   *
+   * @returns {number | null} Numeric value, or null if not a number
+   */
+  getNumericValue() {
+    // Handle direct literals (e.g., 0)
+    if (j.Literal.check(this.node) && typeof this.node.value === "number") {
+      return this.node.value
+    }
+    // Handle UnaryExpression with minus operator (e.g., -1)
+    if (
+      j.UnaryExpression.check(this.node) &&
+      this.node.operator === "-" &&
+      j.Literal.check(this.node.argument) &&
+      typeof this.node.argument.value === "number"
+    ) {
+      return -this.node.argument.value
+    }
+    return null
+  }
+
+  /**
+   * Determine which side of the binary expression has the indexOf call.
+   *
+   * @returns {{
+   *   indexOfCall: import("ast-types").namedTypes.CallExpression;
+   *   comparisonValue: import("ast-types").namedTypes.Node;
+   *   isLeftIndexOf: boolean;
+   * } | null} Object with indexOf call info, or null if not found
+   */
+  getIndexOfInfo() {
+    if (!j.BinaryExpression.check(this.node)) {
+      return null
+    }
+
+    // Check left side
+    if (
+      j.CallExpression.check(this.node.left) &&
+      j.MemberExpression.check(this.node.left.callee) &&
+      j.Identifier.check(this.node.left.callee.property) &&
+      this.node.left.callee.property.name === "indexOf"
+    ) {
+      return {
+        indexOfCall: this.node.left,
+        comparisonValue: this.node.right,
+        isLeftIndexOf: true,
       }
     }
-  } else if (j.ArrayPattern.check(pattern)) {
-    for (const element of pattern.elements) {
-      yield* extractIdentifiersFromPattern(element)
+    // Check right side
+    else if (
+      j.CallExpression.check(this.node.right) &&
+      j.MemberExpression.check(this.node.right.callee) &&
+      j.Identifier.check(this.node.right.callee.property) &&
+      this.node.right.callee.property.name === "indexOf"
+    ) {
+      return {
+        indexOfCall: this.node.right,
+        comparisonValue: this.node.left,
+        isLeftIndexOf: false,
+      }
     }
-  } else if (j.AssignmentPattern.check(pattern)) {
-    yield* extractIdentifiersFromPattern(pattern.left)
-  } else if (j.RestElement.check(pattern)) {
-    yield* extractIdentifiersFromPattern(pattern.argument)
+    return null
+  }
+
+  /**
+   * Determine if a binary expression is a null check.
+   *
+   * @returns {{ value: import("ast-types").Node; isNegated: boolean } | null} Null check result or null
+   */
+  getNullCheck() {
+    if (
+      j.BinaryExpression.check(this.node) &&
+      (this.node.operator === "!==" || this.node.operator === "===")
+    ) {
+      const isNegated = this.node.operator === "!=="
+      if (
+        j.NullLiteral.check(this.node.right) ||
+        (j.Literal.check(this.node.right) && this.node.right.value === null)
+      ) {
+        return { value: this.node.left, isNegated }
+      }
+      if (
+        j.NullLiteral.check(this.node.left) ||
+        (j.Literal.check(this.node.left) && this.node.left.value === null)
+      ) {
+        return { value: this.node.right, isNegated }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Determine if a binary expression is an undefined check.
+   *
+   * @returns {{ value: import("ast-types").Node; isNegated: boolean } | null} Undefined check result or null
+   */
+  getUndefinedCheck() {
+    if (
+      j.BinaryExpression.check(this.node) &&
+      (this.node.operator === "!==" || this.node.operator === "===")
+    ) {
+      const isNegated = this.node.operator === "!=="
+      if (j.Identifier.check(this.node.right) && this.node.right.name === "undefined") {
+        return { value: this.node.left, isNegated }
+      }
+      if (j.Identifier.check(this.node.left) && this.node.left.name === "undefined") {
+        return { value: this.node.right, isNegated }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Check if a function body has a local declaration shadowing the variable.
+   *
+   * @param {import("ast-types").NodePath} declarationPath - Path to the original
+   *   declaration
+   * @param {string} varName - Variable name to check
+   * @returns {{ hasShadowing: boolean; foundOurDeclaration: boolean }}
+   */
+  checkFunctionBodyForShadowing(declarationPath, varName) {
+    let foundOurDeclaration = false
+    const hasShadowing = j(this.node)
+      .find(j.VariableDeclarator)
+      .some((declPath) => {
+        if (declPath.parent.node === declarationPath.node) {
+          foundOurDeclaration = true
+          return false
+        }
+        return new NodeTest(declPath.node.id).patternContainsIdentifier(varName)
+      })
+
+    return { hasShadowing, foundOurDeclaration }
   }
 }
 
@@ -586,35 +720,11 @@ function* extractIdentifiersFromPattern(pattern) {
  * Check if function parameters contain a specific variable name.
  *
  * @param {import("ast-types").ASTNode[]} params - Function parameters
- * @param {string} varName - The variable name to search for
+ * @param {string} varName - Variable name to search for
  * @returns {boolean} True if any parameter contains the variable name
  */
 function paramsContainIdentifier(params, varName) {
-  return params.some((param) => patternContainsIdentifier(param, varName))
-}
-
-/**
- * Check if a function body has a local declaration shadowing the variable.
- *
- * @param {import("ast-types").ASTNode} functionBody - The function body node
- * @param {import("ast-types").NodePath} declarationPath - The path to the original
- *   declaration
- * @param {string} varName - The variable name to check
- * @returns {{ hasShadowing: boolean; foundOurDeclaration: boolean }}
- */
-function checkFunctionBodyForShadowing(functionBody, declarationPath, varName) {
-  let foundOurDeclaration = false
-  const hasShadowing = j(functionBody)
-    .find(j.VariableDeclarator)
-    .some((declPath) => {
-      if (declPath.parent.node === declarationPath.node) {
-        foundOurDeclaration = true
-        return false
-      }
-      return patternContainsIdentifier(declPath.node.id, varName)
-    })
-
-  return { hasShadowing, foundOurDeclaration }
+  return params.some((param) => new NodeTest(param).patternContainsIdentifier(varName))
 }
 
 /**
@@ -643,11 +753,9 @@ function isAssignmentShadowed(varName, declarationPath, currentPath) {
     }
 
     if (node.body) {
-      const { hasShadowing, foundOurDeclaration } = checkFunctionBodyForShadowing(
+      const { hasShadowing, foundOurDeclaration } = new NodeTest(
         node.body,
-        declarationPath,
-        varName,
-      )
+      ).checkFunctionBodyForShadowing(declarationPath, varName)
 
       if (hasShadowing) {
         return true
@@ -676,7 +784,7 @@ function isVariableReassigned(root, varName, declarationPath) {
 
   // Check for AssignmentExpression where left side targets the variable
   root.find(j.AssignmentExpression).forEach((assignPath) => {
-    if (!patternContainsIdentifier(assignPath.node.left, varName)) {
+    if (!new NodeTest(assignPath.node.left).patternContainsIdentifier(varName)) {
       return
     }
 
@@ -740,7 +848,7 @@ export function determineDeclaratorKind(root, declarator, declarationPath) {
   }
 
   // Destructuring pattern - check if any identifier is reassigned
-  for (const varName of extractIdentifiersFromPattern(declarator.id)) {
+  for (const varName of new NodeTest(declarator.id).extractIdentifiersFromPattern()) {
     if (isVariableReassigned(root, varName, declarationPath)) {
       return "let"
     }
@@ -758,9 +866,7 @@ export function determineDeclaratorKind(root, declarator, declarationPath) {
  */
 export function processSingleDeclarator(root, path) {
   const declarator = path.node.declarations[0]
-  const kind = determineDeclaratorKind(root, declarator, path)
-
-  path.node.kind = kind
+  path.node.kind = determineDeclaratorKind(root, declarator, path)
 
   const change = path.node.loc
     ? { type: "varToLetOrConst", line: path.node.loc.start.line }
@@ -779,8 +885,9 @@ export function processSingleDeclarator(root, path) {
  */
 export function processMultipleDeclarators(root, path) {
   const declarations = path.node.declarations.map((declarator) => {
-    const kind = determineDeclaratorKind(root, declarator, path)
-    return j.variableDeclaration(kind, [declarator])
+    return j.variableDeclaration(determineDeclaratorKind(root, declarator, path), [
+      declarator,
+    ])
   })
 
   j(path).replaceWith(declarations)
@@ -790,72 +897,6 @@ export function processMultipleDeclarators(root, path) {
     : null
 
   return { modified: true, change }
-}
-
-/**
- * Get numeric value from a node (handles -1 as UnaryExpression).
- *
- * @param {import("ast-types").namedTypes.Node} node - The AST node to extract
- *   numeric value from
- * @returns {number | null} The numeric value, or null if not a number
- */
-export function getNumericValue(node) {
-  // Handle direct literals (e.g., 0)
-  if (j.Literal.check(node) && typeof node.value === "number") {
-    return node.value
-  }
-  // Handle UnaryExpression with minus operator (e.g., -1)
-  if (
-    j.UnaryExpression.check(node) &&
-    node.operator === "-" &&
-    j.Literal.check(node.argument) &&
-    typeof node.argument.value === "number"
-  ) {
-    return -node.argument.value
-  }
-  return null
-}
-
-/**
- * Determine which side of the binary expression has the indexOf call.
- *
- * @param {import("ast-types").namedTypes.BinaryExpression} node - The binary
- *   expression node to analyze
- * @returns {{
- *   indexOfCall: import("ast-types").namedTypes.CallExpression;
- *   comparisonValue: import("ast-types").namedTypes.Node;
- *   isLeftIndexOf: boolean;
- * } | null}
- *   Object with indexOf call info, or null if not found
- */
-export function getIndexOfInfo(node) {
-  // Check left side
-  if (
-    j.CallExpression.check(node.left) &&
-    j.MemberExpression.check(node.left.callee) &&
-    j.Identifier.check(node.left.callee.property) &&
-    node.left.callee.property.name === "indexOf"
-  ) {
-    return {
-      indexOfCall: node.left,
-      comparisonValue: node.right,
-      isLeftIndexOf: true,
-    }
-  }
-  // Check right side
-  else if (
-    j.CallExpression.check(node.right) &&
-    j.MemberExpression.check(node.right.callee) &&
-    j.Identifier.check(node.right.callee.property) &&
-    node.right.callee.property.name === "indexOf"
-  ) {
-    return {
-      indexOfCall: node.right,
-      comparisonValue: node.left,
-      isLeftIndexOf: false,
-    }
-  }
-  return null
 }
 
 /**
@@ -874,56 +915,6 @@ export function isShadowed(path, name) {
     scope = scope.parent
   }
   return false
-}
-
-/**
- * Determine if a binary expression is a null check.
- *
- * @param {import("ast-types").Node} node - The AST node
- * @returns {{ value: import("ast-types").Node; isNegated: boolean } | null}
- */
-export function getNullCheck(node) {
-  if (
-    j.BinaryExpression.check(node) &&
-    (node.operator === "!==" || node.operator === "===")
-  ) {
-    const isNegated = node.operator === "!=="
-    if (
-      j.NullLiteral.check(node.right) ||
-      (j.Literal.check(node.right) && node.right.value === null)
-    ) {
-      return { value: node.left, isNegated }
-    }
-    if (
-      j.NullLiteral.check(node.left) ||
-      (j.Literal.check(node.left) && node.left.value === null)
-    ) {
-      return { value: node.right, isNegated }
-    }
-  }
-  return null
-}
-
-/**
- * Determine if a binary expression is an undefined check.
- *
- * @param {import("ast-types").Node} node - The AST node
- * @returns {{ value: import("ast-types").Node; isNegated: boolean } | null}
- */
-export function getUndefinedCheck(node) {
-  if (
-    j.BinaryExpression.check(node) &&
-    (node.operator === "!==" || node.operator === "===")
-  ) {
-    const isNegated = node.operator === "!=="
-    if (j.Identifier.check(node.right) && node.right.name === "undefined") {
-      return { value: node.left, isNegated }
-    }
-    if (j.Identifier.check(node.left) && node.left.name === "undefined") {
-      return { value: node.right, isNegated }
-    }
-  }
-  return null
 }
 
 /**

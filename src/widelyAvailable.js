@@ -1,13 +1,9 @@
 import { default as j } from "jscodeshift"
 import {
   NodeTest,
-  getIndexOfInfo,
-  getNumericValue,
   processMultipleDeclarators,
   processSingleDeclarator,
   isShadowed,
-  getNullCheck,
-  getUndefinedCheck,
   validateChecks,
 } from "./types.js"
 
@@ -1432,13 +1428,13 @@ export function nullishCoalescingOperator(root) {
       const right = node.test.right
 
       // Check if left and right are null and undefined checks
-      const nullCheck = getNullCheck(left)
-      const undefinedCheck = getUndefinedCheck(right)
+      const nullCheck = new NodeTest(left).getNullCheck()
+      const undefinedCheck = new NodeTest(right).getUndefinedCheck()
 
       if (!nullCheck || !undefinedCheck) {
         // Try swapped order
-        const nullCheckSwapped = getNullCheck(right)
-        const undefinedCheckSwapped = getUndefinedCheck(left)
+        const nullCheckSwapped = new NodeTest(right).getNullCheck()
+        const undefinedCheckSwapped = new NodeTest(left).getUndefinedCheck()
 
         if (!nullCheckSwapped || !undefinedCheckSwapped) {
           return false
@@ -1457,8 +1453,8 @@ export function nullishCoalescingOperator(root) {
 
       // Get the value being checked
       let valueNode
-      const nullCheck = getNullCheck(left)
-      const undefinedCheck = getUndefinedCheck(right)
+      const nullCheck = new NodeTest(left).getNullCheck()
+      const undefinedCheck = new NodeTest(right).getUndefinedCheck()
 
       if (nullCheck && undefinedCheck) {
         // Normal order: null check on left, undefined check on right
@@ -1466,7 +1462,7 @@ export function nullishCoalescingOperator(root) {
       } else {
         // Swapped order: undefined check on left, null check on right
         // The filter guarantees both checks exist in this case
-        const nullCheckSwapped = getNullCheck(right)
+        const nullCheckSwapped = new NodeTest(right).getNullCheck()
         valueNode = nullCheckSwapped.value
       }
 
@@ -1649,7 +1645,7 @@ export function indexOfToIncludes(root) {
       }
 
       // Check if one side is a .indexOf() call and the other is -1 or 0
-      const indexOfInfo = getIndexOfInfo(node)
+      const indexOfInfo = new NodeTest(node).getIndexOfInfo()
       if (!indexOfInfo) {
         return false
       }
@@ -1670,7 +1666,7 @@ export function indexOfToIncludes(root) {
       }
 
       // Comparison value must be -1 or 0
-      const value = getNumericValue(comparisonValue)
+      const value = new NodeTest(comparisonValue).getNumericValue()
       if (value !== -1 && value !== 0) {
         return false
       }
@@ -1688,24 +1684,24 @@ export function indexOfToIncludes(root) {
 
       if (value === -1) {
         if (isLeftIndexOf) {
-          // indexOf() op -1
+          // indexOf() !== -1
           if (!["!==", "===", ">", "<="].includes(operator)) {
             return false
           }
         } else {
-          // -1 op indexOf()
+          // -1 === indexOf()
           if (!["!==", "===", "<", ">="].includes(operator)) {
             return false
           }
         }
       } else if (value === 0) {
         if (isLeftIndexOf) {
-          // indexOf() op 0
+          // indexOf() >= 0
           if (![">=", "<"].includes(operator)) {
             return false
           }
         } else {
-          // 0 op indexOf()
+          // 0 < indexOf()
           if (!["<=", ">"].includes(operator)) {
             return false
           }
@@ -1718,32 +1714,32 @@ export function indexOfToIncludes(root) {
       const node = path.node
 
       // Get indexOf call info using helper
-      const indexOfInfo = getIndexOfInfo(node)
+      const indexOfInfo = new NodeTest(node).getIndexOfInfo()
       const { indexOfCall, comparisonValue, isLeftIndexOf } = indexOfInfo
 
       const operator = node.operator
-      const value = getNumericValue(comparisonValue)
+      const value = new NodeTest(comparisonValue).getNumericValue()
 
       // Determine if this should be negated
       let shouldNegate = false
 
       if (value === -1) {
         if (isLeftIndexOf) {
-          // indexOf() op -1
+          // indexOf() !== -1
           // Negate for: ===, <=
           shouldNegate = operator === "===" || operator === "<="
         } else {
-          // -1 op indexOf()
+          // -1 === indexOf()
           // Negate for: ===, >=
           shouldNegate = operator === "===" || operator === ">="
         }
       } else if (value === 0) {
         if (isLeftIndexOf) {
-          // indexOf() op 0
+          // indexOf() >= 0
           // Negate for: <
           shouldNegate = operator === "<"
         } else {
-          // 0 op indexOf()
+          // 0 < indexOf()
           // Negate for: >
           shouldNegate = operator === ">"
         }
@@ -2023,7 +2019,7 @@ export function indexOfToStartsWith(root) {
       }
 
       // Check if one side is a .indexOf() call and the other is 0
-      const indexOfInfo = getIndexOfInfo(node)
+      const indexOfInfo = new NodeTest(node).getIndexOfInfo()
       if (!indexOfInfo) {
         return false
       }
@@ -2042,12 +2038,12 @@ export function indexOfToStartsWith(root) {
       }
 
       // Comparison value must be 0
-      const value = getNumericValue(comparisonValue)
+      const value = new NodeTest(comparisonValue).getNumericValue()
       return value === 0
     })
     .forEach((path) => {
       const node = path.node
-      const indexOfInfo = getIndexOfInfo(node)
+      const indexOfInfo = new NodeTest(node).getIndexOfInfo()
       const { indexOfCall } = indexOfInfo
 
       // Create startsWith() call
@@ -2132,7 +2128,7 @@ export function substringToStartsWith(root) {
 
       // First argument must be 0
       const firstArg = substringCall.arguments[0]
-      if (getNumericValue(firstArg) !== 0) {
+      if (new NodeTest(firstArg).getNumericValue() !== 0) {
         return false
       }
 
