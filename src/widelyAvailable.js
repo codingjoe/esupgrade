@@ -2428,7 +2428,9 @@ export function lastIndexOfToEndsWith(root) {
 
       // The object of str.length must match the lastIndexOf object
       if (
-        !new NodeTest(comparisonValue.left.object).isEqual(lastIndexOfCall.callee.object)
+        !new NodeTest(comparisonValue.left.object).isEqual(
+          lastIndexOfCall.callee.object,
+        )
       ) {
         return false
       }
@@ -2478,9 +2480,7 @@ export function lastIndexOfToEndsWith(root) {
 
       // Wrap in negation if operator is !==
       const replacement =
-        node.operator === "!=="
-          ? j.unaryExpression("!", endsWithCall)
-          : endsWithCall
+        node.operator === "!==" ? j.unaryExpression("!", endsWithCall) : endsWithCall
 
       j(path).replaceWith(replacement)
 

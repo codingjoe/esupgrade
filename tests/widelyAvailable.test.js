@@ -5226,7 +5226,9 @@ const obj = {
       })
 
       test("string literal with indexOf !== 0", () => {
-        const result = transform(`const notFound = "hello world".indexOf("goodbye") !== 0;`)
+        const result = transform(
+          `const notFound = "hello world".indexOf("goodbye") !== 0;`,
+        )
 
         assert(result.modified, "transform indexOf !== 0")
         assert.match(result.code, /!"hello world"\.startsWith\("goodbye"\)/)
@@ -5331,9 +5333,7 @@ const obj = {
 
     describe("non-transformable patterns", () => {
       test("substring with wrong argument count", () => {
-        const result = transform(
-          `const sub = "hello".substring(0) === prefix;`,
-        )
+        const result = transform(`const sub = "hello".substring(0) === prefix;`)
 
         assert(!result.modified, "skip substring with one argument")
         assert.match(result.code, /substring/)
@@ -5430,9 +5430,7 @@ const obj = {
 
     describe("non-transformable patterns", () => {
       test("lastIndexOf with non-subtraction comparison", () => {
-        const result = transform(
-          `const matches = "test".lastIndexOf(suffix) === 5;`,
-        )
+        const result = transform(`const matches = "test".lastIndexOf(suffix) === 5;`)
 
         assert(!result.modified, "skip lastIndexOf with non-subtraction")
         assert.match(result.code, /lastIndexOf/)
