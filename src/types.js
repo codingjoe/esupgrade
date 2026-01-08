@@ -22,7 +22,7 @@ export class NodeTest {
    *
    * @returns {boolean} True if node is an ArrayExpression
    */
-  #isArrayLiteral() {
+  isArrayLiteral() {
     return j.ArrayExpression.check(this.node)
   }
 
@@ -31,7 +31,7 @@ export class NodeTest {
    *
    * @returns {boolean} True if node is new Array()
    */
-  #isNewArray() {
+  isNewArray() {
     return (
       j.NewExpression.check(this.node) &&
       j.Identifier.check(this.node.callee) &&
@@ -42,15 +42,25 @@ export class NodeTest {
   /**
    * Check if node is an Array.method() static call.
    *
+   * @param {string} [methodName] - Optional specific method name to check for
    * @returns {boolean} True if node is Array.from(), Array.of(), etc.
    */
-  #isArrayStaticCall() {
-    return (
+  isArrayStaticCall(methodName) {
+    if (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
       j.Identifier.check(this.node.callee.object) &&
       this.node.callee.object.name === "Array"
-    )
+    ) {
+      if (methodName) {
+        return (
+          j.Identifier.check(this.node.callee.property) &&
+          this.node.callee.property.name === methodName
+        )
+      }
+      return true
+    }
+    return false
   }
 
   /**
@@ -59,7 +69,7 @@ export class NodeTest {
    * @param {string[]} methodNames - Method names to check for
    * @returns {boolean} True if node matches the pattern
    */
-  #isStringLiteralMethodCall(methodNames) {
+  isStringLiteralMethodCall(methodNames) {
     return (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
@@ -75,7 +85,7 @@ export class NodeTest {
    * @param {string[]} methodNames - Array method names that return arrays
    * @returns {boolean} True if node is an array method call on a known array/string
    */
-  #isArrayMethodChain(methodNames) {
+  isArrayMethodChain(methodNames) {
     if (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
@@ -94,15 +104,15 @@ export class NodeTest {
    * @returns {boolean} True if the node can be verified as iterable
    */
   isIterable() {
-    if (this.#isArrayLiteral()) {
+    if (this.isArrayLiteral()) {
       return true
     }
 
-    if (this.#isArrayStaticCall()) {
+    if (this.isArrayStaticCall()) {
       return true
     }
 
-    if (this.#isNewArray()) {
+    if (this.isNewArray()) {
       return true
     }
 
@@ -119,7 +129,7 @@ export class NodeTest {
       "trimEnd",
     ]
 
-    return this.#isStringLiteralMethodCall(STRING_METHODS_RETURNING_ITERABLE)
+    return this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_ITERABLE)
   }
 
   /**
@@ -130,11 +140,11 @@ export class NodeTest {
    * @returns {boolean} True if the node can be verified as an array or string
    */
   hasIndexOfAndIncludes() {
-    if (this.#isArrayLiteral()) {
+    if (this.isArrayLiteral()) {
       return true
     }
 
-    if (this.#isNewArray()) {
+    if (this.isNewArray()) {
       return true
     }
 
@@ -167,7 +177,7 @@ export class NodeTest {
       "replaceAll",
     ]
 
-    if (this.#isStringLiteralMethodCall(STRING_METHODS_RETURNING_STRING)) {
+    if (this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_STRING)) {
       return true
     }
 
@@ -183,7 +193,7 @@ export class NodeTest {
       "splice",
     ]
 
-    return this.#isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY)
+    return this.isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY)
   }
 
   /**

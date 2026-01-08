@@ -266,18 +266,7 @@ export function arrayFromForEachToForOf(root) {
 
       // Check if the object is Array.from()
       const object = node.callee.object
-      if (
-        !j.CallExpression.check(object) ||
-        !j.MemberExpression.check(object.callee) ||
-        !j.Identifier.check(object.callee.object) ||
-        object.callee.object.name !== "Array" ||
-        !j.Identifier.check(object.callee.property) ||
-        object.callee.property.name !== "from"
-      ) {
-        return false
-      }
-
-      return true
+      return new NodeTest(object).isArrayStaticCall("from")
     })
     .forEach((path) => {
       const node = path.node
@@ -343,13 +332,7 @@ export function arrayFromToSpread(root) {
       const node = path.node
 
       // Check if this is Array.from() call
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        !j.Identifier.check(node.callee.object) ||
-        node.callee.object.name !== "Array" ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "from"
-      ) {
+      if (!new NodeTest(node).isArrayStaticCall("from")) {
         return false
       }
 
