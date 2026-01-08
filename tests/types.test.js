@@ -1,8 +1,18 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
+import { default as j } from "jscodeshift"
 import { transform } from "../src/index.js"
+import { NodeTest } from "../src/types.js"
 
 describe("types", () => {
+  describe("NodeTest", () => {
+    test("getIndexOfInfo returns null for non-binary expressions", () => {
+      const node = j.literal(1)
+      const test = new NodeTest(node)
+      assert.strictEqual(test.getIndexOfInfo(), null)
+    })
+  })
+
   describe("patternContainsIdentifier with null/undefined", () => {
     test("array destructuring with holes (null elements)", () => {
       const result = transform(`
