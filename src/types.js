@@ -18,37 +18,94 @@ export class NodeTest {
   }
 
   /**
+   * Check if node is an array literal.
+   *
+   * @returns {boolean} True if node is an ArrayExpression
+   */
+  #isArrayLiteral() {
+    return j.ArrayExpression.check(this.node)
+  }
+
+  /**
+   * Check if node is a new Array() expression.
+   *
+   * @returns {boolean} True if node is new Array()
+   */
+  #isNewArray() {
+    return (
+      j.NewExpression.check(this.node) &&
+      j.Identifier.check(this.node.callee) &&
+      this.node.callee.name === "Array"
+    )
+  }
+
+  /**
+   * Check if node is an Array.method() static call.
+   *
+   * @returns {boolean} True if node is Array.from(), Array.of(), etc.
+   */
+  #isArrayStaticCall() {
+    return (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.object) &&
+      this.node.callee.object.name === "Array"
+    )
+  }
+
+  /**
+   * Check if node is a method call on a string literal returning one of the specified types.
+   *
+   * @param {string[]} methodNames - Method names to check for
+   * @returns {boolean} True if node matches the pattern
+   */
+  #isStringLiteralMethodCall(methodNames) {
+    return (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.property) &&
+      j.StringLiteral.check(this.node.callee.object) &&
+      methodNames.includes(this.node.callee.property.name)
+    )
+  }
+
+  /**
+   * Check if node is an array method call returning an array, recursively checking the object.
+   *
+   * @param {string[]} methodNames - Array method names that return arrays
+   * @returns {boolean} True if node is an array method call on a known array/string
+   */
+  #isArrayMethodChain(methodNames) {
+    if (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.property) &&
+      methodNames.includes(this.node.callee.property.name)
+    ) {
+      return new NodeTest(this.node.callee.object).hasIndexOfAndIncludes()
+    }
+    return false
+  }
+
+  /**
    * Check if an expression is statically verifiable as iterable. Used by transformers
    * to ensure they only transform known iterable types.
    *
    * @returns {boolean} True if the node can be verified as iterable
    */
   isIterable() {
-    // Array literal: [1, 2, 3]
-    if (j.ArrayExpression.check(this.node)) {
+    if (this.#isArrayLiteral()) {
       return true
     }
 
-    // Array.from(), Array.of(), etc.
-    if (
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      j.Identifier.check(this.node.callee.object) &&
-      this.node.callee.object.name === "Array"
-    ) {
+    if (this.#isArrayStaticCall()) {
       return true
     }
 
-    // new Array()
-    if (
-      j.NewExpression.check(this.node) &&
-      j.Identifier.check(this.node.callee) &&
-      this.node.callee.name === "Array"
-    ) {
+    if (this.#isNewArray()) {
       return true
     }
 
-    // String literal methods that return iterables
     const STRING_METHODS_RETURNING_ITERABLE = [
       "matchAll",
       "split",
@@ -62,14 +119,7 @@ export class NodeTest {
       "trimEnd",
     ]
 
-    // String literal methods (e.g., "a,b,c".split(','), "hello".slice(0))
-    return !!(
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      j.Identifier.check(this.node.callee.property) &&
-      j.StringLiteral.check(this.node.callee.object) &&
-      STRING_METHODS_RETURNING_ITERABLE.includes(this.node.callee.property.name)
-    )
+    return this.#isStringLiteralMethodCall(STRING_METHODS_RETURNING_ITERABLE)
   }
 
   /**
@@ -80,17 +130,11 @@ export class NodeTest {
    * @returns {boolean} True if the node can be verified as an array or string
    */
   hasIndexOfAndIncludes() {
-    // Array literal: [1, 2, 3]
-    if (j.ArrayExpression.check(this.node)) {
+    if (this.#isArrayLiteral()) {
       return true
     }
 
-    // new Array()
-    if (
-      j.NewExpression.check(this.node) &&
-      j.Identifier.check(this.node.callee) &&
-      this.node.callee.name === "Array"
-    ) {
+    if (this.#isNewArray()) {
       return true
     }
 
@@ -104,7 +148,6 @@ export class NodeTest {
       return true
     }
 
-    // String methods that return strings
     const STRING_METHODS_RETURNING_STRING = [
       "slice",
       "substr",
@@ -124,18 +167,10 @@ export class NodeTest {
       "replaceAll",
     ]
 
-    // String literal methods (e.g., "hello".slice(0), "world".toLowerCase())
-    if (
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      j.Identifier.check(this.node.callee.property) &&
-      j.StringLiteral.check(this.node.callee.object) &&
-      STRING_METHODS_RETURNING_STRING.includes(this.node.callee.property.name)
-    ) {
+    if (this.#isStringLiteralMethodCall(STRING_METHODS_RETURNING_STRING)) {
       return true
     }
 
-    // Array methods that return arrays
     const ARRAY_METHODS_RETURNING_ARRAY = [
       "slice",
       "concat",
@@ -148,18 +183,7 @@ export class NodeTest {
       "splice",
     ]
 
-    // Check for array method calls on known iterables
-    if (
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      j.Identifier.check(this.node.callee.property) &&
-      ARRAY_METHODS_RETURNING_ARRAY.includes(this.node.callee.property.name)
-    ) {
-      // Recursively check if the object is a known iterable
-      return new NodeTest(this.node.callee.object).hasIndexOfAndIncludes()
-    }
-
-    return false
+    return this.#isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY)
   }
 
   /**
