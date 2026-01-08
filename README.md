@@ -415,6 +415,7 @@ Calls with a fromIndex parameter are not transformed as they have different sema
 ```
 
 Transforms the deprecated `substr()` method to `slice()`:
+
 - `str.substr(start, length)` becomes `str.slice(start, start + length)`
 - `str.substr(start)` becomes `str.slice(start)`
 - `str.substr()` becomes `str.slice()`

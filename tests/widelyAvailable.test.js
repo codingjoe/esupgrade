@@ -5054,9 +5054,7 @@ const obj = {
       })
 
       test("substr on string method chain", () => {
-        const result = transform(
-          `const result = "hello".toUpperCase().substr(0, 3);`,
-        )
+        const result = transform(`const result = "hello".toUpperCase().substr(0, 3);`)
 
         assert(result.modified, "transform substr on string method chain")
         assert.match(
@@ -5093,7 +5091,10 @@ const obj = {
         const result = transform(`const s = "hello world".substr(0, 5).trim();`)
 
         assert(result.modified, "transform substr in method chain")
-        assert.match(result.code, /const s = "hello world"\.slice\(0, 0 \+ 5\)\.trim\(\)/)
+        assert.match(
+          result.code,
+          /const s = "hello world"\.slice\(0, 0 \+ 5\)\.trim\(\)/,
+        )
         assert.doesNotMatch(result.code, /substr/)
       })
 
