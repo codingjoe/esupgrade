@@ -4885,7 +4885,10 @@ const obj = {
         const result = transform(`const notFound = -1 <= [1, 2, 3].indexOf(item);`)
 
         assert(!result.modified, "skip -1 <= indexOf comparison")
-        assert.match(result.code, /const notFound = -1 <= \[1, 2, 3\]\.indexOf\(item\);/)
+        assert.match(
+          result.code,
+          /const notFound = -1 <= \[1, 2, 3\]\.indexOf\(item\);/,
+        )
       })
 
       test("[].indexOf(item) < -1 (invalid for -1)", () => {
