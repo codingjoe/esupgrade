@@ -5011,4 +5011,199 @@ const obj = {
       })
     })
   })
+
+  describe("substrToSlice", () => {
+    describe("basic transformations", () => {
+      test("substr(start, length) on string literal", () => {
+        const result = transform(`const result = "hello world".substr(0, 5);`)
+
+        assert(result.modified, "transform substr with start and length")
+        assert.match(result.code, /const result = "hello world"\.slice\(0, 0 \+ 5\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr(start) on string literal", () => {
+        const result = transform(`const result = "hello world".substr(6);`)
+
+        assert(result.modified, "transform substr with only start")
+        assert.match(result.code, /const result = "hello world"\.slice\(6\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr() with no arguments", () => {
+        const result = transform(`const result = "hello".substr();`)
+
+        assert(result.modified, "transform substr with no arguments")
+        assert.match(result.code, /const result = "hello"\.slice\(\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr with variables", () => {
+        const result = transform(`const result = str.substr(start, length);`)
+
+        assert(!result.modified, "skip substr on unknown type")
+        assert.match(result.code, /str\.substr/)
+      })
+
+      test("substr on template literal", () => {
+        const result = transform("const result = `hello world`.substr(0, 5);")
+
+        assert(result.modified, "transform substr on template literal")
+        assert.match(result.code, /const result = `hello world`\.slice\(0, 0 \+ 5\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr on string method chain", () => {
+        const result = transform(`const result = "hello".toUpperCase().substr(0, 3);`)
+
+        assert(result.modified, "transform substr on string method chain")
+        assert.match(
+          result.code,
+          /const result = "hello"\.toUpperCase\(\)\.slice\(0, 0 \+ 3\)/,
+        )
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr with literal arguments", () => {
+        const result = transform(`const s = "test string".substr(5, 6);`)
+
+        assert(result.modified, "transform substr with literal arguments")
+        assert.match(result.code, /const s = "test string"\.slice\(5, 5 \+ 6\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr with expression arguments", () => {
+        const result = transform(
+          `const s = "hello world".substr(offset, limit - offset);`,
+        )
+
+        assert(result.modified, "transform substr with expression arguments")
+        assert.match(
+          result.code,
+          /const s = "hello world"\.slice\(offset, offset \+ \(limit - offset\)\)/,
+        )
+        assert.doesNotMatch(result.code, /substr/)
+      })
+    })
+
+    describe("chained methods", () => {
+      test("substr().trim()", () => {
+        const result = transform(`const s = "hello world".substr(0, 5).trim();`)
+
+        assert(result.modified, "transform substr in method chain")
+        assert.match(
+          result.code,
+          /const s = "hello world"\.slice\(0, 0 \+ 5\)\.trim\(\)/,
+        )
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("trim().substr()", () => {
+        const result = transform(`const s = "  hello  ".trim().substr(0, 3);`)
+
+        assert(result.modified, "transform substr after trim")
+        assert.match(result.code, /const s = "  hello  "\.trim\(\)\.slice\(0, 0 \+ 3\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("multiple string method chains", () => {
+        const result = transform(
+          `const s = "hello".toLowerCase().substr(1, 3).toUpperCase();`,
+        )
+
+        assert(result.modified, "transform substr in complex chain")
+        assert.match(
+          result.code,
+          /const s = "hello"\.toLowerCase\(\)\.slice\(1, 1 \+ 3\)\.toUpperCase\(\)/,
+        )
+        assert.doesNotMatch(result.code, /substr/)
+      })
+    })
+
+    describe("edge cases", () => {
+      test("substr with negative start", () => {
+        const result = transform(`const s = "hello".substr(-3, 2);`)
+
+        assert(result.modified, "transform substr with negative start")
+        assert.match(result.code, /const s = "hello"\.slice\(-3, -3 \+ 2\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr with more than 2 arguments", () => {
+        const result = transform(`const s = "hello".substr(0, 3, extra);`)
+
+        assert(result.modified, "transform substr even with extra arguments")
+        assert.match(result.code, /const s = "hello"\.slice\(0, 0 \+ 3\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("multiple substr calls", () => {
+        const result = transform(`
+          const a = "hello".substr(0, 2);
+          const b = "world".substr(1, 3);
+        `)
+
+        assert(result.modified, "transform multiple substr calls")
+        assert.match(result.code, /"hello"\.slice\(0, 0 \+ 2\)/)
+        assert.match(result.code, /"world"\.slice\(1, 1 \+ 3\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr in expression", () => {
+        const result = transform(
+          `const result = "prefix" + "hello".substr(0, 3) + "suffix";`,
+        )
+
+        assert(result.modified, "transform substr in expression")
+        assert.match(result.code, /"hello"\.slice\(0, 0 \+ 3\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr in function call", () => {
+        const result = transform(`console.log("test".substr(1, 2));`)
+
+        assert(result.modified, "transform substr in function call")
+        assert.match(result.code, /console\.info\("test"\.slice\(1, 1 \+ 2\)\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr in return statement", () => {
+        const result = transform(`function get() { return "value".substr(0, 3); }`)
+
+        assert(result.modified, "transform substr in return")
+        assert.match(result.code, /return "value"\.slice\(0, 0 \+ 3\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
+    })
+
+    describe("non-transformable patterns", () => {
+      test("substr on unknown variable", () => {
+        const result = transform(`const s = str.substr(0, 5);`)
+
+        assert(!result.modified, "skip substr on unknown variable")
+        assert.match(result.code, /str\.substr/)
+      })
+
+      test("substr on object property", () => {
+        const result = transform(`const s = obj.prop.substr(0, 5);`)
+
+        assert(!result.modified, "skip substr on object property")
+        assert.match(result.code, /obj\.prop\.substr/)
+      })
+
+      test("substr on function call result", () => {
+        const result = transform(`const s = getString().substr(0, 5);`)
+
+        assert(!result.modified, "skip substr on function call")
+        assert.match(result.code, /getString\(\)\.substr/)
+      })
+
+      test("substr on array access", () => {
+        const result = transform(`const s = arr[0].substr(0, 5);`)
+
+        assert(!result.modified, "skip substr on array access")
+        assert.match(result.code, /arr\[0\]\.substr/)
+      })
+    })
+  })
 })
