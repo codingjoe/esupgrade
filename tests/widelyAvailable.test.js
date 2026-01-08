@@ -5243,7 +5243,10 @@ const myFunc = function() {
 };
         `)
 
-        assert(result.modified, "transform Array.from(arguments) in function expression")
+        assert(
+          result.modified,
+          "transform Array.from(arguments) in function expression",
+        )
         // Note: namedArrowFunctionToNamedFunction converts this to a named function declaration
         assert.match(result.code, /function myFunc\(\.\.\.args\)/)
         assert.doesNotMatch(result.code, /Array\.from\(arguments\)/)
@@ -5260,7 +5263,11 @@ function fn() {
         // arrayFromToSpread will convert Array.from(arguments) to [...arguments]
         // but argumentsToRestParameters should NOT add rest params because arguments is used elsewhere
         assert(result.modified, "other transformers run")
-        assert.doesNotMatch(result.code, /\.\.\.args\)/, "should NOT add rest parameter")
+        assert.doesNotMatch(
+          result.code,
+          /\.\.\.args\)/,
+          "should NOT add rest parameter",
+        )
         assert.match(result.code, /\[\.\.\.arguments\]/, "should keep [...arguments]")
         assert.match(result.code, /arguments\.length/, "arguments is still used")
       })
@@ -5276,8 +5283,16 @@ function fn(...existing) {
         // arrayFromToSpread will convert Array.from(arguments) to [...arguments]
         // but argumentsToRestParameters should NOT add another rest parameter
         assert(result.modified, "other transformers run")
-        assert.match(result.code, /\.\.\.existing\)/, "should keep existing rest parameter")
-        assert.doesNotMatch(result.code, /\.\.\.args\)/, "should NOT add another rest parameter")
+        assert.match(
+          result.code,
+          /\.\.\.existing\)/,
+          "should keep existing rest parameter",
+        )
+        assert.doesNotMatch(
+          result.code,
+          /\.\.\.args\)/,
+          "should NOT add another rest parameter",
+        )
         assert.match(result.code, /\[\.\.\.arguments\]/, "should keep [...arguments]")
       })
 
@@ -5292,7 +5307,11 @@ const fn = () => {
         // Arrow functions don't have arguments, so this pattern shouldn't exist in real code
         // but we should skip it anyway
         assert(result.modified, "other transformers run")
-        assert.doesNotMatch(result.code, /\.\.\.args\)/, "should NOT add rest parameter to arrow")
+        assert.doesNotMatch(
+          result.code,
+          /\.\.\.args\)/,
+          "should NOT add rest parameter to arrow",
+        )
       })
 
       test("function with existing parameters", () => {
@@ -5336,7 +5355,11 @@ function fn() {
 
         assert(result.modified, "transform outer function")
         assert.match(result.code, /function fn\(\.\.\.args\)/)
-        assert.match(result.code, /console\.info\(arguments\)/, "nested function keeps its arguments")
+        assert.match(
+          result.code,
+          /console\.info\(arguments\)/,
+          "nested function keeps its arguments",
+        )
       })
 
       test("skip if Array.from has mapping function", () => {
@@ -5386,7 +5409,11 @@ function fn() {
 
         assert(result.modified, "transform preserving other declarators")
         assert.match(result.code, /function fn\(\.\.\.args\)/)
-        assert.match(result.code, /const x = 1, y = 2/, "should preserve other declarators")
+        assert.match(
+          result.code,
+          /const x = 1, y = 2/,
+          "should preserve other declarators",
+        )
         assert.doesNotMatch(result.code, /const args/)
       })
     })
