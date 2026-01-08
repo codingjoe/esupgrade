@@ -2402,22 +2402,22 @@ export function argumentsToRestParameters(root) {
       })
 
       modified = true
+
+      // Remove the declarators (in reverse order to maintain indices)
+      declaratorsToRemove
+        .slice()
+        .reverse()
+        .forEach(({ statementIndex, declaratorIndex }) => {
+          const statement = body.body[statementIndex]
+          // Remove the specific declarator
+          statement.declarations.splice(declaratorIndex, 1)
+
+          // If the statement has no more declarators, remove the entire statement
+          if (statement.declarations.length === 0) {
+            body.body.splice(statementIndex, 1)
+          }
+        })
     }
-
-    // Remove the declarators (in reverse order to maintain indices)
-    declaratorsToRemove
-      .slice()
-      .reverse()
-      .forEach(({ statementIndex, declaratorIndex }) => {
-        const statement = body.body[statementIndex]
-        // Remove the specific declarator
-        statement.declarations.splice(declaratorIndex, 1)
-
-        // If the statement has no more declarators, remove the entire statement
-        if (statement.declarations.length === 0) {
-          body.body.splice(statementIndex, 1)
-        }
-      })
   })
 
   return modified
