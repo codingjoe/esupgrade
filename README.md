@@ -422,6 +422,39 @@ Transforms the deprecated `substr()` method to `slice()`:
 
 Only transforms when the receiver can be verified as a string (string literals, template literals, or string method chains).
 
+#### `indexOf()` prefix check → [String.startsWith()][mdn-startswith]
+
+```diff
+-const isPrefix = "hello world".indexOf("hello") === 0;
+-const notPrefix = str.indexOf(prefix) !== 0;
++const isPrefix = "hello world".startsWith("hello");
++const notPrefix = !str.startsWith(prefix);
+```
+
+Transforms `indexOf()` prefix checks to the more explicit `startsWith()` method. Only transforms when the receiver can be verified as a string and `indexOf()` is compared to `0`.
+
+#### `substring()` prefix check → [String.startsWith()][mdn-startswith]
+
+```diff
+-const matches = "hello world".substring(0, prefix.length) === prefix;
+-const noMatch = str.substring(0, prefix.length) !== prefix;
++const matches = "hello world".startsWith(prefix);
++const noMatch = !str.startsWith(prefix);
+```
+
+Transforms `substring()` prefix comparisons to `startsWith()`. Only transforms patterns where `substring(0, prefix.length)` is compared to `prefix`.
+
+#### `lastIndexOf()` suffix check → [String.endsWith()][mdn-endswith]
+
+```diff
+-const isSuffix = str.lastIndexOf(suffix) === str.length - suffix.length;
+-const notSuffix = "hello world".lastIndexOf("world") !== "hello world".length - "world".length;
++const isSuffix = str.endsWith(suffix);
++const notSuffix = !"hello world".endsWith("world");
+```
+
+Transforms `lastIndexOf()` suffix checks to the more explicit `endsWith()` method. Only transforms when the receiver can be verified as a string and the pattern matches `lastIndexOf(suffix) === str.length - suffix.length`.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -470,6 +503,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+[mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
 [mdn-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions
@@ -480,6 +514,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-slice]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+[mdn-startswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
 [pre-commit]: https://pre-commit.com/
