@@ -343,7 +343,8 @@ export class NodeTest {
    * @returns {boolean} True if 'arguments' is used in the node
    */
   usesArguments() {
-    for (const statement of this.node.body) {
+    const body = j.BlockStatement.check(this.node) ? this.node.body : [this.node]
+    for (const statement of body) {
       if (
         this.#traverseForPredicate(
           statement,
@@ -355,6 +356,165 @@ export class NodeTest {
     }
 
     return false
+  }
+
+  /**
+   * Check if node is a string literal.
+   *
+   * @returns {boolean} True if node is a StringLiteral or a string-valued Literal
+   */
+  isStringLiteral() {
+    return (
+      j.StringLiteral.check(this.node) ||
+      (j.Literal.check(this.node) && typeof this.node.value === "string")
+    )
+  }
+
+  /**
+   * Check if node or its binary '+' children contain a string literal.
+   *
+   * @returns {boolean} True if string literal is found in the expression chain
+   */
+  containsStringLiteral() {
+    if (this.isStringLiteral()) {
+      return true
+    }
+    if (j.BinaryExpression.check(this.node) && this.node.operator === "+") {
+      return (
+        new NodeTest(this.node.left).containsStringLiteral() ||
+        new NodeTest(this.node.right).containsStringLiteral()
+      )
+    }
+    return false
+  }
+
+  /**
+   * Check if a node is a property access or call on a base.
+   *
+   * @param {import("ast-types").ASTNode} base - The expected base
+   * @returns {boolean} True if node accesses base
+   */
+  isAccessOnBase(base) {
+    if (j.MemberExpression.check(this.node)) {
+      return new NodeTest(this.node.object).isEqual(base)
+    }
+    if (j.CallExpression.check(this.node)) {
+      return new NodeTest(this.node.callee).isEqual(base)
+    }
+    return false
+  }
+
+  /**
+   * Check if node is a constructor-like name (starts with uppercase).
+   *
+   * @returns {boolean} True if the identifier name is uppercase
+   */
+  isConstructorName() {
+    return (
+      j.Identifier.check(this.node) && this.node.name && /^[A-Z]/.test(this.node.name)
+    )
+  }
+
+  /**
+   * Check if a function body contains only simple constructor statements.
+   *
+   * @returns {boolean} True if the body contains only allowed statements
+   */
+  hasSimpleConstructorBody() {
+    return (
+      j.BlockStatement.check(this.node) &&
+      this.node.body.every(
+        (statement) =>
+          j.VariableDeclaration.check(statement) ||
+          j.ExpressionStatement.check(statement),
+      )
+    )
+  }
+
+  /**
+   * Check if identifier is used in the node, ignoring nested functions.
+   *
+   * @param {string} name - Identifier name to search for
+   * @returns {boolean} True if identifier name is found
+   */
+  usesIdentifier(name) {
+    return this.#traverseForPredicate(
+      this.node,
+      (node) => node.type === "Identifier" && node.name === name,
+    )
+  }
+
+  /**
+   * Count how many times an identifier is used in the node, ignoring nested functions.
+   *
+   * @param {string} name - Identifier name to count
+   * @returns {number} Number of usages
+   */
+  countIdentifierUsages(name) {
+    let count = 0
+    this.#traverseForPredicate(this.node, (node) => {
+      if (node.type === "Identifier" && node.name === name) {
+        count++
+      }
+      return false // Continue traversing
+    })
+    return count
+  }
+
+  /**
+   * Check if node eventually chains from document.
+   *
+   * @returns {boolean} True if it is document or a chain from document
+   */
+  isFromDocument() {
+    if (j.Identifier.check(this.node)) {
+      return this.node.name === "document"
+    }
+    if (j.MemberExpression.check(this.node)) {
+      return new NodeTest(this.node.object).isFromDocument()
+    }
+    if (j.CallExpression.check(this.node)) {
+      if (j.MemberExpression.check(this.node.callee)) {
+        return new NodeTest(this.node.callee.object).isFromDocument()
+      }
+    }
+    return false
+  }
+
+  /**
+   * Check if node is Array.from(arguments).
+   *
+   * @returns {boolean} True if matches pattern
+   */
+  isArrayFromArguments() {
+    return (
+      this.isArrayStaticCall("from") &&
+      this.node.arguments.length === 1 &&
+      j.Identifier.check(this.node.arguments[0]) &&
+      this.node.arguments[0].name === "arguments"
+    )
+  }
+
+  /**
+   * Check if node is [].slice.call(arguments).
+   *
+   * @returns {boolean} True if matches pattern
+   */
+  isArraySliceCallArguments() {
+    return (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.MemberExpression.check(this.node.callee.object) &&
+      j.ArrayExpression.check(this.node.callee.object.object) &&
+      this.node.callee.object.object.elements.length === 0 &&
+      j.Identifier.check(this.node.callee.object.property) &&
+      this.node.callee.object.property.name === "slice" &&
+      j.Identifier.check(this.node.callee.property) &&
+      this.node.callee.property.name === "call" &&
+      this.node.arguments.length === 1 &&
+      j.Identifier.check(this.node.arguments[0]) &&
+      this.node.arguments[0].name === "arguments"
+    )
   }
 }
 
@@ -696,4 +856,89 @@ export function getIndexOfInfo(node) {
     }
   }
   return null
+}
+
+/**
+ * Check if an identifier is shadowed by a local declaration or parameter.
+ *
+ * @param {import("ast-types").NodePath} path - Path to the identifier
+ * @param {string} name - Name to check for shadowing
+ * @returns {boolean} True if the identifier is shadowed
+ */
+export function isShadowed(path, name) {
+  let scope = path.scope
+  while (scope) {
+    if (scope.getBindings()[name]) {
+      return true
+    }
+    scope = scope.parent
+  }
+  return false
+}
+
+/**
+ * Determine if a binary expression is a null check.
+ *
+ * @param {import("ast-types").Node} node - The AST node
+ * @returns {{ value: import("ast-types").Node; isNegated: boolean } | null}
+ */
+export function getNullCheck(node) {
+  if (
+    j.BinaryExpression.check(node) &&
+    (node.operator === "!==" || node.operator === "===")
+  ) {
+    const isNegated = node.operator === "!=="
+    if (
+      j.NullLiteral.check(node.right) ||
+      (j.Literal.check(node.right) && node.right.value === null)
+    ) {
+      return { value: node.left, isNegated }
+    }
+    if (
+      j.NullLiteral.check(node.left) ||
+      (j.Literal.check(node.left) && node.left.value === null)
+    ) {
+      return { value: node.right, isNegated }
+    }
+  }
+  return null
+}
+
+/**
+ * Determine if a binary expression is an undefined check.
+ *
+ * @param {import("ast-types").Node} node - The AST node
+ * @returns {{ value: import("ast-types").Node; isNegated: boolean } | null}
+ */
+export function getUndefinedCheck(node) {
+  if (
+    j.BinaryExpression.check(node) &&
+    (node.operator === "!==" || node.operator === "===")
+  ) {
+    const isNegated = node.operator === "!=="
+    if (j.Identifier.check(node.right) && node.right.name === "undefined") {
+      return { value: node.left, isNegated }
+    }
+    if (j.Identifier.check(node.left) && node.left.name === "undefined") {
+      return { value: node.right, isNegated }
+    }
+  }
+  return null
+}
+
+/**
+ * Validate that both checks are negated, operate on the same value, and match the consequent.
+ *
+ * @param {object} nullCheck - The null check result
+ * @param {object} undefinedCheck - The undefined check result
+ * @param {import("ast-types").ASTNode} consequent - The consequent node
+ * @returns {boolean} True if validation passes
+ */
+export function validateChecks(nullCheck, undefinedCheck, consequent) {
+  return (
+    nullCheck.isNegated &&
+    undefinedCheck.isNegated &&
+    new NodeTest(nullCheck.value).isEqual(undefinedCheck.value) &&
+    new NodeTest(nullCheck.value).isEqual(consequent)
+  )
 }

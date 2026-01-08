@@ -5,6 +5,10 @@ import {
   getNumericValue,
   processMultipleDeclarators,
   processSingleDeclarator,
+  isShadowed,
+  getNullCheck,
+  getUndefinedCheck,
+  validateChecks,
 } from "./types.js"
 
 /**
@@ -45,48 +49,15 @@ export function concatToTemplateLiteral(root) {
 
   root
     .find(j.BinaryExpression, { operator: "+" })
-    .filter((path) => {
-      // Only transform if at least one operand is a string literal
-      function hasStringLiteral(node) {
-        if (
-          j.StringLiteral.check(node) ||
-          (j.Literal.check(node) && typeof node.value === "string")
-        ) {
-          return true
-        }
-        if (j.BinaryExpression.check(node) && node.operator === "+") {
-          return hasStringLiteral(node.left) || hasStringLiteral(node.right)
-        }
-        return false
-      }
-
-      return hasStringLiteral(path.node)
-    })
+    .filter((path) => new NodeTest(path.node).containsStringLiteral())
     .forEach((path) => {
       const parts = []
       const expressions = []
-      let lastStringNode = null // Track the last string literal node
-
-      // Helper to check if a node is a string literal
-      function isStringLiteral(node) {
-        return (
-          j.StringLiteral.check(node) ||
-          (j.Literal.check(node) && typeof node.value === "string")
-        )
-      }
-
-      // Helper to check if a node contains any string literal
-      function containsStringLiteral(node) {
-        if (isStringLiteral(node)) return true
-        if (j.BinaryExpression.check(node) && node.operator === "+") {
-          return containsStringLiteral(node.left) || containsStringLiteral(node.right)
-        }
-        return false
-      }
+      let lastStringNode = null
 
       function addStringPart(stringNode) {
-        // Store both the raw and cooked values
-        const rawValue = new NodeTest(stringNode).getRawStringValue()
+        const nodeTest = new NodeTest(stringNode)
+        const rawValue = nodeTest.getRawStringValue()
         const cookedValue = stringNode.value
 
         // Check if we need to add a line continuation backslash
@@ -133,47 +104,36 @@ ${rawValue}`
       }
 
       function flatten(node, stringContext = false) {
-        // Note: node is always a BinaryExpression when called, as non-BinaryExpression
-        // nodes are handled inline before recursing into flatten
         if (j.BinaryExpression.check(node) && node.operator === "+") {
-          // Check if this entire binary expression contains any string literal
-          const hasString = containsStringLiteral(node)
+          const nodeTest = new NodeTest(node)
+          const hasString = nodeTest.containsStringLiteral()
 
           if (!hasString && !stringContext) {
-            // This is pure numeric addition (no strings anywhere), keep as expression
             addExpression(node)
           } else {
-            // This binary expression is part of string concatenation
-            // Check each operand
-            const leftHasString = containsStringLiteral(node.left)
+            const leftHasString = new NodeTest(node.left).containsStringLiteral()
 
-            // Process left side
             if (j.BinaryExpression.check(node.left) && node.left.operator === "+") {
-              // Left is also a + expression - recurse
               flatten(node.left, stringContext)
-            } else if (isStringLiteral(node.left)) {
-              // Left is a string literal - use raw value to preserve escape sequences
+            } else if (new NodeTest(node.left).isStringLiteral()) {
               addStringPart(node.left)
             } else {
-              // Left is some other expression
               addExpression(node.left)
             }
 
-            // Process right side - it's in string context if left had a string
             const rightInStringContext = stringContext || leftHasString
             if (j.BinaryExpression.check(node.right) && node.right.operator === "+") {
-              // If right is a + expression with no strings and we're in string context, keep it as a unit
-              if (!containsStringLiteral(node.right) && rightInStringContext) {
+              if (
+                !new NodeTest(node.right).containsStringLiteral() &&
+                rightInStringContext
+              ) {
                 addExpression(node.right)
               } else {
-                // Right has strings or we need to flatten it
                 flatten(node.right, rightInStringContext)
               }
-            } else if (isStringLiteral(node.right)) {
-              // Right is a string literal - use raw value to preserve escape sequences
+            } else if (new NodeTest(node.right).isStringLiteral()) {
               addStringPart(node.right)
             } else {
-              // Right is some other expression
               addExpression(node.right)
             }
           }
@@ -516,43 +476,11 @@ export function forLoopToForOf(root) {
 
       // Check that the index variable is not used elsewhere in the body
       const bodyWithoutFirst = node.body.body.slice(1)
-      let indexVarUsed = false
+      const indexVarUsed = bodyWithoutFirst.some((stmt) =>
+        new NodeTest(stmt).usesIdentifier(indexVar),
+      )
 
-      // Recursively check if identifier is used in AST nodes
-      function checkNode(astNode) {
-        if (!astNode || typeof astNode !== "object") return
-
-        if (astNode.type === "Identifier" && astNode.name === indexVar) {
-          indexVarUsed = true
-          return
-        }
-
-        // Traverse all properties
-        for (const key in astNode) {
-          if (
-            key === "loc" ||
-            key === "start" ||
-            key === "end" ||
-            key === "tokens" ||
-            key === "comments"
-          )
-            continue
-          const value = astNode[key]
-          if (Array.isArray(value)) {
-            value.forEach(checkNode)
-          } else if (value && typeof value === "object") {
-            checkNode(value)
-          }
-        }
-      }
-
-      bodyWithoutFirst.forEach(checkNode)
-
-      if (indexVarUsed) {
-        return false
-      }
-
-      return true
+      return !indexVarUsed
     })
     .forEach((path) => {
       const node = path.node
@@ -668,34 +596,13 @@ export function iterableForEachToForOf(root) {
           if (!knownIterableMethods.document.includes(methodName)) {
             return false
           }
-        }
-        // Handle cases like document.getElementById('x').querySelectorAll()
-        // Only allow these from document-originating chains
-        else if (
+        } else if (
           j.MemberExpression.check(callerObject) ||
           j.CallExpression.check(callerObject)
         ) {
-          // Check if this eventually chains from document
-          function isFromDocument(node) {
-            if (j.Identifier.check(node)) {
-              return node.name === "document"
-            }
-            if (j.MemberExpression.check(node)) {
-              return isFromDocument(node.object)
-            }
-            if (j.CallExpression.check(node)) {
-              if (j.MemberExpression.check(node.callee)) {
-                return isFromDocument(node.callee.object)
-              }
-            }
+          if (!new NodeTest(callerObject).isFromDocument()) {
             return false
           }
-
-          if (!isFromDocument(callerObject)) {
-            return false
-          }
-
-          // Verify the method is valid for document
           if (!knownIterableMethods.document.includes(methodName)) {
             return false
           }
@@ -1046,93 +953,34 @@ export function arrayConcatToSpread(root) {
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
  */
 export function constructorToClass(root) {
-  /**
-   * Check if a function name follows constructor naming convention.
-   *
-   * @param {string} name - The function name to check.
-   * @returns {boolean} True if the name starts with an uppercase letter.
-   */
-  function isConstructorName(name) {
-    return name && /^[A-Z]/.test(name)
-  }
-
-  /**
-   * Check if a function body contains only simple constructor statements.
-   *
-   * @param {import("jscodeshift").BlockStatement} functionBody - The function body to
-   *   check.
-   * @returns {boolean} True if the body contains only allowed statements.
-   */
-  function hasSimpleConstructorBody(functionBody) {
-    if (functionBody.body.length === 0) {
-      return true
-    }
-
-    return functionBody.body.every((statement) => {
-      if (j.VariableDeclaration.check(statement)) {
-        return true
-      }
-
-      if (j.ExpressionStatement.check(statement)) {
-        return true
-      }
-
-      return false
-    })
-  }
-
-  /**
-   * Find all constructor functions in the AST.
-   *
-   * @param {import("jscodeshift").Collection} root - The root AST collection.
-   * @returns {Map<
-   *   string,
-   *   { declaration: import("ast-types").NodePath; prototypeMethods: any[] }
-   * >}
-   *   Map of constructor names to their info.
-   */
   function findConstructors(root) {
     const constructors = new Map()
 
-    // Handle function declarations
     root.find(j.FunctionDeclaration).forEach((path) => {
-      const node = path.node
-      const functionName = node.id ? node.id.name : null
-
-      if (!functionName || !isConstructorName(functionName)) {
+      if (
+        !new NodeTest(path.node.id).isConstructorName() ||
+        !new NodeTest(path.node.body).hasSimpleConstructorBody()
+      ) {
         return
       }
 
-      if (!hasSimpleConstructorBody(node.body)) {
-        return
-      }
-
-      constructors.set(functionName, {
+      constructors.set(path.node.id.name, {
         declaration: path,
         prototypeMethods: [],
       })
     })
 
-    // Handle variable declarations with function expressions
     root.find(j.VariableDeclaration).forEach((path) => {
       path.node.declarations.forEach((declarator) => {
-        const functionName = declarator.id.name
-
-        if (!isConstructorName(functionName)) {
+        if (
+          !new NodeTest(declarator.id).isConstructorName() ||
+          !j.FunctionExpression.check(declarator.init) ||
+          !new NodeTest(declarator.init.body).hasSimpleConstructorBody()
+        ) {
           return
         }
 
-        if (!j.FunctionExpression.check(declarator.init)) {
-          return
-        }
-
-        const functionExpr = declarator.init
-
-        if (!hasSimpleConstructorBody(functionExpr.body)) {
-          return
-        }
-
-        constructors.set(functionName, {
+        constructors.set(declarator.id.name, {
           declaration: path,
           prototypeMethods: [],
         })
@@ -1455,32 +1303,6 @@ export function removeUseStrictFromModules(root) {
 export function globalContextToGlobalThis(root) {
   let modified = false
 
-  /**
-   * Check if an identifier is shadowed by a local declaration or parameter.
-   *
-   * @param {import("ast-types").NodePath} path - Path to the identifier
-   * @param {string} name - Name to check for shadowing
-   * @returns {boolean} True if the identifier is shadowed
-   */
-  function isShadowed(path, name) {
-    let scope = path.scope
-
-    while (scope) {
-      // Check if this scope has a binding for the name
-      const bindings = scope.getBindings()
-      if (bindings[name]) {
-        // Found a binding - this shadows the global
-        return true
-      }
-
-      // Move to parent scope
-      scope = scope.parent
-    }
-
-    return false
-  }
-
-  // Transform Function("return this")() pattern to globalThis
   root
     .find(j.CallExpression)
     .filter((path) => {
@@ -1595,99 +1417,6 @@ export function globalContextToGlobalThis(root) {
  */
 export function nullishCoalescingOperator(root) {
   let modified = false
-
-  /**
-   * Determine if a binary expression is a null check (=== null or !== null).
-   *
-   * @param {import("jscodeshift").BinaryExpression} node - The binary expression
-   * @returns {{ value: import("ast-types").ASTNode; isNegated: boolean } | null}
-   */
-  function getNullCheck(node) {
-    if (!j.BinaryExpression.check(node)) {
-      return null
-    }
-
-    // Check for !== null or === null
-    if (node.operator === "!==" || node.operator === "===") {
-      const isNegated = node.operator === "!=="
-
-      // value !== null or value === null
-      if (
-        j.NullLiteral.check(node.right) ||
-        (j.Literal.check(node.right) && node.right.value === null)
-      ) {
-        return { value: node.left, isNegated }
-      }
-
-      // null !== value or null === value
-      if (
-        j.NullLiteral.check(node.left) ||
-        (j.Literal.check(node.left) && node.left.value === null)
-      ) {
-        return { value: node.right, isNegated }
-      }
-    }
-
-    return null
-  }
-
-  /**
-   * Determine if a binary expression is an undefined check (=== undefined or !==
-   * undefined).
-   *
-   * @param {import("jscodeshift").BinaryExpression} node - The binary expression
-   * @returns {{ value: import("ast-types").ASTNode; isNegated: boolean } | null}
-   */
-  function getUndefinedCheck(node) {
-    if (!j.BinaryExpression.check(node)) {
-      return null
-    }
-
-    // Check for !== undefined or === undefined
-    if (node.operator === "!==" || node.operator === "===") {
-      const isNegated = node.operator === "!=="
-
-      // value !== undefined or value === undefined
-      if (j.Identifier.check(node.right) && node.right.name === "undefined") {
-        return { value: node.left, isNegated }
-      }
-
-      // undefined !== value or undefined === value
-      if (j.Identifier.check(node.left) && node.left.name === "undefined") {
-        return { value: node.right, isNegated }
-      }
-    }
-
-    return null
-  }
-
-  /**
-   * Validate that both checks are negated, operate on the same value, and match the
-   * consequent.
-   *
-   * @param {{ value: import("ast-types").ASTNode; isNegated: boolean }} nullCheck - The
-   *   null check result
-   * @param {{ value: import("ast-types").ASTNode; isNegated: boolean }} undefinedCheck
-   *   - The undefined check result
-   *
-   * @param {import("ast-types").ASTNode} consequent - The consequent node to validate
-   *   against
-   * @returns {boolean} True if validation passes
-   */
-  function validateChecks(nullCheck, undefinedCheck, consequent) {
-    // Both checks must be negated (!==)
-    if (!nullCheck.isNegated || !undefinedCheck.isNegated) {
-      return false
-    }
-
-    // Both checks must be on the same value
-    if (!new NodeTest(nullCheck.value).isEqual(undefinedCheck.value)) {
-      return false
-    }
-
-    // Consequent must be the same value
-    return new NodeTest(nullCheck.value).isEqual(consequent)
-  }
 
   root
     .find(j.ConditionalExpression)
@@ -1823,30 +1552,6 @@ export function arraySliceToSpread(root) {
 export function optionalChaining(root) {
   let modified = false
 
-  /**
-   * Check if a node is a property access or call on a base.
-   *
-   * @param {import("ast-types").ASTNode} node - The node to check
-   * @param {import("ast-types").ASTNode} base - The expected base
-   * @returns {boolean} True if node accesses base
-   */
-  function isAccessOnBase(node, base) {
-    if (j.MemberExpression.check(node)) {
-      return new NodeTest(node.object).isEqual(base)
-    }
-    if (j.CallExpression.check(node)) {
-      return new NodeTest(node.callee).isEqual(base)
-    }
-    return false
-  }
-
-  /**
-   * Build an optional chaining expression from a base and accesses.
-   *
-   * @param {import("ast-types").ASTNode} base - The base expression
-   * @param {import("ast-types").ASTNode[]} accesses - The property/method accesses
-   * @returns {import("ast-types").ASTNode} The optional chaining expression
-   */
   function buildOptionalChain(base, accesses) {
     let result = base
 
@@ -1856,7 +1561,7 @@ export function optionalChaining(root) {
           result,
           access.property,
           access.computed,
-          true, // optional = true
+          true,
         )
       } else if (j.CallExpression.check(access)) {
         result = j.optionalCallExpression(result, access.arguments, true)
@@ -1866,35 +1571,21 @@ export function optionalChaining(root) {
     return result
   }
 
-  /**
-   * Process a logical expression chain to extract optional chaining candidates.
-   *
-   * @param {import("ast-types").ASTNode} node - The logical expression (must be &&
-   *   operator)
-   * @returns {{
-   *   base: import("ast-types").ASTNode
-   *   accesses: import("ast-types").ASTNode[]
-   * } | null}
-   */
   function extractChain(node) {
     const parts = []
     let current = node
 
-    // Flatten the && chain
     while (j.LogicalExpression.check(current) && current.operator === "&&") {
       parts.unshift(current.right)
       current = current.left
     }
     parts.unshift(current)
 
-    // The base should be the first part
     const base = parts[0]
-
-    // Check if all subsequent parts are accesses on the previous part
     const accesses = []
     for (let i = 1; i < parts.length; i++) {
       const prev = i === 1 ? base : parts[i - 1]
-      if (!isAccessOnBase(parts[i], prev)) {
+      if (!new NodeTest(parts[i]).isAccessOnBase(prev)) {
         return null
       }
       accesses.push(parts[i])
@@ -2641,6 +2332,93 @@ export function lastIndexOfToEndsWith(root) {
 
       modified = true
     })
+
+  return modified
+}
+
+/**
+ * Transform arguments object usage to rest parameters.
+ * Converts patterns like:
+ * - const args = Array.from(arguments) → function fn(...args) {}
+ * - const args = [].slice.call(arguments) → function fn(...args) {}
+ *
+ * Only transforms when:
+ * - Function is a regular function (not arrow function)
+ * - Function doesn't already have rest parameters
+ * - arguments is only used in the variable declaration being converted
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
+ */
+export function argumentsToRestParameters(root) {
+  let modified = false
+
+  const functionNodes = [
+    ...root.find(j.FunctionDeclaration).paths(),
+    ...root.find(j.FunctionExpression).paths(),
+  ]
+
+  functionNodes.forEach((path) => {
+    const func = path.node
+    if (
+      (func.params.length > 0 &&
+        j.RestElement.check(func.params[func.params.length - 1])) ||
+      !j.BlockStatement.check(func.body)
+    ) {
+      return
+    }
+
+    const body = func.body
+    const declaratorsToRemove = []
+    let accountedUsages = 0
+
+    body.body.forEach((statement, statementIndex) => {
+      if (!j.VariableDeclaration.check(statement)) return
+
+      statement.declarations.forEach((declarator, declaratorIndex) => {
+        if (!j.Identifier.check(declarator.id)) return
+
+        const varName = declarator.id.name
+        const initTest = new NodeTest(declarator.init)
+
+        if (initTest.isArrayFromArguments() || initTest.isArraySliceCallArguments()) {
+          accountedUsages++
+          declaratorsToRemove.push({ statementIndex, declaratorIndex, varName })
+        }
+      })
+    })
+
+    if (declaratorsToRemove.length > 0) {
+      const bodyTest = new NodeTest(body)
+      const totalUsages = bodyTest.countIdentifierUsages("arguments")
+
+      if (totalUsages > accountedUsages) {
+        return
+      }
+
+      declaratorsToRemove.forEach(({ varName }) => {
+        func.params.push(j.restElement(j.identifier(varName)))
+      })
+
+      modified = true
+
+      // Remove the declarators (in reverse order to maintain indices)
+      declaratorsToRemove
+        .slice()
+        .reverse()
+        .forEach(({ statementIndex, declaratorIndex }) => {
+          const statement = body.body[statementIndex]
+          // Remove the specific declarator
+          statement.declarations.splice(declaratorIndex, 1)
+
+          // If the statement has no more declarators, remove the entire statement
+          if (statement.declarations.length === 0) {
+            body.body.splice(statementIndex, 1)
+          }
+        })
+    }
+  })
 
   return modified
 }
