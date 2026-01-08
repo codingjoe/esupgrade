@@ -2327,14 +2327,14 @@ export function argumentsToRestParameters(root) {
 
     // Look for variable declarations that convert arguments
     const body = func.body
-    const statementsToRemove = []
+    const declaratorsToRemove = []
 
-    body.body.forEach((statement, index) => {
+    body.body.forEach((statement, statementIndex) => {
       if (!j.VariableDeclaration.check(statement)) {
         return
       }
 
-      statement.declarations.forEach((declarator) => {
+      statement.declarations.forEach((declarator, declaratorIndex) => {
         // Must have an identifier
         if (!j.Identifier.check(declarator.id)) {
           return
@@ -2356,17 +2356,24 @@ export function argumentsToRestParameters(root) {
           // Add rest parameter to function
           func.params.push(j.restElement(j.identifier(varName)))
 
-          // Mark this statement for removal
-          statementsToRemove.push(index)
+          // Mark this declarator for removal
+          declaratorsToRemove.push({ statementIndex, declaratorIndex })
 
           modified = true
         }
       })
     })
 
-    // Remove the variable declarations (in reverse order to maintain indices)
-    statementsToRemove.reverse().forEach((index) => {
-      body.body.splice(index, 1)
+    // Remove the declarators (in reverse order to maintain indices)
+    declaratorsToRemove.reverse().forEach(({ statementIndex, declaratorIndex }) => {
+      const statement = body.body[statementIndex]
+      // Remove the specific declarator
+      statement.declarations.splice(declaratorIndex, 1)
+
+      // If the statement has no more declarators, remove the entire statement
+      if (statement.declarations.length === 0) {
+        body.body.splice(statementIndex, 1)
+      }
     })
   })
 

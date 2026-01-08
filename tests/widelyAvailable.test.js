@@ -5375,6 +5375,20 @@ function fn() {
         assert.match(result.code, /function fn\(\.\.\.myArgs\)/)
         assert.doesNotMatch(result.code, /Array\.from\(arguments\)/)
       })
+
+      test("multiple declarators in same statement", () => {
+        const result = transform(`
+function fn() {
+  const args = Array.from(arguments), x = 1, y = 2;
+  return args;
+}
+        `)
+
+        assert(result.modified, "transform preserving other declarators")
+        assert.match(result.code, /function fn\(\.\.\.args\)/)
+        assert.match(result.code, /const x = 1, y = 2/, "should preserve other declarators")
+        assert.doesNotMatch(result.code, /const args/)
+      })
     })
   })
 })
