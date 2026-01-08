@@ -4881,12 +4881,11 @@ const obj = {
         assert.doesNotMatch(result.code, /indexOf/)
       })
 
-      test("reversed: -1 <= [].indexOf(item)", () => {
+      test("reversed: -1 <= [].indexOf(item) (invalid for -1)", () => {
         const result = transform(`const notFound = -1 <= [1, 2, 3].indexOf(item);`)
 
-        assert(result.modified, "transform -1 <= indexOf")
-        assert.match(result.code, /const notFound = !\[1, 2, 3\]\.includes\(item\)/)
-        assert.doesNotMatch(result.code, /indexOf/)
+        assert(!result.modified, "skip -1 <= indexOf comparison")
+        assert.match(result.code, /const notFound = -1 <= \[1, 2, 3\]\.indexOf\(item\);/)
       })
 
       test("[].indexOf(item) < -1 (invalid for -1)", () => {

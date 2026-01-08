@@ -385,25 +385,25 @@ ES6 modules are automatically in strict mode, making explicit `'use strict'` dir
 #### `indexOf()` → [includes()][mdn-includes]
 
 ```diff
--const found = arr.indexOf(item) !== -1;
--const exists = str.indexOf(substr) > -1;
--const hasValue = list.indexOf(value) >= 0;
-+const found = arr.includes(item);
-+const exists = str.includes(substr);
-+const hasValue = list.includes(value);
+-const found = [1, 2, 3].indexOf(item) !== -1;
+-const exists = "hello".indexOf(substr) > -1;
+-const hasValue = ["a", "b", "c"].indexOf(value) >= 0;
++const found = [1, 2, 3].includes(item);
++const exists = "hello".includes(substr);
++const hasValue = ["a", "b", "c"].includes(value);
 ```
 
 ```diff
--if (arr.indexOf(item) === -1) {
+-if ([1, 2, 3].indexOf(item) === -1) {
 -  console.log('not found');
 -}
-+if (!arr.includes(item)) {
++if (![1, 2, 3].includes(item)) {
 +  console.log('not found');
 +}
 ```
 
-Transforms `indexOf()` calls with a single argument (search value).
-Calls with a fromIndex parameter are not transformed as they have different semantics than `includes()`.
+Transforms `indexOf()` calls with a single argument (search value) when it can statically verify that the receiver is an array or string (for example, array literals, string literals, or safe method chains).
+Calls with a fromIndex parameter are not transformed as they have different semantics than `includes()`. As a result, patterns such as `[1, 2, 3].indexOf(item) !== -1` are upgraded, while `arr.indexOf(item) !== -1` may be left unchanged if the transformer cannot prove that `arr` is an array.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
