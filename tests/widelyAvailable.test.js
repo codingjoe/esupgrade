@@ -4716,6 +4716,14 @@ const obj = {
         assert.match(result.code, /if \("test"\.includes\('hello'\)\)/)
         assert.doesNotMatch(result.code, /indexOf/)
       })
+
+      test("template literal indexOf", () => {
+        const result = transform("const found = `hello`.indexOf(item) !== -1;")
+
+        assert(result.modified, "transform template literal indexOf")
+        assert.match(result.code, /const found = `hello`\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
     })
 
     describe("complex expressions", () => {
@@ -4775,6 +4783,29 @@ const obj = {
 
         assert(result.modified, "transform negated in if condition")
         assert.match(result.code, /if \(!\[1, 2, 3\]\.includes\(item\)\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("Array.from() with indexOf", () => {
+        const result = transform(
+          `const found = Array.from(items).indexOf(item) !== -1;`,
+        )
+
+        assert(result.modified, "transform Array.from() with indexOf")
+        assert.match(result.code, /const found = \[\.\.\.items\]\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("new Array() with indexOf", () => {
+        const result = transform(
+          `const found = new Array(1, 2, 3).indexOf(item) !== -1;`,
+        )
+
+        assert(result.modified, "transform new Array() with indexOf")
+        assert.match(
+          result.code,
+          /const found = new Array\(1, 2, 3\)\.includes\(item\)/,
+        )
         assert.doesNotMatch(result.code, /indexOf/)
       })
     })
@@ -4840,6 +4871,94 @@ const obj = {
 
         assert(!result.modified, "skip loose inequality")
         assert.match(result.code, /arr\.indexOf\(item\) != -1/)
+      })
+
+      test("[].indexOf(item) <= -1", () => {
+        const result = transform(`const notFound = [1, 2, 3].indexOf(item) <= -1;`)
+
+        assert(result.modified, "transform indexOf <= -1")
+        assert.match(result.code, /const notFound = !\[1, 2, 3\]\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("reversed: -1 <= [].indexOf(item)", () => {
+        const result = transform(`const notFound = -1 <= [1, 2, 3].indexOf(item);`)
+
+        assert(result.modified, "transform -1 <= indexOf")
+        assert.match(result.code, /const notFound = !\[1, 2, 3\]\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("[].indexOf(item) < -1 (invalid for -1)", () => {
+        const result = transform(`const found = [1, 2, 3].indexOf(item) < -1;`)
+
+        assert(!result.modified, "skip < -1 comparison")
+        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) < -1/)
+      })
+
+      test("[].indexOf(item) >= -1 (invalid for -1)", () => {
+        const result = transform(`const found = [1, 2, 3].indexOf(item) >= -1;`)
+
+        assert(!result.modified, "skip >= -1 comparison")
+        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) >= -1/)
+      })
+
+      test("[].indexOf(item) < 0 (negated, transforms)", () => {
+        const result = transform(`const notFound = [1, 2, 3].indexOf(item) < 0;`)
+
+        assert(result.modified, "transform indexOf < 0")
+        assert.match(result.code, /const notFound = !\[1, 2, 3\]\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("[].indexOf(item) > 0 (invalid for 0)", () => {
+        const result = transform(`const found = [1, 2, 3].indexOf(item) > 0;`)
+
+        assert(!result.modified, "skip > 0 comparison")
+        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) > 0/)
+      })
+
+      test("reversed: -1 !== [].indexOf(item) (valid)", () => {
+        const result = transform(`const found = -1 !== [1, 2, 3].indexOf(item);`)
+
+        assert(result.modified, "transform -1 !== indexOf")
+        assert.match(result.code, /const found = \[1, 2, 3\]\.includes\(item\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("reversed: -1 > [].indexOf(item) (invalid for reversed -1)", () => {
+        const result = transform(`const found = -1 > [1, 2, 3].indexOf(item);`)
+
+        assert(!result.modified, "skip -1 > indexOf comparison")
+        assert.match(result.code, /-1 > \[1, 2, 3\]\.indexOf\(item\)/)
+      })
+
+      test("reversed: 0 < [].indexOf(item) (invalid for reversed 0)", () => {
+        const result = transform(`const found = 0 < [1, 2, 3].indexOf(item);`)
+
+        assert(!result.modified, "skip 0 < indexOf comparison")
+        assert.match(result.code, /0 < \[1, 2, 3\]\.indexOf\(item\)/)
+      })
+
+      test("reversed: 0 >= [].indexOf(item) (invalid for reversed 0)", () => {
+        const result = transform(`const found = 0 >= [1, 2, 3].indexOf(item);`)
+
+        assert(!result.modified, "skip 0 >= indexOf comparison")
+        assert.match(result.code, /0 >= \[1, 2, 3\]\.indexOf\(item\)/)
+      })
+
+      test("[].indexOf(item) compared to variable", () => {
+        const result = transform(`const found = [1, 2, 3].indexOf(item) !== x;`)
+
+        assert(!result.modified, "skip indexOf compared to variable")
+        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) !== x/)
+      })
+
+      test("[].indexOf(item) compared to non-numeric constant", () => {
+        const result = transform(`const found = [1, 2, 3].indexOf(item) !== 'zero';`)
+
+        assert(!result.modified, "skip indexOf compared to non-numeric value")
+        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) !== 'zero'/)
       })
     })
 

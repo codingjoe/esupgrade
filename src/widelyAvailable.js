@@ -2020,7 +2020,7 @@ export function indexOfToIncludes(root) {
           }
         } else {
           // -1 op indexOf()
-          if (!["!==", "===", "<", ">="].includes(operator)) {
+          if (!["!==", "===", "<", ">=", "<="].includes(operator)) {
             return false
           }
         }
@@ -2060,8 +2060,8 @@ export function indexOfToIncludes(root) {
           shouldNegate = operator === "===" || operator === "<="
         } else {
           // -1 op indexOf()
-          // Negate for: ===, >=
-          shouldNegate = operator === "===" || operator === ">="
+          // Negate for: ===, >=, <=
+          shouldNegate = operator === "===" || operator === ">=" || operator === "<="
         }
       } else if (value === 0) {
         if (isLeftIndexOf) {

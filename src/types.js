@@ -85,6 +85,15 @@ export class NodeTest {
       return true
     }
 
+    // new Array()
+    if (
+      j.NewExpression.check(this.node) &&
+      j.Identifier.check(this.node.callee) &&
+      this.node.callee.name === "Array"
+    ) {
+      return true
+    }
+
     // String literal: "hello"
     if (j.StringLiteral.check(this.node) || j.Literal.check(this.node)) {
       return typeof this.node.value === "string"
@@ -92,25 +101,6 @@ export class NodeTest {
 
     // Template literal: `hello`
     if (j.TemplateLiteral.check(this.node)) {
-      return true
-    }
-
-    // Array.from(), Array.of(), etc.
-    if (
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      j.Identifier.check(this.node.callee.object) &&
-      this.node.callee.object.name === "Array"
-    ) {
-      return true
-    }
-
-    // new Array()
-    if (
-      j.NewExpression.check(this.node) &&
-      j.Identifier.check(this.node.callee) &&
-      this.node.callee.name === "Array"
-    ) {
       return true
     }
 
@@ -620,20 +610,14 @@ export function getNumericValue(node) {
   if (j.Literal.check(node) && typeof node.value === "number") {
     return node.value
   }
-  // Handle NumericLiteral (alternative node type)
-  if (node.type === "NumericLiteral" && typeof node.value === "number") {
-    return node.value
-  }
   // Handle UnaryExpression with minus operator (e.g., -1)
   if (
     j.UnaryExpression.check(node) &&
     node.operator === "-" &&
-    (j.Literal.check(node.argument) || node.argument.type === "NumericLiteral")
+    j.Literal.check(node.argument) &&
+    typeof node.argument.value === "number"
   ) {
-    const argValue = node.argument.value
-    if (typeof argValue === "number") {
-      return -argValue
-    }
+    return -node.argument.value
   }
   return null
 }
