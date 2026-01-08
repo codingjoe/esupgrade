@@ -405,6 +405,22 @@ ES6 modules are automatically in strict mode, making explicit `'use strict'` dir
 Transforms `indexOf()` calls with a single argument (search value) when it can statically verify that the receiver is an array or string (for example, array literals, string literals, or safe method chains).
 Calls with a fromIndex parameter are not transformed as they have different semantics than `includes()`. As a result, patterns such as `[1, 2, 3].indexOf(item) !== -1` are upgraded, while `arr.indexOf(item) !== -1` may be left unchanged if the transformer cannot prove that `arr` is an array.
 
+#### `String.substr()` → [String.slice()][mdn-slice]
+
+```diff
+-const result = "hello world".substr(0, 5);
+-const end = "example".substr(3);
++const result = "hello world".slice(0, 0 + 5);
++const end = "example".slice(3);
+```
+
+Transforms the deprecated `substr()` method to `slice()`:
+- `str.substr(start, length)` becomes `str.slice(start, start + length)`
+- `str.substr(start)` becomes `str.slice(start)`
+- `str.substr()` becomes `str.slice()`
+
+Only transforms when the receiver can be verified as a string (string literals, template literals, or string method chains).
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -461,6 +477,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
+[mdn-slice]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
