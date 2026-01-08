@@ -2259,7 +2259,6 @@ export function objectKeysForEachToEntries(root) {
               ) {
                 valueVariable = {
                   name: varDeclarator.id.name,
-                  kind: firstStmt.kind,
                 }
               }
             }
