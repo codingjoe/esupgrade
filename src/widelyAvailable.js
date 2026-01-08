@@ -2247,7 +2247,6 @@ export function substringToStartsWith(root) {
       // Check if one side is substring() and the other is an identifier/expression
       let substringCall = null
       let comparisonValue = null
-      let isLeftSubstring = false
 
       // Check left side for substring
       if (
@@ -2258,7 +2257,6 @@ export function substringToStartsWith(root) {
       ) {
         substringCall = node.left
         comparisonValue = node.right
-        isLeftSubstring = true
       }
       // Check right side for substring
       else if (
@@ -2269,7 +2267,6 @@ export function substringToStartsWith(root) {
       ) {
         substringCall = node.right
         comparisonValue = node.left
-        isLeftSubstring = false
       }
 
       if (!substringCall) {
@@ -2372,7 +2369,6 @@ export function lastIndexOfToEndsWith(root) {
       // Check if one side is lastIndexOf() and the other is a subtraction
       let lastIndexOfCall = null
       let comparisonValue = null
-      let isLeftLastIndexOf = false
 
       // Check left side for lastIndexOf
       if (
@@ -2383,7 +2379,6 @@ export function lastIndexOfToEndsWith(root) {
       ) {
         lastIndexOfCall = node.left
         comparisonValue = node.right
-        isLeftLastIndexOf = true
       }
       // Check right side for lastIndexOf
       else if (
@@ -2394,7 +2389,6 @@ export function lastIndexOfToEndsWith(root) {
       ) {
         lastIndexOfCall = node.right
         comparisonValue = node.left
-        isLeftLastIndexOf = false
       }
 
       if (!lastIndexOfCall) {
