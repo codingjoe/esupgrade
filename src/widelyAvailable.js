@@ -958,6 +958,11 @@ export function namedArrowFunctionToNamedFunction(root) {
         functionDeclaration.async = true
       }
 
+      // Preserve TypeScript generic type parameters
+      if (func.typeParameters) {
+        functionDeclaration.typeParameters = func.typeParameters
+      }
+
       // Preserve TypeScript return type annotation
       if (func.returnType) {
         functionDeclaration.returnType = func.returnType
