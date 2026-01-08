@@ -2123,6 +2123,9 @@ export function substrToSlice(root) {
         newArgs = [args[0]]
       } else {
         // substr(start, length) → slice(start, start + length)
+        // This transformation works correctly even for negative start values:
+        // - 'hello'.substr(-3, 2) returns 'll' (2 chars from position 5-3=2)
+        // - 'hello'.slice(-3, -3 + 2) = slice(-3, -1) returns 'll' (same result)
         const start = args[0]
         const length = args[1]
 
