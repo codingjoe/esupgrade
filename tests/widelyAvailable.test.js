@@ -5269,7 +5269,10 @@ Object.keys(obj).forEach(async key => {
       `)
 
       assert(result.modified, "transform async arrow function")
-      assert.match(result.code, /Object\.entries\(obj\)\.forEach\(async \(\[key, value\]\)/)
+      assert.match(
+        result.code,
+        /Object\.entries\(obj\)\.forEach\(async \(\[key, value\]\)/,
+      )
     })
 
     test("skip Object.keys().forEach() without value access", () => {
@@ -5415,7 +5418,10 @@ Object.keys(getObject()).forEach(key => {
       `)
 
       assert(result.modified, "transform with function call object")
-      assert.match(result.code, /Object\.entries\(getObject\(\)\)\.forEach\(\(\[key, value\]\)/)
+      assert.match(
+        result.code,
+        /Object\.entries\(getObject\(\)\)\.forEach\(\(\[key, value\]\)/,
+      )
     })
 
     test("Object.keys().forEach() with member expression object", () => {

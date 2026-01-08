@@ -437,6 +437,7 @@ Only transforms when the receiver can be verified as a string (string literals, 
 Transforms Object.keys() iteration patterns where the value is accessed from the same object into Object.entries() with array destructuring. This eliminates duplicate property lookups and makes the code more concise.
 
 Only transforms when:
+
 - The callback has exactly one parameter (the key)
 - The first statement in the callback assigns `obj[key]` to a variable
 - The object being accessed matches the object passed to Object.keys()
