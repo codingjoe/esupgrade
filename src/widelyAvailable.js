@@ -2308,9 +2308,20 @@ export function substringToStartsWith(root) {
     .forEach((path) => {
       const node = path.node
 
-      // Determine which side is substring
-      const substringCall = j.CallExpression.check(node.left) ? node.left : node.right
-      const comparisonValue = j.CallExpression.check(node.left) ? node.right : node.left
+      // Determine which side is substring (guaranteed by filter to exist)
+      let substringCall, comparisonValue
+      if (
+        j.CallExpression.check(node.left) &&
+        j.MemberExpression.check(node.left.callee) &&
+        j.Identifier.check(node.left.callee.property) &&
+        node.left.callee.property.name === "substring"
+      ) {
+        substringCall = node.left
+        comparisonValue = node.right
+      } else {
+        substringCall = node.right
+        comparisonValue = node.left
+      }
 
       // Create startsWith() call
       const startsWithCall = j.callExpression(
@@ -2442,8 +2453,18 @@ export function lastIndexOfToEndsWith(root) {
     .forEach((path) => {
       const node = path.node
 
-      // Determine which side is lastIndexOf
-      const lastIndexOfCall = j.CallExpression.check(node.left) ? node.left : node.right
+      // Determine which side is lastIndexOf (guaranteed by filter to exist)
+      let lastIndexOfCall
+      if (
+        j.CallExpression.check(node.left) &&
+        j.MemberExpression.check(node.left.callee) &&
+        j.Identifier.check(node.left.callee.property) &&
+        node.left.callee.property.name === "lastIndexOf"
+      ) {
+        lastIndexOfCall = node.left
+      } else {
+        lastIndexOfCall = node.right
+      }
 
       // Create endsWith() call
       const endsWithCall = j.callExpression(
