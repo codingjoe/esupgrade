@@ -422,6 +422,59 @@ Transforms the deprecated `substr()` method to `slice()`:
 
 Only transforms when the receiver can be verified as a string (string literals, template literals, or string method chains).
 
+#### `Object.keys().forEach()` → [Object.entries()][mdn-object-entries]
+
+```diff
+-Object.keys(obj).forEach(key => {
+-  const value = obj[key];
+-  console.log(key, value);
+-});
++Object.entries(obj).forEach(([key, value]) => {
++  console.log(key, value);
++});
+```
+
+Transforms Object.keys() iteration patterns where the value is accessed from the same object into Object.entries() with array destructuring. This eliminates duplicate property lookups and makes the code more concise.
+
+Only transforms when:
+
+- The callback has exactly one parameter (the key)
+- The first statement in the callback assigns `obj[key]` to a variable
+- The object being accessed matches the object passed to Object.keys()
+
+#### `indexOf()` prefix check → [String.startsWith()][mdn-startswith]
+
+```diff
+-const isPrefix = "hello world".indexOf("hello") === 0;
+-const notPrefix = str.indexOf(prefix) !== 0;
++const isPrefix = "hello world".startsWith("hello");
++const notPrefix = !str.startsWith(prefix);
+```
+
+Transforms `indexOf()` prefix checks to the more explicit `startsWith()` method. Only transforms when the receiver can be verified as a string and `indexOf()` is compared to `0`.
+
+#### `substring()` prefix check → [String.startsWith()][mdn-startswith]
+
+```diff
+-const matches = "hello world".substring(0, prefix.length) === prefix;
+-const noMatch = str.substring(0, prefix.length) !== prefix;
++const matches = "hello world".startsWith(prefix);
++const noMatch = !str.startsWith(prefix);
+```
+
+Transforms `substring()` prefix comparisons to `startsWith()`. Only transforms patterns where `substring(0, prefix.length)` is compared to `prefix`.
+
+#### `lastIndexOf()` suffix check → [String.endsWith()][mdn-endswith]
+
+```diff
+-const isSuffix = str.lastIndexOf(suffix) === str.length - suffix.length;
+-const notSuffix = "hello world".lastIndexOf("world") !== "hello world".length - "world".length;
++const isSuffix = str.endsWith(suffix);
++const notSuffix = !"hello world".endsWith("world");
+```
+
+Transforms `lastIndexOf()` suffix checks to the more explicit `endsWith()` method. Only transforms when the receiver can be verified as a string and the pattern matches `lastIndexOf(suffix) === str.length - suffix.length`.
+
 #### `arguments` object → [Rest parameters ...][mdn-rest-parameters]
 
 ```diff
@@ -501,6 +554,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+[mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
 [mdn-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions
@@ -508,10 +562,12 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-includes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
+[mdn-object-entries]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-rest-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
 [mdn-slice]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+[mdn-startswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
 [pre-commit]: https://pre-commit.com/

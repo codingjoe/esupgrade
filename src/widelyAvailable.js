@@ -2150,6 +2150,502 @@ export function substrToSlice(root) {
 }
 
 /**
+ * Transform Object.keys().forEach() to Object.entries().
+ * Converts patterns where Object.keys() is used to iterate and access values from the same object
+ * to use Object.entries() with destructuring.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
+ */
+export function objectKeysForEachToEntries(root) {
+  let modified = false
+
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check if this is a forEach call
+      if (
+        !j.MemberExpression.check(node.callee) ||
+        !j.Identifier.check(node.callee.property) ||
+        node.callee.property.name !== "forEach"
+      ) {
+        return false
+      }
+
+      // Check if the object is Object.keys()
+      const object = node.callee.object
+      if (
+        !j.CallExpression.check(object) ||
+        !j.MemberExpression.check(object.callee) ||
+        !j.Identifier.check(object.callee.object) ||
+        object.callee.object.name !== "Object" ||
+        !j.Identifier.check(object.callee.property) ||
+        object.callee.property.name !== "keys"
+      ) {
+        return false
+      }
+
+      // Object.keys() must have exactly one argument (the object)
+      if (object.arguments.length !== 1) {
+        return false
+      }
+
+      // Check that forEach has a callback argument
+      if (node.arguments.length === 0) {
+        return false
+      }
+
+      const callback = node.arguments[0]
+      // Only transform if callback is an inline function (arrow or function expression)
+      if (
+        !j.ArrowFunctionExpression.check(callback) &&
+        !j.FunctionExpression.check(callback)
+      ) {
+        return false
+      }
+
+      // Only transform if callback uses only the first parameter (key)
+      // Don't transform if it uses index or array parameters
+      const params = callback.params
+      if (params.length !== 1) {
+        return false
+      }
+
+      // The callback must have at least one parameter (the key)
+      if (!j.Identifier.check(params[0])) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const objectKeysCall = node.callee.object
+      const targetObject = objectKeysCall.arguments[0]
+      const callback = node.arguments[0]
+      const keyParam = callback.params[0]
+      const keyName = keyParam.name
+
+      // Check if the callback body has a pattern like:
+      // const value = obj[key];
+      // We need to find this pattern and convert to destructuring
+      let valueVariable = null
+      let bodyStatements = []
+
+      if (j.BlockStatement.check(callback.body)) {
+        bodyStatements = callback.body.body
+      } else {
+        // Expression body - don't transform
+        return
+      }
+
+      // Look for first statement that assigns targetObject[keyName] to a variable
+      if (bodyStatements.length > 0) {
+        const firstStmt = bodyStatements[0]
+        if (j.VariableDeclaration.check(firstStmt)) {
+          if (firstStmt.declarations.length === 1) {
+            const varDeclarator = firstStmt.declarations[0]
+            if (j.Identifier.check(varDeclarator.id)) {
+              // Check if init is targetObject[keyName]
+              if (
+                j.MemberExpression.check(varDeclarator.init) &&
+                varDeclarator.init.computed === true &&
+                j.Identifier.check(varDeclarator.init.property) &&
+                varDeclarator.init.property.name === keyName &&
+                new NodeTest(varDeclarator.init.object).isEqual(targetObject)
+              ) {
+                valueVariable = {
+                  name: varDeclarator.id.name,
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Only transform if we found the value variable pattern
+      if (!valueVariable) {
+        return
+      }
+
+      // Create new callback with destructuring parameter
+      const newParam = j.arrayPattern([
+        j.identifier(keyName),
+        j.identifier(valueVariable.name),
+      ])
+
+      // Create new body without the first declaration
+      const newBody = j.blockStatement(bodyStatements.slice(1))
+
+      // Create new callback function with destructuring
+      const newCallback = j.ArrowFunctionExpression.check(callback)
+        ? j.arrowFunctionExpression([newParam], newBody, false)
+        : j.functionExpression(null, [newParam], newBody, false, false)
+
+      // Preserve async property
+      if (callback.async) {
+        newCallback.async = true
+      }
+
+      // Create Object.entries() call
+      const objectEntriesCall = j.callExpression(
+        j.memberExpression(j.identifier("Object"), j.identifier("entries"), false),
+        [targetObject],
+      )
+
+      // Create new forEach call
+      const newForEachCall = j.callExpression(
+        j.memberExpression(objectEntriesCall, j.identifier("forEach"), false),
+        [newCallback],
+      )
+
+      j(path).replaceWith(newForEachCall)
+
+      modified = true
+    })
+
+  return modified
+}
+
+/**
+ * Transform indexOf() prefix checks to startsWith().
+ * Converts patterns like str.indexOf(prefix) === 0 to str.startsWith(prefix).
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+ */
+export function indexOfToStartsWith(root) {
+  let modified = false
+
+  root
+    .find(j.BinaryExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check for === or !== operators
+      if (!["===", "!=="].includes(node.operator)) {
+        return false
+      }
+
+      // Check if one side is a .indexOf() call and the other is 0
+      const indexOfInfo = getIndexOfInfo(node)
+      if (!indexOfInfo) {
+        return false
+      }
+
+      const { indexOfCall, comparisonValue } = indexOfInfo
+
+      // Only transform if indexOf has exactly 1 argument (the search value)
+      if (!indexOfCall || indexOfCall.arguments.length !== 1) {
+        return false
+      }
+
+      // Only transform if we can verify the object is a string
+      const objectNode = indexOfCall.callee.object
+      if (!new NodeTest(objectNode).hasIndexOfAndIncludes()) {
+        return false
+      }
+
+      // Comparison value must be 0
+      const value = getNumericValue(comparisonValue)
+      return value === 0
+    })
+    .forEach((path) => {
+      const node = path.node
+      const indexOfInfo = getIndexOfInfo(node)
+      const { indexOfCall } = indexOfInfo
+
+      // Create startsWith() call
+      const startsWithCall = j.callExpression(
+        j.memberExpression(
+          indexOfCall.callee.object,
+          j.identifier("startsWith"),
+          false,
+        ),
+        indexOfCall.arguments,
+      )
+
+      // Wrap in negation if operator is !==
+      const replacement =
+        node.operator === "!=="
+          ? j.unaryExpression("!", startsWithCall)
+          : startsWithCall
+
+      j(path).replaceWith(replacement)
+
+      modified = true
+    })
+
+  return modified
+}
+
+/**
+ * Transform substring() prefix checks to startsWith().
+ * Converts patterns like str.substring(0, prefix.length) === prefix to
+ * str.startsWith(prefix).
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+ */
+export function substringToStartsWith(root) {
+  let modified = false
+
+  root
+    .find(j.BinaryExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check for === or !== operators
+      if (!["===", "!=="].includes(node.operator)) {
+        return false
+      }
+
+      // Check if one side is substring() and the other is an identifier/expression
+      let substringCall = null
+      let comparisonValue = null
+
+      // Check left side for substring
+      if (
+        j.CallExpression.check(node.left) &&
+        j.MemberExpression.check(node.left.callee) &&
+        j.Identifier.check(node.left.callee.property) &&
+        node.left.callee.property.name === "substring"
+      ) {
+        substringCall = node.left
+        comparisonValue = node.right
+      }
+      // Check right side for substring
+      else if (
+        j.CallExpression.check(node.right) &&
+        j.MemberExpression.check(node.right.callee) &&
+        j.Identifier.check(node.right.callee.property) &&
+        node.right.callee.property.name === "substring"
+      ) {
+        substringCall = node.right
+        comparisonValue = node.left
+      }
+
+      if (!substringCall) {
+        return false
+      }
+
+      // Must have exactly 2 arguments
+      if (substringCall.arguments.length !== 2) {
+        return false
+      }
+
+      // First argument must be 0
+      const firstArg = substringCall.arguments[0]
+      if (getNumericValue(firstArg) !== 0) {
+        return false
+      }
+
+      // Second argument must be comparisonValue.length
+      const secondArg = substringCall.arguments[1]
+      if (
+        !j.MemberExpression.check(secondArg) ||
+        !j.Identifier.check(secondArg.property) ||
+        secondArg.property.name !== "length"
+      ) {
+        return false
+      }
+
+      // The object of the length property must match the comparison value
+      if (!new NodeTest(secondArg.object).isEqual(comparisonValue)) {
+        return false
+      }
+
+      // Only transform if we can verify the substring object is a string
+      return new NodeTest(substringCall.callee.object).hasIndexOfAndIncludes()
+    })
+    .forEach((path) => {
+      const node = path.node
+
+      // Determine which side is substring (guaranteed by filter to exist)
+      let substringCall, comparisonValue
+      if (
+        j.CallExpression.check(node.left) &&
+        j.MemberExpression.check(node.left.callee) &&
+        j.Identifier.check(node.left.callee.property) &&
+        node.left.callee.property.name === "substring"
+      ) {
+        substringCall = node.left
+        comparisonValue = node.right
+      } else {
+        substringCall = node.right
+        comparisonValue = node.left
+      }
+
+      // Create startsWith() call
+      const startsWithCall = j.callExpression(
+        j.memberExpression(
+          substringCall.callee.object,
+          j.identifier("startsWith"),
+          false,
+        ),
+        [comparisonValue],
+      )
+
+      // Wrap in negation if operator is !==
+      const replacement =
+        node.operator === "!=="
+          ? j.unaryExpression("!", startsWithCall)
+          : startsWithCall
+
+      j(path).replaceWith(replacement)
+
+      modified = true
+    })
+
+  return modified
+}
+
+/**
+ * Transform lastIndexOf() suffix checks to endsWith().
+ * Converts patterns like str.lastIndexOf(suffix) === str.length - suffix.length to
+ * str.endsWith(suffix).
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
+ */
+export function lastIndexOfToEndsWith(root) {
+  let modified = false
+
+  root
+    .find(j.BinaryExpression)
+    .filter((path) => {
+      const node = path.node
+
+      // Check for === or !== operators
+      if (!["===", "!=="].includes(node.operator)) {
+        return false
+      }
+
+      // Check if one side is lastIndexOf() and the other is a subtraction
+      let lastIndexOfCall = null
+      let comparisonValue = null
+
+      // Check left side for lastIndexOf
+      if (
+        j.CallExpression.check(node.left) &&
+        j.MemberExpression.check(node.left.callee) &&
+        j.Identifier.check(node.left.callee.property) &&
+        node.left.callee.property.name === "lastIndexOf"
+      ) {
+        lastIndexOfCall = node.left
+        comparisonValue = node.right
+      }
+      // Check right side for lastIndexOf
+      else if (
+        j.CallExpression.check(node.right) &&
+        j.MemberExpression.check(node.right.callee) &&
+        j.Identifier.check(node.right.callee.property) &&
+        node.right.callee.property.name === "lastIndexOf"
+      ) {
+        lastIndexOfCall = node.right
+        comparisonValue = node.left
+      }
+
+      if (!lastIndexOfCall) {
+        return false
+      }
+
+      // Only transform if lastIndexOf has exactly 1 argument (the search value)
+      if (lastIndexOfCall.arguments.length !== 1) {
+        return false
+      }
+
+      const searchValue = lastIndexOfCall.arguments[0]
+
+      // Comparison value must be a binary expression: str.length - suffix.length
+      if (!j.BinaryExpression.check(comparisonValue)) {
+        return false
+      }
+
+      if (comparisonValue.operator !== "-") {
+        return false
+      }
+
+      // Left side of subtraction must be str.length
+      if (
+        !j.MemberExpression.check(comparisonValue.left) ||
+        !j.Identifier.check(comparisonValue.left.property) ||
+        comparisonValue.left.property.name !== "length"
+      ) {
+        return false
+      }
+
+      // The object of str.length must match the lastIndexOf object
+      if (
+        !new NodeTest(comparisonValue.left.object).isEqual(
+          lastIndexOfCall.callee.object,
+        )
+      ) {
+        return false
+      }
+
+      // Right side of subtraction must be suffix.length
+      if (
+        !j.MemberExpression.check(comparisonValue.right) ||
+        !j.Identifier.check(comparisonValue.right.property) ||
+        comparisonValue.right.property.name !== "length"
+      ) {
+        return false
+      }
+
+      // The object of suffix.length must match the search value
+      if (!new NodeTest(comparisonValue.right.object).isEqual(searchValue)) {
+        return false
+      }
+
+      // Only transform if we can verify the object is a string
+      return new NodeTest(lastIndexOfCall.callee.object).hasIndexOfAndIncludes()
+    })
+    .forEach((path) => {
+      const node = path.node
+
+      // Determine which side is lastIndexOf (guaranteed by filter to exist)
+      let lastIndexOfCall
+      if (
+        j.CallExpression.check(node.left) &&
+        j.MemberExpression.check(node.left.callee) &&
+        j.Identifier.check(node.left.callee.property) &&
+        node.left.callee.property.name === "lastIndexOf"
+      ) {
+        lastIndexOfCall = node.left
+      } else {
+        lastIndexOfCall = node.right
+      }
+
+      // Create endsWith() call
+      const endsWithCall = j.callExpression(
+        j.memberExpression(
+          lastIndexOfCall.callee.object,
+          j.identifier("endsWith"),
+          false,
+        ),
+        lastIndexOfCall.arguments,
+      )
+
+      // Wrap in negation if operator is !==
+      const replacement =
+        node.operator === "!==" ? j.unaryExpression("!", endsWithCall) : endsWithCall
+
+      j(path).replaceWith(replacement)
+
+      modified = true
+    })
+
+  return modified
+}
+
+/**
  * Transform arguments object usage to rest parameters.
  * Converts patterns like:
  * - const args = Array.from(arguments) → function fn(...args) {}
