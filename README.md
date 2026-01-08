@@ -382,6 +382,29 @@ ES6 modules are automatically in strict mode, making explicit `'use strict'` dir
 +const result = obj.prop ?? 0;
 ```
 
+#### `indexOf()` → [includes()][mdn-includes]
+
+```diff
+-const found = [1, 2, 3].indexOf(item) !== -1;
+-const exists = "hello".indexOf(substr) > -1;
+-const hasValue = ["a", "b", "c"].indexOf(value) >= 0;
++const found = [1, 2, 3].includes(item);
++const exists = "hello".includes(substr);
++const hasValue = ["a", "b", "c"].includes(value);
+```
+
+```diff
+-if ([1, 2, 3].indexOf(item) === -1) {
+-  console.log('not found');
+-}
++if (![1, 2, 3].includes(item)) {
++  console.log('not found');
++}
+```
+
+Transforms `indexOf()` calls with a single argument (search value) when it can statically verify that the receiver is an array or string (for example, array literals, string literals, or safe method chains).
+Calls with a fromIndex parameter are not transformed as they have different semantics than `includes()`. As a result, patterns such as `[1, 2, 3].indexOf(item) !== -1` are upgraded, while `arr.indexOf(item) !== -1` may be left unchanged if the transformer cannot prove that `arr` is an array.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -434,6 +457,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
 [mdn-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions
 [mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
+[mdn-includes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try

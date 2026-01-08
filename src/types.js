@@ -18,37 +18,104 @@ export class NodeTest {
   }
 
   /**
-   * Check if an expression is statically verifiable as iterable. Used by transformers
-   * to ensure they only transform known iterable types.
+   * Check if node is an array literal.
    *
-   * @returns {boolean} True if the node can be verified as iterable
+   * @returns {boolean} True if node is an ArrayExpression
    */
-  isIterable() {
-    // Array literal: [1, 2, 3]
-    if (j.ArrayExpression.check(this.node)) {
-      return true
-    }
+  isArrayLiteral() {
+    return j.ArrayExpression.check(this.node)
+  }
 
-    // Array.from(), Array.of(), etc.
+  /**
+   * Check if node is a new Array() expression.
+   *
+   * @returns {boolean} True if node is new Array()
+   */
+  isNewArray() {
+    return (
+      j.NewExpression.check(this.node) &&
+      j.Identifier.check(this.node.callee) &&
+      this.node.callee.name === "Array"
+    )
+  }
+
+  /**
+   * Check if node is an Array.method() static call.
+   *
+   * @param {string} [methodName] - Optional specific method name to check for
+   * @returns {boolean} True if node is Array.from(), Array.of(), etc.
+   */
+  isArrayStaticCall(methodName) {
     if (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
       j.Identifier.check(this.node.callee.object) &&
       this.node.callee.object.name === "Array"
     ) {
+      if (methodName) {
+        return (
+          j.Identifier.check(this.node.callee.property) &&
+          this.node.callee.property.name === methodName
+        )
+      }
       return true
     }
+    return false
+  }
 
-    // new Array()
+  /**
+   * Check if node is a method call on a string literal returning one of the specified types.
+   *
+   * @param {string[]} methodNames - Method names to check for
+   * @returns {boolean} True if node matches the pattern
+   */
+  isStringLiteralMethodCall(methodNames) {
+    return (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.property) &&
+      j.StringLiteral.check(this.node.callee.object) &&
+      methodNames.includes(this.node.callee.property.name)
+    )
+  }
+
+  /**
+   * Check if node is an array method call returning an array, recursively checking the object.
+   *
+   * @param {string[]} methodNames - Array method names that return arrays
+   * @returns {boolean} True if node is an array method call on a known array/string
+   */
+  isArrayMethodChain(methodNames) {
     if (
-      j.NewExpression.check(this.node) &&
-      j.Identifier.check(this.node.callee) &&
-      this.node.callee.name === "Array"
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.property) &&
+      methodNames.includes(this.node.callee.property.name)
     ) {
+      return new NodeTest(this.node.callee.object).hasIndexOfAndIncludes()
+    }
+    return false
+  }
+
+  /**
+   * Check if an expression is statically verifiable as iterable. Used by transformers
+   * to ensure they only transform known iterable types.
+   *
+   * @returns {boolean} True if the node can be verified as iterable
+   */
+  isIterable() {
+    if (this.isArrayLiteral()) {
       return true
     }
 
-    // String literal methods that return iterables
+    if (this.isArrayStaticCall()) {
+      return true
+    }
+
+    if (this.isNewArray()) {
+      return true
+    }
+
     const STRING_METHODS_RETURNING_ITERABLE = [
       "matchAll",
       "split",
@@ -62,14 +129,71 @@ export class NodeTest {
       "trimEnd",
     ]
 
-    // String literal methods (e.g., "a,b,c".split(','), "hello".slice(0))
-    return !!(
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      j.Identifier.check(this.node.callee.property) &&
-      j.StringLiteral.check(this.node.callee.object) &&
-      STRING_METHODS_RETURNING_ITERABLE.includes(this.node.callee.property.name)
-    )
+    return this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_ITERABLE)
+  }
+
+  /**
+   * Check if an expression is statically verifiable as an array or string.
+   * Used by transformers to ensure they only transform known types that support
+   * both indexOf and includes methods.
+   *
+   * @returns {boolean} True if the node can be verified as an array or string
+   */
+  hasIndexOfAndIncludes() {
+    if (this.isArrayLiteral()) {
+      return true
+    }
+
+    if (this.isNewArray()) {
+      return true
+    }
+
+    // String literal: "hello"
+    if (j.StringLiteral.check(this.node) || j.Literal.check(this.node)) {
+      return typeof this.node.value === "string"
+    }
+
+    // Template literal: `hello`
+    if (j.TemplateLiteral.check(this.node)) {
+      return true
+    }
+
+    const STRING_METHODS_RETURNING_STRING = [
+      "slice",
+      "substr",
+      "substring",
+      "toLowerCase",
+      "toUpperCase",
+      "trim",
+      "trimStart",
+      "trimEnd",
+      "trimLeft",
+      "trimRight",
+      "repeat",
+      "padStart",
+      "padEnd",
+      "concat",
+      "replace",
+      "replaceAll",
+    ]
+
+    if (this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_STRING)) {
+      return true
+    }
+
+    const ARRAY_METHODS_RETURNING_ARRAY = [
+      "slice",
+      "concat",
+      "map",
+      "filter",
+      "flat",
+      "flatMap",
+      "reverse",
+      "sort",
+      "splice",
+    ]
+
+    return this.isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY)
   }
 
   /**
@@ -506,4 +630,70 @@ export function processMultipleDeclarators(root, path) {
     : null
 
   return { modified: true, change }
+}
+
+/**
+ * Get numeric value from a node (handles -1 as UnaryExpression).
+ *
+ * @param {import("ast-types").namedTypes.Node} node - The AST node to extract
+ *   numeric value from
+ * @returns {number | null} The numeric value, or null if not a number
+ */
+export function getNumericValue(node) {
+  // Handle direct literals (e.g., 0)
+  if (j.Literal.check(node) && typeof node.value === "number") {
+    return node.value
+  }
+  // Handle UnaryExpression with minus operator (e.g., -1)
+  if (
+    j.UnaryExpression.check(node) &&
+    node.operator === "-" &&
+    j.Literal.check(node.argument) &&
+    typeof node.argument.value === "number"
+  ) {
+    return -node.argument.value
+  }
+  return null
+}
+
+/**
+ * Determine which side of the binary expression has the indexOf call.
+ *
+ * @param {import("ast-types").namedTypes.BinaryExpression} node - The binary
+ *   expression node to analyze
+ * @returns {{
+ *   indexOfCall: import("ast-types").namedTypes.CallExpression;
+ *   comparisonValue: import("ast-types").namedTypes.Node;
+ *   isLeftIndexOf: boolean;
+ * } | null}
+ *   Object with indexOf call info, or null if not found
+ */
+export function getIndexOfInfo(node) {
+  // Check left side
+  if (
+    j.CallExpression.check(node.left) &&
+    j.MemberExpression.check(node.left.callee) &&
+    j.Identifier.check(node.left.callee.property) &&
+    node.left.callee.property.name === "indexOf"
+  ) {
+    return {
+      indexOfCall: node.left,
+      comparisonValue: node.right,
+      isLeftIndexOf: true,
+    }
+  }
+  // Check right side
+  else if (
+    j.CallExpression.check(node.right) &&
+    j.MemberExpression.check(node.right.callee) &&
+    j.Identifier.check(node.right.callee.property) &&
+    node.right.callee.property.name === "indexOf"
+  ) {
+    return {
+      indexOfCall: node.right,
+      comparisonValue: node.left,
+      isLeftIndexOf: false,
+    }
+  }
+  return null
 }
