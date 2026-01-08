@@ -2148,3 +2148,227 @@ export function substrToSlice(root) {
 
   return modified
 }
+
+/**
+ * Transform arguments object usage to rest parameters.
+ * Converts patterns like:
+ * - const args = Array.from(arguments) → function fn(...args) {}
+ * - const args = [].slice.call(arguments) → function fn(...args) {}
+ *
+ * Only transforms when:
+ * - Function is a regular function (not arrow function)
+ * - Function doesn't already have rest parameters
+ * - arguments is only used in the variable declaration being converted
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
+ */
+export function argumentsToRestParameters(root) {
+  let modified = false
+
+  /**
+   * Check if a node is Array.from(arguments).
+   *
+   * @param {import("ast-types").ASTNode} node - The node to check
+   * @returns {boolean} True if node is Array.from(arguments)
+   */
+  function isArrayFromArguments(node) {
+    return (
+      j.CallExpression.check(node) &&
+      j.MemberExpression.check(node.callee) &&
+      j.Identifier.check(node.callee.object) &&
+      node.callee.object.name === "Array" &&
+      j.Identifier.check(node.callee.property) &&
+      node.callee.property.name === "from" &&
+      node.arguments.length === 1 &&
+      j.Identifier.check(node.arguments[0]) &&
+      node.arguments[0].name === "arguments"
+    )
+  }
+
+  /**
+   * Check if a node is [].slice.call(arguments).
+   *
+   * @param {import("ast-types").ASTNode} node - The node to check
+   * @returns {boolean} True if node is [].slice.call(arguments)
+   */
+  function isArraySliceCallArguments(node) {
+    return (
+      j.CallExpression.check(node) &&
+      j.MemberExpression.check(node.callee) &&
+      j.MemberExpression.check(node.callee.object) &&
+      j.ArrayExpression.check(node.callee.object.object) &&
+      node.callee.object.object.elements.length === 0 &&
+      j.Identifier.check(node.callee.object.property) &&
+      node.callee.object.property.name === "slice" &&
+      j.Identifier.check(node.callee.property) &&
+      node.callee.property.name === "call" &&
+      node.arguments.length === 1 &&
+      j.Identifier.check(node.arguments[0]) &&
+      node.arguments[0].name === "arguments"
+    )
+  }
+
+  /**
+   * Check if a node is [...arguments] (spread arguments into array).
+   *
+   * @param {import("ast-types").ASTNode} node - The node to check
+   * @returns {boolean} True if node is [...arguments]
+   */
+  function isSpreadArguments(node) {
+    return (
+      j.ArrayExpression.check(node) &&
+      node.elements.length === 1 &&
+      j.SpreadElement.check(node.elements[0]) &&
+      j.Identifier.check(node.elements[0].argument) &&
+      node.elements[0].argument.name === "arguments"
+    )
+  }
+
+  /**
+   * Check if arguments is used elsewhere in the function body.
+   *
+   * @param {import("ast-types").ASTNode} functionBody - The function body
+   * @param {string} varName - The variable name to exclude
+   * @returns {boolean} True if arguments is used elsewhere
+   */
+  function isArgumentsUsedElsewhere(functionBody, varName) {
+    let found = false
+
+    /**
+     * Traverse a node looking for arguments references.
+     *
+     * @param {import("ast-types").ASTNode} node - The node to traverse
+     * @param {boolean} skipChildren - Whether to skip checking children
+     */
+    function traverse(node, skipChildren = false) {
+      if (!node || typeof node !== "object") return
+
+      // Don't traverse into nested functions
+      if (
+        j.FunctionDeclaration.check(node) ||
+        j.FunctionExpression.check(node) ||
+        j.ArrowFunctionExpression.check(node)
+      ) {
+        return
+      }
+
+      // Check if this is an arguments identifier
+      if (j.Identifier.check(node) && node.name === "arguments" && !skipChildren) {
+        found = true
+        return
+      }
+
+      // If we should skip children, don't traverse further
+      if (skipChildren) {
+        return
+      }
+
+      // Check if this is a variable declarator for our variable
+      if (j.VariableDeclarator.check(node)) {
+        if (j.Identifier.check(node.id) && node.id.name === varName) {
+          // This is the declarator we're converting - skip its init but continue with other properties
+          // Traverse the id (in case of destructuring)
+          traverse(node.id, false)
+          // Skip the init expression since that's where we're converting arguments
+          // Don't traverse other properties either
+          return
+        }
+      }
+
+      // Traverse all properties
+      for (const key in node) {
+        if (
+          key === "loc" ||
+          key === "start" ||
+          key === "end" ||
+          key === "tokens" ||
+          key === "comments" ||
+          key === "type"
+        ) {
+          continue
+        }
+        const value = node[key]
+        if (Array.isArray(value)) {
+          value.forEach((item) => traverse(item, false))
+        } else if (value && typeof value === "object") {
+          traverse(value, false)
+        }
+      }
+    }
+
+    functionBody.body.forEach((statement) => traverse(statement, false))
+
+    return found
+  }
+
+  // Find all function declarations and expressions
+  const functionNodes = [
+    ...root.find(j.FunctionDeclaration).paths(),
+    ...root.find(j.FunctionExpression).paths(),
+  ]
+
+  functionNodes.forEach((path) => {
+    const func = path.node
+
+    // Skip if function already has rest parameters
+    if (
+      func.params.length > 0 &&
+      j.RestElement.check(func.params[func.params.length - 1])
+    ) {
+      return
+    }
+
+    // Skip if not a block statement body
+    if (!j.BlockStatement.check(func.body)) {
+      return
+    }
+
+    // Look for variable declarations that convert arguments
+    const body = func.body
+    const statementsToRemove = []
+
+    body.body.forEach((statement, index) => {
+      if (!j.VariableDeclaration.check(statement)) {
+        return
+      }
+
+      statement.declarations.forEach((declarator) => {
+        // Must have an identifier
+        if (!j.Identifier.check(declarator.id)) {
+          return
+        }
+
+        const varName = declarator.id.name
+
+        // Check if this is one of our patterns
+        if (
+          isArrayFromArguments(declarator.init) ||
+          isArraySliceCallArguments(declarator.init) ||
+          isSpreadArguments(declarator.init)
+        ) {
+          // Check if arguments is used elsewhere in the function
+          if (isArgumentsUsedElsewhere(body, varName)) {
+            return
+          }
+
+          // Add rest parameter to function
+          func.params.push(j.restElement(j.identifier(varName)))
+
+          // Mark this statement for removal
+          statementsToRemove.push(index)
+
+          modified = true
+        }
+      })
+    })
+
+    // Remove the variable declarations (in reverse order to maintain indices)
+    statementsToRemove.reverse().forEach((index) => {
+      body.body.splice(index, 1)
+    })
+  })
+
+  return modified
+}
