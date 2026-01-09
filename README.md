@@ -518,8 +518,6 @@ The transformer handles cases where `Array.from(arguments)` has already been con
 
 Note: The `x = x || defaultValue` pattern is NOT transformed as it has different semantics (triggers on any falsy value, not just `undefined`).
 
-[mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
