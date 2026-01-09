@@ -374,10 +374,10 @@ export class NodeTest {
   }
 
   /**
-   * Convert a function body to a block statement.
-   * For arrow functions with expression bodies, wraps the expression in a return statement.
+   * Convert a function's body to a block statement.
+   * For arrow functions with expression bodies, wrap the expression in a return statement.
    *
-   * @returns {import("ast-types").namedTypes.BlockStatement} The function body as a block statement
+   * @returns {import("ast-types").namedTypes.BlockStatement} The function body as a block statement.
    */
   toBlockStatement() {
     if (j.BlockStatement.check(this.node.body)) {
