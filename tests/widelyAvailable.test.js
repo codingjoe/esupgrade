@@ -6772,6 +6772,101 @@ promise
 
         assert(!result.modified, "skip promise chain at top level")
       })
+
+      test("unwrap Promise.resolve to simple return", () => {
+        const result = transform(`
+function foo() {
+  return Promise.resolve('foo bar');
+}
+`)
+
+        assert(result.modified, "unwrap Promise.resolve")
+        assert.match(result.code, /async function foo/)
+        assert.match(result.code, /return ['"]foo bar['"]/)
+        assert.doesNotMatch(result.code, /await/)
+        assert.doesNotMatch(result.code, /Promise\.resolve/)
+      })
+
+      test("unwrap Promise.reject to throw", () => {
+        const result = transform(`
+function bar() {
+  return Promise.reject(new Error('fail'));
+}
+`)
+
+        assert(result.modified, "unwrap Promise.reject")
+        assert.match(result.code, /async function bar/)
+        assert.match(result.code, /throw new Error/)
+        assert.doesNotMatch(result.code, /return/)
+        assert.doesNotMatch(result.code, /Promise\.reject/)
+      })
+
+      test("unwrap Promise.reject in function expression", () => {
+        const result = transform(`
+const fn = function() {
+  return Promise.reject(new Error('error'));
+};
+`)
+
+        assert(result.modified, "unwrap Promise.reject in function expression")
+        assert.match(result.code, /async function fn/)
+        assert.match(result.code, /throw new Error/)
+        assert.doesNotMatch(result.code, /return/)
+      })
+
+      test("unwrap Promise.reject in arrow function", () => {
+        const result = transform(`
+const fn = () => {
+  return Promise.reject('error');
+};
+`)
+
+        assert(result.modified, "unwrap Promise.reject in arrow")
+        assert.match(result.code, /async function fn/)
+        assert.match(result.code, /throw ['"]error['"]/)
+        assert.doesNotMatch(result.code, /return/)
+      })
+
+      test("unwrap Promise.resolve in arrow function", () => {
+        const result = transform(`
+const fn = () => {
+  return Promise.resolve(42);
+};
+`)
+
+        assert(result.modified, "unwrap Promise.resolve in arrow")
+        assert.match(result.code, /async function fn/)
+        assert.match(result.code, /return 42/)
+        assert.doesNotMatch(result.code, /await/)
+      })
+
+      test("unwrap Promise.resolve with conditional", () => {
+        const result = transform(`
+function test() {
+  if (condition) {
+    return Promise.resolve('success');
+  }
+  return fetch('/api');
+}
+`)
+
+        assert(result.modified, "unwrap Promise.resolve with conditional")
+        assert.match(result.code, /async function test/)
+        assert.match(result.code, /return ['"]success['"]/)
+        assert.match(result.code, /return await fetch/)
+      })
+
+      test("still await Promise.all", () => {
+        const result = transform(`
+function all() {
+  return Promise.all([a, b]);
+}
+`)
+
+        assert(result.modified, "still await Promise.all")
+        assert.match(result.code, /async function all/)
+        assert.match(result.code, /return await Promise\.all/)
+      })
     })
   })
 })

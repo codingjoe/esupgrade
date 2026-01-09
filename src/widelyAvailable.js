@@ -2589,6 +2589,32 @@ export function defaultParameterValues(root) {
 }
 
 /**
+ * Unwrap Promise.resolve() and Promise.reject() calls.
+ * - Promise.resolve(value) -> value
+ * - Promise.reject(error) -> throw statement (returns null to indicate special handling needed)
+ *
+ * @param {*} node - The AST node to potentially unwrap
+ * @returns {*} The unwrapped value or the original node
+ */
+function unwrapPromiseResolveReject(node) {
+  if (
+    j.CallExpression.check(node) &&
+    j.MemberExpression.check(node.callee) &&
+    j.Identifier.check(node.callee.object) &&
+    node.callee.object.name === 'Promise' &&
+    j.Identifier.check(node.callee.property)
+  ) {
+    if (node.callee.property.name === 'resolve' && node.arguments.length === 1) {
+      return node.arguments[0]
+    }
+    if (node.callee.property.name === 'reject' && node.arguments.length === 1) {
+      return { _isReject: true, argument: node.arguments[0] }
+    }
+  }
+  return node
+}
+
+/**
  * Transform Promise-returning functions to async/await.
  * Makes functions async if they return a known promise, and converts
  * .then().catch() chains to try/catch with await.
@@ -2740,7 +2766,14 @@ export function promiseToAsyncAwait(root) {
     if (hasPromiseReturn) {
       func.async = true
       promiseReturns.forEach((retPath) => {
-        retPath.node.argument = j.awaitExpression(retPath.node.argument)
+        const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
+        if (unwrapped._isReject) {
+          j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
+        } else if (unwrapped !== retPath.node.argument) {
+          retPath.node.argument = unwrapped
+        } else {
+          retPath.node.argument = j.awaitExpression(retPath.node.argument)
+        }
       })
       modified = true
     }
@@ -2771,7 +2804,14 @@ export function promiseToAsyncAwait(root) {
     if (hasPromiseReturn) {
       func.async = true
       promiseReturns.forEach((retPath) => {
-        retPath.node.argument = j.awaitExpression(retPath.node.argument)
+        const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
+        if (unwrapped._isReject) {
+          j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
+        } else if (unwrapped !== retPath.node.argument) {
+          retPath.node.argument = unwrapped
+        } else {
+          retPath.node.argument = j.awaitExpression(retPath.node.argument)
+        }
       })
       modified = true
     }
@@ -2802,7 +2842,14 @@ export function promiseToAsyncAwait(root) {
     if (hasPromiseReturn) {
       func.async = true
       promiseReturns.forEach((retPath) => {
-        retPath.node.argument = j.awaitExpression(retPath.node.argument)
+        const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
+        if (unwrapped._isReject) {
+          j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
+        } else if (unwrapped !== retPath.node.argument) {
+          retPath.node.argument = unwrapped
+        } else {
+          retPath.node.argument = j.awaitExpression(retPath.node.argument)
+        }
       })
       modified = true
     }
