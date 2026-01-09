@@ -1160,7 +1160,7 @@ export function constructorToClass(root) {
           new NodeTest(methodValue).toBlockStatement(),
           methodValue.generator || false,
         )
-        
+
         // Preserve async property
         if (methodValue.async) {
           functionExpr.async = true
