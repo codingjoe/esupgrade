@@ -504,6 +504,20 @@ Transforms the `arguments` object to rest parameters when:
 
 The transformer handles cases where `Array.from(arguments)` has already been converted to `[...arguments]` by other transformers.
 
+#### Manual default values → [Default parameters][mdn-default-parameters]
+
+```diff
+-function fn(x) {
+-  if (x === undefined) x = defaultValue;
+-  // use x
+-}
++function fn(x = defaultValue) {
++  // use x
++}
+```
+
+Note: The `x = x || defaultValue` pattern is NOT transformed as it has different semantics (triggers on any falsy value, not just `undefined`).
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -552,6 +566,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+[mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
 [mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
