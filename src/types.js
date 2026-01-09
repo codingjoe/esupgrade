@@ -975,7 +975,7 @@ export function validateChecks(nullCheck, undefinedCheck, consequent) {
  */
 export function findEnclosingFunction(path) {
   let current = path
-  while (current && current.parent) {
+  while (current?.parent) {
     const node = current.parent.node
     if (
       j.FunctionDeclaration.check(node) ||
