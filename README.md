@@ -504,6 +504,20 @@ Transforms the `arguments` object to rest parameters when:
 
 The transformer handles cases where `Array.from(arguments)` has already been converted to `[...arguments]` by other transformers.
 
+#### Manual default values → [Default parameters][mdn-default-parameters]
+
+```diff
+-function fn(x) {
+-  if (x === undefined) x = defaultValue;
+-  // use x
+-}
++function fn(x = defaultValue) {
++  // use x
++}
+```
+
+Note: The `x = x || defaultValue` pattern is NOT transformed as it has different semantics (triggers on any falsy value, instead of `undefined`).
+
 #### Promise chains → [async/await][mdn-async-await]
 
 ```diff
@@ -525,13 +539,13 @@ The transformer handles cases where `Array.from(arguments)` has already been con
 Transforms Promise `.then()/.catch()` chains to async/await syntax when:
 
 - The pattern is `.then(callback).catch(errorHandler)`
-- Both callbacks have exactly one parameter
+- Both callbacks have one parameter
 - Both callbacks have block statement bodies (not expression bodies)
 - **The promise chain is returned from the function**
 - **The expression is a known promise** (`fetch()`, `new Promise()`, or a promise method)
 - The code is inside a function that can be marked `async`
 
-The enclosing function is automatically marked `async`. This transformation is only applied when the function already returns a promise, ensuring no breaking changes to function signatures.
+The enclosing function is automatically marked `async`. This transformation is applied when the function already returns a promise, ensuring no breaking changes to function signatures.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
@@ -582,6 +596,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
+[mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
 [mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
