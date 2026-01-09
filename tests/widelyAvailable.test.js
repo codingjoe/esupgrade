@@ -2817,7 +2817,7 @@ function Person(name) {
       assert(!result.modified, "skip constructor without prototype methods")
     })
 
-    test("skip if not all methods are function expressions", () => {
+    test("transform safe arrow functions on prototype", () => {
       const result = transform(`
 function Person(name) {
   this.name = name;
@@ -2828,7 +2828,61 @@ Person.prototype.greet = () => {
 };
       `)
 
-      assert(!result.modified, "skip arrow functions on prototype")
+      assert(result.modified, "transform safe arrow functions on prototype")
+      assert.match(result.code, /class Person/)
+      assert.match(result.code, /greet\(\)/)
+      assert.match(result.code, /return 'Hello'/)
+    })
+
+    test("skip arrow functions with 'this' on prototype", () => {
+      const result = transform(`
+function Person(name) {
+  this.name = name;
+}
+
+Person.prototype.greet = () => {
+  return this.name;
+};
+      `)
+
+      assert(!result.modified, "skip arrow functions with 'this' on prototype")
+    })
+
+    test("transform arrow function with expression body on prototype", () => {
+      const result = transform(`
+function Foo() {
+  this.name = "Klass";
+}
+
+Foo.prototype.getName = () => "foot";
+      `)
+
+      assert(result.modified, "transform arrow function with expression body")
+      assert.match(result.code, /class Foo/)
+      assert.match(result.code, /getName\(\)/)
+      assert.match(result.code, /return "foot"/)
+    })
+
+    test("transform mixed function and arrow functions on prototype", () => {
+      const result = transform(`
+function Person(name) {
+  this.name = name;
+}
+
+Person.prototype.greet = function() {
+  return 'Hello, ' + this.name;
+};
+
+Person.prototype.getType = () => {
+  return 'Person';
+};
+      `)
+
+      assert(result.modified, "transform mixed functions")
+      assert.match(result.code, /class Person/)
+      assert.match(result.code, /greet\(\)/)
+      assert.match(result.code, /getType\(\)/)
+      assert.match(result.code, /return 'Person'/)
     })
 
     test("constructor with no parameters", () => {
@@ -2924,7 +2978,7 @@ Factory.prototype.process = function() {
       assert.doesNotMatch(result.code, /class Factory/)
     })
 
-    test("skip function expression with method call in constructor", () => {
+    test("transform function expression with method call in constructor", () => {
       const result = transform(`
 var SomeClass = function (selector) {
   this.element = document.querySelector(selector);
@@ -2938,8 +2992,11 @@ SomeClass.prototype = {
 };
       `)
 
-      // Constructor with method call should not be transformed (not a simple constructor)
-      assert.doesNotMatch(result.code, /class SomeClass/)
+      // Constructor with method call is still a simple constructor and should be transformed
+      assert(result.modified, "transform constructor with method call")
+      assert.match(result.code, /class SomeClass/)
+      assert.match(result.code, /constructor\(selector\)/)
+      assert.match(result.code, /init\(\)/)
     })
 
     test("skip prototype assignment with non-function methods", () => {
@@ -2956,7 +3013,7 @@ Widget.prototype = {
       assert(!result.modified, "skip prototype object without function expressions")
     })
 
-    test("skip prototype assignment with arrow function methods", () => {
+    test("transform prototype assignment with safe arrow function methods", () => {
       const result = transform(`
 function Component(props) {
   this.props = props;
@@ -2969,7 +3026,48 @@ Component.prototype = {
 };
       `)
 
-      assert(!result.modified, "skip prototype object with arrow functions")
+      assert(result.modified, "transform prototype object with safe arrow functions")
+      assert.match(result.code, /class Component/)
+      assert.match(result.code, /render\(\)/)
+    })
+
+    test("skip prototype assignment with arrow functions that use 'this'", () => {
+      const result = transform(`
+function Component(props) {
+  this.props = props;
+}
+
+Component.prototype = {
+  render: () => {
+    return this.props;
+  }
+};
+      `)
+
+      assert(!result.modified, "skip prototype object with unsafe arrow functions")
+    })
+
+    test("transform prototype assignment with mixed safe arrow and function expressions", () => {
+      const result = transform(`
+function Bar() {
+  this.name = "Klass";
+}
+
+Bar.prototype = {
+  getName: function() {
+    return "bar";
+  },
+  getBaz: () => {
+    return "baz";
+  },
+}
+      `)
+
+      assert(result.modified, "transform mixed prototype object")
+      assert.match(result.code, /class Bar/)
+      assert.match(result.code, /getName\(\)/)
+      assert.match(result.code, /getBaz\(\)/)
+      assert.match(result.code, /return "baz"/)
     })
 
     test("skip prototype assignment with getter/setter properties", () => {

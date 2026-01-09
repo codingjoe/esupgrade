@@ -1030,15 +1030,28 @@ export function constructorToClass(root) {
         const methodName = left.property.name
         const methodValue = assignment.right
 
-        if (!j.FunctionExpression.check(methodValue)) {
+        // Accept function expressions
+        if (j.FunctionExpression.check(methodValue)) {
+          constructors.get(constructorName).prototypeMethods.push({
+            path,
+            methodName,
+            methodValue,
+          })
           return
         }
 
-        constructors.get(constructorName).prototypeMethods.push({
-          path,
-          methodName,
-          methodValue,
-        })
+        // Accept arrow functions that don't use 'this' (safe to convert)
+        if (j.ArrowFunctionExpression.check(methodValue)) {
+          if (new NodeTest(methodValue.body).usesThis()) {
+            return
+          }
+          constructors.get(constructorName).prototypeMethods.push({
+            path,
+            methodName,
+            methodValue,
+          })
+          return
+        }
       })
 
     // Pattern 2: ConstructorName.prototype = { methodName: function() {...}, ... }
@@ -1091,16 +1104,30 @@ export function constructorToClass(root) {
             return
           }
 
-          if (!j.FunctionExpression.check(prop.value)) {
+          // Accept function expressions
+          if (j.FunctionExpression.check(prop.value)) {
+            constructors.get(constructorName).prototypeMethods.push({
+              path,
+              methodName,
+              methodValue: prop.value,
+              isObjectLiteral: true,
+            })
             return
           }
 
-          constructors.get(constructorName).prototypeMethods.push({
-            path,
-            methodName,
-            methodValue: prop.value,
-            isObjectLiteral: true,
-          })
+          // Accept arrow functions that don't use 'this' (safe to convert)
+          if (j.ArrowFunctionExpression.check(prop.value)) {
+            if (new NodeTest(prop.value.body).usesThis()) {
+              return
+            }
+            constructors.get(constructorName).prototypeMethods.push({
+              path,
+              methodName,
+              methodValue: prop.value,
+              isObjectLiteral: true,
+            })
+            return
+          }
         })
       })
   }
@@ -1154,13 +1181,22 @@ export function constructorToClass(root) {
       ]
 
       info.prototypeMethods.forEach(({ methodName, methodValue }) => {
+        // For arrow functions, we need to ensure the body is a block statement
+        let methodBody = methodValue.body
+        if (j.ArrowFunctionExpression.check(methodValue)) {
+          // If arrow function has expression body, wrap it in a return statement
+          if (!j.BlockStatement.check(methodBody)) {
+            methodBody = j.blockStatement([j.returnStatement(methodBody)])
+          }
+        }
+
         const method = j.methodDefinition(
           "method",
           j.identifier(methodName),
           j.functionExpression(
             null,
             methodValue.params,
-            methodValue.body,
+            methodBody,
             methodValue.generator,
             methodValue.async,
           ),
