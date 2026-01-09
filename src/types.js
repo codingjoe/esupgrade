@@ -365,17 +365,11 @@ export class NodeTest {
    * @returns {boolean} True if the function can be converted to a class method
    */
   canBeClassMethod() {
-    // Function expressions can always be converted to class methods
     if (j.FunctionExpression.check(this.node)) {
       return true
-    }
-
-    // Arrow functions can be converted only if they don't use 'this'
-    // (since class methods have their own 'this' binding)
-    if (j.ArrowFunctionExpression.check(this.node)) {
+    } else if (j.ArrowFunctionExpression.check(this.node)) {
       return !new NodeTest(this.node.body).usesThis()
     }
-
     return false
   }
 
@@ -386,20 +380,11 @@ export class NodeTest {
    * @returns {import("ast-types").namedTypes.BlockStatement} The function body as a block statement
    */
   toBlockStatement() {
-    const body = this.node.body
-
-    // Already a block statement
-    if (j.BlockStatement.check(body)) {
-      return body
+    if (j.BlockStatement.check(this.node.body)) {
+      return this.node.body
+    } else if (j.ArrowFunctionExpression.check(this.node)) {
+      return j.blockStatement([j.returnStatement(this.node.body)])
     }
-
-    // Arrow function with expression body - wrap in return statement
-    if (j.ArrowFunctionExpression.check(this.node)) {
-      return j.blockStatement([j.returnStatement(body)])
-    }
-
-    // For other cases, return as-is (shouldn't happen in practice)
-    return body
   }
 
   /**
