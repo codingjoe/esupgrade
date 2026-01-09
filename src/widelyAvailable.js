@@ -2427,6 +2427,28 @@ export function argumentsToRestParameters(root) {
 }
 
 /**
+ * Find the enclosing function for a given path.
+ *
+ * @param {import("ast-types").NodePath} path - The path to start from
+ * @returns {import("ast-types").NodePath | null} The enclosing function path or null
+ */
+function findEnclosingFunction(path) {
+  let current = path
+  while (current && current.parent) {
+    const node = current.parent.node
+    if (
+      j.FunctionDeclaration.check(node) ||
+      j.FunctionExpression.check(node) ||
+      j.ArrowFunctionExpression.check(node)
+    ) {
+      return current.parent
+    }
+    current = current.parent
+  }
+  return null
+}
+
+/**
  * Transform Promise chains to async/await.
  * Converts patterns like promise.then(result => {...}).catch(err => {...})
  * to try { const result = await promise; ... } catch (err) { ... }.
@@ -2498,20 +2520,8 @@ export function promiseToAsyncAwait(root) {
         return false
       }
 
-      let enclosingFunction = path
-      while (enclosingFunction && enclosingFunction.parent) {
-        const node = enclosingFunction.parent.node
-        if (
-          j.FunctionDeclaration.check(node) ||
-          j.FunctionExpression.check(node) ||
-          j.ArrowFunctionExpression.check(node)
-        ) {
-          break
-        }
-        enclosingFunction = enclosingFunction.parent
-      }
-
-      if (!enclosingFunction || !enclosingFunction.parent) {
+      const enclosingFunction = findEnclosingFunction(path)
+      if (!enclosingFunction) {
         return false
       }
 
@@ -2542,18 +2552,9 @@ export function promiseToAsyncAwait(root) {
 
       j(path.parent).replaceWith(tryStatement)
 
-      let enclosingFunction = path
-      while (enclosingFunction && enclosingFunction.parent) {
-        const node = enclosingFunction.parent.node
-        if (
-          j.FunctionDeclaration.check(node) ||
-          j.FunctionExpression.check(node) ||
-          j.ArrowFunctionExpression.check(node)
-        ) {
-          node.async = true
-          break
-        }
-        enclosingFunction = enclosingFunction.parent
+      const enclosingFunction = findEnclosingFunction(path)
+      if (enclosingFunction) {
+        enclosingFunction.node.async = true
       }
 
       modified = true
