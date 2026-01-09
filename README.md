@@ -318,7 +318,6 @@ Functions using `this`, `arguments`, or `super` are not converted to preserve se
 Transforms constructor functions (both function declarations and variable declarations) that meet these criteria:
 
 - Function name starts with an uppercase letter
-- Constructor bodies are limited to simple statements (variable declarations and expression statements)
 - At least one prototype method is defined
 - Prototype methods must be function expressions (not arrow functions)
 - Prototype object literals with getters, setters, or computed properties are skipped
