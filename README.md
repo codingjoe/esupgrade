@@ -318,8 +318,6 @@ Functions using `this`, `arguments`, or `super` are not converted to preserve se
 Transforms constructor functions (both function declarations and variable declarations) that meet these criteria:
 
 - Function name starts with an uppercase letter
-- Constructor bodies are limited to simple statements (variable declarations and expression statements)
-- No control flow statements (`if`, `for`, `while`, `return`, `throw`, etc.) in constructor body
 - At least one prototype method is defined
 - Prototype methods must be function expressions (not arrow functions)
 - Prototype object literals with getters, setters, or computed properties are skipped
@@ -420,7 +418,7 @@ Transforms the deprecated `substr()` method to `slice()`:
 - `str.substr(start)` becomes `str.slice(start)`
 - `str.substr()` becomes `str.slice()`
 
-Only transforms when the receiver can be verified as a string (string literals, template literals, or string method chains).
+Transformations are limited to when the receiver can be verified as a string (string literals, template literals, or string method chains).
 
 #### `Object.keys().forEach()` → [Object.entries()][mdn-object-entries]
 
@@ -436,9 +434,9 @@ Only transforms when the receiver can be verified as a string (string literals, 
 
 Transforms Object.keys() iteration patterns where the value is accessed from the same object into Object.entries() with array destructuring. This eliminates duplicate property lookups and makes the code more concise.
 
-Only transforms when:
+Transforms when:
 
-- The callback has exactly one parameter (the key)
+- The callback has one parameter (the key)
 - The first statement in the callback assigns `obj[key]` to a variable
 - The object being accessed matches the object passed to Object.keys()
 
@@ -451,7 +449,7 @@ Only transforms when:
 +const notPrefix = !str.startsWith(prefix);
 ```
 
-Transforms `indexOf()` prefix checks to the more explicit `startsWith()` method. Only transforms when the receiver can be verified as a string and `indexOf()` is compared to `0`.
+Transforms `indexOf()` prefix checks to the more explicit `startsWith()` method. Transforms when the receiver can be verified as a string and `indexOf()` is compared to `0`.
 
 #### `substring()` prefix check → [String.startsWith()][mdn-startswith]
 
@@ -462,7 +460,7 @@ Transforms `indexOf()` prefix checks to the more explicit `startsWith()` method.
 +const noMatch = !str.startsWith(prefix);
 ```
 
-Transforms `substring()` prefix comparisons to `startsWith()`. Only transforms patterns where `substring(0, prefix.length)` is compared to `prefix`.
+Transforms `substring()` prefix comparisons to `startsWith()`. Transforms patterns where `substring(0, prefix.length)` is compared to `prefix`.
 
 #### `lastIndexOf()` suffix check → [String.endsWith()][mdn-endswith]
 
@@ -473,7 +471,7 @@ Transforms `substring()` prefix comparisons to `startsWith()`. Only transforms p
 +const notSuffix = !"hello world".endsWith("world");
 ```
 
-Transforms `lastIndexOf()` suffix checks to the more explicit `endsWith()` method. Only transforms when the receiver can be verified as a string and the pattern matches `lastIndexOf(suffix) === str.length - suffix.length`.
+Transforms `lastIndexOf()` suffix checks to the more explicit `endsWith()` method. Transforms when the receiver can be verified as a string and the pattern matches `lastIndexOf(suffix) === str.length - suffix.length`.
 
 #### `arguments` object → [Rest parameters ...][mdn-rest-parameters]
 
@@ -501,7 +499,7 @@ Transforms the `arguments` object to rest parameters when:
 
 - Function is a regular function (not arrow function)
 - Function doesn't already have rest parameters
-- `arguments` is only used in the conversion pattern (`Array.from(arguments)` or `[].slice.call(arguments)`)
+- `arguments` is used in the conversion pattern (`Array.from(arguments)` or `[].slice.call(arguments)`)
 - `arguments` is not used elsewhere in the function
 
 The transformer handles cases where `Array.from(arguments)` has already been converted to `[...arguments]` by other transformers.

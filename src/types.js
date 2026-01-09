@@ -426,7 +426,11 @@ export class NodeTest {
       this.node.body.every(
         (statement) =>
           j.VariableDeclaration.check(statement) ||
-          j.ExpressionStatement.check(statement),
+          j.ExpressionStatement.check(statement) ||
+          j.IfStatement.check(statement) ||
+          j.ForOfStatement.check(statement) ||
+          j.ForInStatement.check(statement) ||
+          (j.ReturnStatement.check(statement) && statement.argument == null),
       )
     )
   }

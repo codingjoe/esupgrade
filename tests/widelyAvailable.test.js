@@ -2806,6 +2806,40 @@ Person.prototype.greet = function() {
       assert.match(result.code, /greet\(\)/)
     })
 
+    test("keep comments", () => {
+      const result = transform(`
+// Person
+function Person(name) {
+  this.name = name;
+}
+
+Person.prototype.greet = function() {
+  return 'Hello, ' + this.name;
+};
+      `)
+
+      assert.match(result.code, /\/\/ Person/)
+    })
+
+    test("keep jsdocs", () => {
+      const result = transform(`
+/**
+  * Person
+  *
+  * @argument {string} name - The name of the person
+  */
+function Person(name) {
+  this.name = name;
+}
+
+Person.prototype.greet = function() {
+  return 'Hello, ' + this.name;
+};
+      `)
+
+      assert.match(result.code, /@argument \{string} name - The name of the person/)
+    })
+
     test("constructor with multiple prototype methods", () => {
       const result = transform(`
 function Animal(type) {
@@ -3058,8 +3092,7 @@ Service.prototype.init = function() {
 };
       `)
 
-      assert(!result.modified, "skip constructor with if statement")
-      assert.match(result.code, /function Service/)
+      assert.match(result.code, /class Service/)
     })
 
     test("skip prototype method assignment with non-function value", () => {
@@ -3149,8 +3182,7 @@ Validator.prototype.validate = function() {
 };
       `)
 
-      assert(!result.modified, "skip constructor with throw")
-      assert.match(result.code, /function Validator/)
+      assert.match(result.code, /class Validator/)
     })
 
     test("transform constructor with only assignment statements", () => {
@@ -3217,8 +3249,8 @@ Creator.prototype.start = function() {
 };
       `)
 
-      assert(!result.modified, "skip constructor with return")
-      assert.match(result.code, /function Creator/)
+      assert(result.modified, "skip constructor with return")
+      assert.match(result.code, /class Creator/)
     })
 
     test("prototype object with only getter property", () => {
@@ -3322,7 +3354,7 @@ Service.prototype.init = function() {
 };
       `)
 
-      assert.doesNotMatch(
+      assert.match(
         result.code,
         /class Service/,
         "skip var declaration with complex body",
