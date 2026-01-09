@@ -504,6 +504,34 @@ Transforms the `arguments` object to rest parameters when:
 
 The transformer handles cases where `Array.from(arguments)` has already been converted to `[...arguments]` by other transformers.
 
+#### Promise chains → [async/await][mdn-async-await]
+
+```diff
+-promise
+-  .then(result => {
+-    // handle result
+-  })
+-  .catch(err => {
+-    // handle error
+-  });
++try {
++  const result = await promise;
++  // handle result
++} catch (err) {
++  // handle error
++}
+```
+
+Transforms Promise `.then()/.catch()` chains to async/await syntax when:
+
+- The pattern is `.then(callback).catch(errorHandler)`
+- Both callbacks have exactly one parameter
+- Both callbacks have block statement bodies (not expression bodies)
+- The promise chain is in an expression statement
+- The code is inside a function that can be marked `async`
+
+The enclosing function is automatically marked `async`.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -549,6 +577,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [calver]: https://calver.org/
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+[mdn-async-await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const

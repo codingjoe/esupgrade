@@ -2425,3 +2425,140 @@ export function argumentsToRestParameters(root) {
 
   return modified
 }
+
+/**
+ * Transform Promise chains to async/await.
+ * Converts patterns like promise.then(result => {...}).catch(err => {...})
+ * to try { const result = await promise; ... } catch (err) { ... }.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+ */
+export function promiseToAsyncAwait(root) {
+  let modified = false
+
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+      
+      if (
+        !j.MemberExpression.check(node.callee) ||
+        !j.Identifier.check(node.callee.property) ||
+        node.callee.property.name !== "catch"
+      ) {
+        return false
+      }
+
+      const thenCall = node.callee.object
+      if (
+        !j.CallExpression.check(thenCall) ||
+        !j.MemberExpression.check(thenCall.callee) ||
+        !j.Identifier.check(thenCall.callee.property) ||
+        thenCall.callee.property.name !== "then"
+      ) {
+        return false
+      }
+
+      if (thenCall.arguments.length !== 1 || node.arguments.length !== 1) {
+        return false
+      }
+
+      const thenCallback = thenCall.arguments[0]
+      const catchCallback = node.arguments[0]
+
+      if (
+        (!j.ArrowFunctionExpression.check(thenCallback) &&
+          !j.FunctionExpression.check(thenCallback)) ||
+        (!j.ArrowFunctionExpression.check(catchCallback) &&
+          !j.FunctionExpression.check(catchCallback))
+      ) {
+        return false
+      }
+
+      if (
+        thenCallback.params.length !== 1 ||
+        catchCallback.params.length !== 1 ||
+        !j.Identifier.check(thenCallback.params[0]) ||
+        !j.Identifier.check(catchCallback.params[0])
+      ) {
+        return false
+      }
+
+      if (
+        !j.BlockStatement.check(thenCallback.body) ||
+        !j.BlockStatement.check(catchCallback.body)
+      ) {
+        return false
+      }
+
+      const parent = path.parent.node
+      if (!j.ExpressionStatement.check(parent)) {
+        return false
+      }
+
+      let enclosingFunction = path
+      while (enclosingFunction && enclosingFunction.parent) {
+        const node = enclosingFunction.parent.node
+        if (
+          j.FunctionDeclaration.check(node) ||
+          j.FunctionExpression.check(node) ||
+          j.ArrowFunctionExpression.check(node)
+        ) {
+          break
+        }
+        enclosingFunction = enclosingFunction.parent
+      }
+
+      if (!enclosingFunction || !enclosingFunction.parent) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const thenCall = node.callee.object
+      const promiseExpr = thenCall.callee.object
+
+      const thenCallback = thenCall.arguments[0]
+      const catchCallback = node.arguments[0]
+
+      const resultParam = thenCallback.params[0].name
+      const errorParam = catchCallback.params[0].name
+
+      const resultDeclarator = j.variableDeclaration("const", [
+        j.variableDeclarator(
+          j.identifier(resultParam),
+          j.awaitExpression(promiseExpr),
+        ),
+      ])
+
+      const tryStatement = j.tryStatement(
+        j.blockStatement([resultDeclarator, ...thenCallback.body.body]),
+        j.catchClause(j.identifier(errorParam), null, catchCallback.body),
+      )
+
+      j(path.parent).replaceWith(tryStatement)
+
+      let enclosingFunction = path
+      while (enclosingFunction && enclosingFunction.parent) {
+        const node = enclosingFunction.parent.node
+        if (
+          j.FunctionDeclaration.check(node) ||
+          j.FunctionExpression.check(node) ||
+          j.ArrowFunctionExpression.check(node)
+        ) {
+          node.async = true
+          break
+        }
+        enclosingFunction = enclosingFunction.parent
+      }
+
+      modified = true
+    })
+
+  return modified
+}
+
