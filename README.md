@@ -508,16 +508,6 @@ The transformer handles cases where `Array.from(arguments)` has already been con
 
 ```diff
 -function fn(x) {
--  x = x || defaultValue;
--  // use x
--}
-+function fn(x = defaultValue) {
-+  // use x
-+}
-```
-
-```diff
--function fn(x) {
 -  if (x === undefined) x = defaultValue;
 -  // use x
 -}
@@ -530,8 +520,11 @@ Transforms manual default value assignment patterns to native default parameters
 
 - The assignment is at the beginning of the function body
 - The parameter is a simple identifier (not destructured or rest parameter)
-- For `||` pattern: Be aware this changes behavior for falsy values (0, '', false, null)
-- For `if (x === undefined)` pattern: Only checks for strict equality with `undefined`
+- The check uses strict equality (`===`) with `undefined`
+
+Note: The `x = x || defaultValue` pattern is NOT transformed as it has different semantics (triggers on any falsy value, not just `undefined`).
+
+[mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">

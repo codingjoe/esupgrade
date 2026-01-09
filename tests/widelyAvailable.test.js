@@ -5923,7 +5923,7 @@ Object.keys(obj).forEach(key => {
     })
 
     describe("defaultParameterValues", () => {
-      test("x = x || defaultValue pattern", () => {
+      test("skip x = x || defaultValue pattern (unsafe)", () => {
         const result = transform(`
 function fn(x) {
   x = x || 42;
@@ -5931,9 +5931,9 @@ function fn(x) {
 }
       `)
 
-        assert(result.modified, "transform x = x || defaultValue")
-        assert.match(result.code, /function fn\(x = 42\)/)
-        assert.doesNotMatch(result.code, /x = x \|\| 42/)
+        // The || pattern should NOT be transformed as it's unsafe
+        assert.doesNotMatch(result.code, /function fn\(x = 42\)/)
+        assert.match(result.code, /x = x \|\| 42/)
       })
 
       test("if (x === undefined) x = defaultValue pattern", () => {
@@ -5967,7 +5967,7 @@ function fn(x) {
       test("multiple parameters with defaults", () => {
         const result = transform(`
 function fn(x, y, z) {
-  x = x || 1;
+  if (x === undefined) x = 1;
   if (y === undefined) y = 2;
   if (z === undefined) {
     z = 3;
@@ -5978,15 +5978,15 @@ function fn(x, y, z) {
 
         assert(result.modified, "transform multiple parameters")
         assert.match(result.code, /function fn\(x = 1, y = 2, z = 3\)/)
-        assert.doesNotMatch(result.code, /x = x \|\|/)
+        assert.doesNotMatch(result.code, /if \(x === undefined\)/)
         assert.doesNotMatch(result.code, /if \(y === undefined\)/)
         assert.doesNotMatch(result.code, /if \(z === undefined\)/)
       })
 
-      test("arrow function with || pattern", () => {
+      test("arrow function with if undefined pattern", () => {
         const result = transform(`
 const fn = (x) => {
-  x = x || 42;
+  if (x === undefined) x = 42;
   return x;
 };
       `)
@@ -5994,13 +5994,13 @@ const fn = (x) => {
         assert(result.modified, "transform arrow function")
         // Note: arrow function becomes a function declaration due to namedArrowFunctionToNamedFunction
         assert.match(result.code, /function fn\(x = 42\)/)
-        assert.doesNotMatch(result.code, /x = x \|\| 42/)
+        assert.doesNotMatch(result.code, /if \(x === undefined\)/)
       })
 
       test("function expression with default", () => {
         const result = transform(`
 const fn = function(x) {
-  x = x || 42;
+  if (x === undefined) x = 42;
   return x;
 };
       `)
@@ -6008,13 +6008,13 @@ const fn = function(x) {
         assert(result.modified, "transform function expression")
         // Note: function expression becomes a function declaration due to namedArrowFunctionToNamedFunction
         assert.match(result.code, /function fn\(x = 42\)/)
-        assert.doesNotMatch(result.code, /x = x \|\| 42/)
+        assert.doesNotMatch(result.code, /if \(x === undefined\)/)
       })
 
       test("complex default value", () => {
         const result = transform(`
 function fn(config) {
-  config = config || { timeout: 1000, retries: 3 };
+  if (config === undefined) config = { timeout: 1000, retries: 3 };
   return config;
 }
       `)
@@ -6029,7 +6029,7 @@ function fn(config) {
       test("identifier default value", () => {
         const result = transform(`
 function fn(x) {
-  x = x || defaultValue;
+  if (x === undefined) x = defaultValue;
   return x;
 }
       `)
@@ -6041,7 +6041,7 @@ function fn(x) {
       test("default value is expression", () => {
         const result = transform(`
 function fn(x) {
-  x = x || getValue();
+  if (x === undefined) x = getValue();
   return x;
 }
       `)
@@ -6054,7 +6054,7 @@ function fn(x) {
         const result = transform(`
 function fn() {
   let x;
-  x = x || 42;
+  if (x === undefined) x = 42;
   return x;
 }
       `)
@@ -6065,7 +6065,7 @@ function fn() {
       test("skip when parameter already has default", () => {
         const result = transform(`
 function fn(x = 10) {
-  x = x || 42;
+  if (x === undefined) x = 42;
   return x;
 }
       `)
@@ -6077,19 +6077,20 @@ function fn(x = 10) {
         const result = transform(`
 function fn(x) {
   const y = 1;
-  x = x || 42;
+  if (x === undefined) x = 42;
   return x;
 }
       `)
 
-        // Transform will still apply console.log -> console.info but not default params
-        assert.doesNotMatch(result.code, /x = 42/)
+        // Should not transform - if statement is not at the beginning
+        assert(!result.modified, "skip when not at beginning")
+        assert.match(result.code, /if \(x === undefined\) x = 42/)
       })
 
       test("skip destructured parameters", () => {
         const result = transform(`
 function fn({ x }) {
-  x = x || 42;
+  if (x === undefined) x = 42;
   return x;
 }
       `)
@@ -6100,7 +6101,7 @@ function fn({ x }) {
       test("skip rest parameters", () => {
         const result = transform(`
 function fn(...x) {
-  x = x || [];
+  if (x === undefined) x = [];
   return x;
 }
       `)
@@ -6111,7 +6112,7 @@ function fn(...x) {
       test("skip when variable name doesn't match parameter", () => {
         const result = transform(`
 function fn(x) {
-  y = y || 42;
+  if (y === undefined) y = 42;
   return x;
 }
       `)
@@ -6130,16 +6131,16 @@ const fn = (x) => x || 42;
         assert.doesNotMatch(result.code, /x = 42/)
       })
 
-      test("mixed patterns and regular statements", () => {
+      test("mixed patterns - if undefined only", () => {
         const result = transform(`
 function fn(x, y) {
-  x = x || 1;
+  if (x === undefined) x = 1;
   if (y === undefined) y = 2;
   console.log(x, y);
 }
       `)
 
-        assert(result.modified, "transform mixed patterns")
+        assert(result.modified, "transform if undefined patterns")
         assert.match(result.code, /function fn\(x = 1, y = 2\)/)
         assert.match(result.code, /console\.info\(x, y\)/)
       })
@@ -6192,7 +6193,7 @@ function fn(x) {
       test("TypeScript function with type annotations", () => {
         const result = transform(`
 function fn(x: number) {
-  x = x || 42;
+  if (x === undefined) x = 42;
   return x;
 }
       `)
@@ -6204,7 +6205,7 @@ function fn(x: number) {
       test("multiple parameters, only some have defaults", () => {
         const result = transform(`
 function fn(a, b, c) {
-  a = a || 1;
+  if (a === undefined) a = 1;
   console.log(a, b, c);
 }
       `)

@@ -2429,17 +2429,16 @@ export function argumentsToRestParameters(root) {
 /**
  * Transform manual default value assignment to default parameters.
  * Converts patterns like:
- * - function fn(x) { x = x || defaultValue; ... } → function fn(x = defaultValue) { ... }
  * - function fn(x) { if (x === undefined) x = defaultValue; ... } → function fn(x = defaultValue) { ... }
+ * - function fn(x) { if (x === undefined) { x = defaultValue; } ... } → function fn(x = defaultValue) { ... }
  *
  * Only transforms when:
  * - The assignment is at the beginning of the function body (stops at first non-default statement)
  * - The parameter is not destructured or rest parameter
+ * - The check uses strict equality (===) with undefined
  *
- * IMPORTANT: The || pattern transformation changes behavior for falsy values.
- * - Original: `x = x || defaultValue` uses defaultValue for ANY falsy value (0, '', false, null, undefined)
- * - Transformed: `x = defaultValue` only uses defaultValue when x is undefined
- * This is generally the desired behavior, but may break code that relies on treating other falsy values as missing.
+ * Note: The `x = x || defaultValue` pattern is NOT transformed because it has different
+ * semantics (triggers on any falsy value) and the transformation would be unsafe.
  *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
@@ -2479,31 +2478,7 @@ export function defaultParameterValues(root) {
       let paramName = null
       let defaultValue = null
 
-      // Pattern 1: x = x || defaultValue
-      if (
-        j.ExpressionStatement.check(statement) &&
-        j.AssignmentExpression.check(statement.expression) &&
-        statement.expression.operator === "=" &&
-        j.Identifier.check(statement.expression.left)
-      ) {
-        const assignment = statement.expression
-        const left = assignment.left
-        const right = assignment.right
-
-        // Check if right side is a LogicalExpression with ||
-        if (
-          j.LogicalExpression.check(right) &&
-          right.operator === "||" &&
-          j.Identifier.check(right.left) &&
-          right.left.name === left.name
-        ) {
-          paramName = left.name
-          defaultValue = right.right
-          foundPattern = true
-        }
-      }
-
-      // Pattern 2: if (x === undefined) x = defaultValue
+      // Pattern 1: if (x === undefined) x = defaultValue
       if (
         j.IfStatement.check(statement) &&
         !statement.alternate &&
@@ -2531,7 +2506,7 @@ export function defaultParameterValues(root) {
         }
       }
 
-      // Pattern 3: if (x === undefined) { x = defaultValue; }
+      // Pattern 2: if (x === undefined) { x = defaultValue; }
       if (
         j.IfStatement.check(statement) &&
         !statement.alternate &&
