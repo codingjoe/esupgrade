@@ -6323,7 +6323,7 @@ function getData() {
 
         assert(result.modified, "make function async when returning fetch")
         assert.match(result.code, /async function getData/)
-        assert.match(result.code, /return fetch/)
+        assert.match(result.code, /return await fetch/)
       })
 
       test("make function async when it returns new Promise", () => {
@@ -6337,6 +6337,7 @@ function loadUser() {
 
         assert(result.modified, "make function async when returning new Promise")
         assert.match(result.code, /async function loadUser/)
+        assert.match(result.code, /return await new Promise/)
       })
 
       test("make function async when it returns promise chain", () => {
@@ -6348,7 +6349,7 @@ function getJson() {
 
         assert(result.modified, "make function async when returning promise chain")
         assert.match(result.code, /async function getJson/)
-        assert.match(result.code, /return fetch/)
+        assert.match(result.code, /return await fetch/)
       })
 
       test("make function async when it returns Promise.all", () => {
@@ -6360,6 +6361,7 @@ function getAll() {
 
         assert(result.modified, "make function async when returning Promise.all")
         assert.match(result.code, /async function getAll/)
+        assert.match(result.code, /return await Promise\.all/)
       })
 
       test("skip function that doesn't return promise", () => {
@@ -6391,6 +6393,7 @@ const fn = function() {
 
         assert(result.modified, "make function expression async")
         assert.match(result.code, /async function fn/)
+        assert.match(result.code, /return await fetch/)
       })
 
       test("make arrow function async when it returns promise", () => {
@@ -6402,6 +6405,7 @@ const fn = () => {
 
         assert(result.modified, "make arrow function async")
         assert.match(result.code, /async function fn/)
+        assert.match(result.code, /return await new Promise/)
       })
 
       test("make arrow function with expression body async", () => {
@@ -6425,6 +6429,7 @@ function outer() {
 
         assert(result.modified, "transform nested function")
         assert.match(result.code, /async function inner/)
+        assert.match(result.code, /return await fetch/)
         assert.doesNotMatch(result.code, /async function outer/)
       })
 
@@ -6608,6 +6613,7 @@ const fn = function() {
 
         assert(result.modified, "make function expression async with conditional")
         assert.match(result.code, /async function fn/)
+        assert.match(result.code, /return await fetch/)
       })
 
       test("make arrow function async with conditional return", () => {
@@ -6622,6 +6628,7 @@ const fn = () => {
 
         assert(result.modified, "make arrow function async with conditional")
         assert.match(result.code, /async function fn/)
+        assert.match(result.code, /return await new Promise/)
       })
 
       test("skip function expression with nested function returning promise", () => {
@@ -6636,6 +6643,7 @@ const outer = function() {
 
         assert(result.modified, "only inner function becomes async")
         assert.match(result.code, /async function inner/)
+        assert.match(result.code, /return await fetch/)
         assert.doesNotMatch(result.code, /async function outer/)
       })
 
@@ -6651,6 +6659,7 @@ const outer = () => {
 
         assert(result.modified, "only inner function becomes async")
         assert.match(result.code, /async function inner/)
+        assert.match(result.code, /return await new Promise/)
         assert.doesNotMatch(result.code, /async function outer/)
       })
 
@@ -6664,6 +6673,7 @@ obj.handler = function() {
 
         assert(result.modified, "make anonymous function expression async")
         assert.match(result.code, /async function/)
+        assert.match(result.code, /return await fetch/)
       })
 
       test("make anonymous arrow function async", () => {
@@ -6675,6 +6685,7 @@ callbacks.push(() => {
 
         assert(result.modified, "make anonymous arrow function async")
         assert.match(result.code, /async/)
+        assert.match(result.code, /return await new Promise/)
       })
 
       test("anonymous function expression with nested return", () => {
@@ -6690,6 +6701,7 @@ obj.fn = function() {
 
         assert(result.modified, "make anonymous function expression async with conditional")
         assert.match(result.code, /async function/)
+        assert.match(result.code, /return await Promise\.all/)
       })
 
       test("anonymous arrow with nested return", () => {
@@ -6704,6 +6716,7 @@ callbacks.push(() => {
 
         assert(result.modified, "make anonymous arrow async with conditional")
         assert.match(result.code, /async/)
+        assert.match(result.code, /return await fetch/)
       })
 
       test("transform .then().catch() in anonymous arrow already async", () => {

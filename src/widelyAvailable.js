@@ -2600,84 +2600,7 @@ export function defaultParameterValues(root) {
 export function promiseToAsyncAwait(root) {
   let modified = false
 
-  root.find(j.FunctionDeclaration).forEach((funcPath) => {
-    const func = funcPath.node
-    
-    if (func.async || !j.BlockStatement.check(func.body)) {
-      return
-    }
-
-    let hasPromiseReturn = false
-    
-    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
-      const enclosing = findEnclosingFunction(retPath)
-      if (enclosing !== funcPath) {
-        return
-      }
-      
-      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
-        hasPromiseReturn = true
-      }
-    })
-
-    if (hasPromiseReturn) {
-      func.async = true
-      modified = true
-    }
-  })
-
-  root.find(j.FunctionExpression).forEach((funcPath) => {
-    const func = funcPath.node
-    
-    if (func.async || !j.BlockStatement.check(func.body)) {
-      return
-    }
-
-    let hasPromiseReturn = false
-    
-    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
-      const enclosing = findEnclosingFunction(retPath)
-      if (enclosing !== funcPath) {
-        return
-      }
-      
-      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
-        hasPromiseReturn = true
-      }
-    })
-
-    if (hasPromiseReturn) {
-      func.async = true
-      modified = true
-    }
-  })
-
-  root.find(j.ArrowFunctionExpression).forEach((funcPath) => {
-    const func = funcPath.node
-    
-    if (func.async || !j.BlockStatement.check(func.body)) {
-      return
-    }
-
-    let hasPromiseReturn = false
-    
-    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
-      const enclosing = findEnclosingFunction(retPath)
-      if (enclosing !== funcPath) {
-        return
-      }
-      
-      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
-        hasPromiseReturn = true
-      }
-    })
-
-    if (hasPromiseReturn) {
-      func.async = true
-      modified = true
-    }
-  })
-
+  // First, transform .then().catch() chains to try/catch with await
   root
     .find(j.CallExpression)
     .filter((path) => {
@@ -2790,6 +2713,100 @@ export function promiseToAsyncAwait(root) {
 
       modified = true
     })
+
+  // Then, make functions async if they return other known promises
+  root.find(j.FunctionDeclaration).forEach((funcPath) => {
+    const func = funcPath.node
+    
+    if (func.async || !j.BlockStatement.check(func.body)) {
+      return
+    }
+
+    let hasPromiseReturn = false
+    const promiseReturns = []
+    
+    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
+      const enclosing = findEnclosingFunction(retPath)
+      if (enclosing !== funcPath) {
+        return
+      }
+      
+      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
+        hasPromiseReturn = true
+        promiseReturns.push(retPath)
+      }
+    })
+
+    if (hasPromiseReturn) {
+      func.async = true
+      promiseReturns.forEach((retPath) => {
+        retPath.node.argument = j.awaitExpression(retPath.node.argument)
+      })
+      modified = true
+    }
+  })
+
+  root.find(j.FunctionExpression).forEach((funcPath) => {
+    const func = funcPath.node
+    
+    if (func.async || !j.BlockStatement.check(func.body)) {
+      return
+    }
+
+    let hasPromiseReturn = false
+    const promiseReturns = []
+    
+    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
+      const enclosing = findEnclosingFunction(retPath)
+      if (enclosing !== funcPath) {
+        return
+      }
+      
+      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
+        hasPromiseReturn = true
+        promiseReturns.push(retPath)
+      }
+    })
+
+    if (hasPromiseReturn) {
+      func.async = true
+      promiseReturns.forEach((retPath) => {
+        retPath.node.argument = j.awaitExpression(retPath.node.argument)
+      })
+      modified = true
+    }
+  })
+
+  root.find(j.ArrowFunctionExpression).forEach((funcPath) => {
+    const func = funcPath.node
+    
+    if (func.async || !j.BlockStatement.check(func.body)) {
+      return
+    }
+
+    let hasPromiseReturn = false
+    const promiseReturns = []
+    
+    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
+      const enclosing = findEnclosingFunction(retPath)
+      if (enclosing !== funcPath) {
+        return
+      }
+      
+      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
+        hasPromiseReturn = true
+        promiseReturns.push(retPath)
+      }
+    })
+
+    if (hasPromiseReturn) {
+      func.async = true
+      promiseReturns.forEach((retPath) => {
+        retPath.node.argument = j.awaitExpression(retPath.node.argument)
+      })
+      modified = true
+    }
+  })
 
   return modified
 }
