@@ -6382,6 +6382,52 @@ async function getData() {
         assert(!result.modified, "skip already async function")
       })
 
+      test("make function expression async when it returns promise", () => {
+        const result = transform(`
+const fn = function() {
+  return fetch('/data');
+};
+`)
+
+        assert(result.modified, "make function expression async")
+        assert.match(result.code, /async function fn/)
+      })
+
+      test("make arrow function async when it returns promise", () => {
+        const result = transform(`
+const fn = () => {
+  return new Promise(resolve => resolve());
+};
+`)
+
+        assert(result.modified, "make arrow function async")
+        assert.match(result.code, /async function fn/)
+      })
+
+      test("make arrow function with expression body async", () => {
+        const result = transform(`
+const fn = () => fetch('/api');
+`)
+
+        assert(result.modified, "convert arrow with expression body that returns promise")
+        assert.match(result.code, /async function fn/)
+      })
+
+      test("handle nested functions - only transform inner function", () => {
+        const result = transform(`
+function outer() {
+  function inner() {
+    return fetch('/api');
+  }
+  return inner();
+}
+`)
+
+        assert(result.modified, "transform nested function")
+        assert.match(result.code, /async function inner/)
+        assert.doesNotMatch(result.code, /async function outer/)
+      })
+
       test("skip then without catch", () => {
         const result = transform(`
 function test() {
@@ -6496,6 +6542,208 @@ function test() {
 `)
 
         assert(!result.modified, "skip promise chain not in expression statement")
+      })
+
+      test("transform .then().catch() with function expression", () => {
+        const result = transform(`
+const fn = function() {
+  return fetch('/api')
+    .then(data => {
+      console.log(data);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+};
+`)
+
+        assert(result.modified, "transform .then().catch() in function expression")
+        assert.match(result.code, /async function fn/)
+        assert.match(result.code, /try \{/)
+        assert.match(result.code, /const data = await fetch/)
+      })
+
+      test("transform .then().catch() with arrow function", () => {
+        const result = transform(`
+const fn = () => {
+  return fetch('/api')
+    .then(data => {
+      console.log(data);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+};
+`)
+
+        assert(result.modified, "transform .then().catch() in arrow function")
+        assert.match(result.code, /async function fn/)
+        assert.match(result.code, /try \{/)
+        assert.match(result.code, /const data = await fetch/)
+      })
+
+      test("skip .then().catch() with argument that is not a callback", () => {
+        const result = transform(`
+function test() {
+  return promise
+    .then(result => {
+      processResult(result);
+    })
+    .catch(errorHandler);
+}
+`)
+
+        assert(!result.modified, "skip when catch arg is not a function")
+      })
+
+      test("make function expression async with conditional return", () => {
+        const result = transform(`
+const fn = function() {
+  if (condition) {
+    return fetch('/api');
+  }
+  return null;
+};
+`)
+
+        assert(result.modified, "make function expression async with conditional")
+        assert.match(result.code, /async function fn/)
+      })
+
+      test("make arrow function async with conditional return", () => {
+        const result = transform(`
+const fn = () => {
+  if (condition) {
+    return new Promise(r => r());
+  }
+  return null;
+};
+`)
+
+        assert(result.modified, "make arrow function async with conditional")
+        assert.match(result.code, /async function fn/)
+      })
+
+      test("skip function expression with nested function returning promise", () => {
+        const result = transform(`
+const outer = function() {
+  function inner() {
+    return fetch('/api');
+  }
+  return inner;
+};
+`)
+
+        assert(result.modified, "only inner function becomes async")
+        assert.match(result.code, /async function inner/)
+        assert.doesNotMatch(result.code, /async function outer/)
+      })
+
+      test("skip arrow function with nested function returning promise", () => {
+        const result = transform(`
+const outer = () => {
+  function inner() {
+    return new Promise(r => r());
+  }
+  return inner;
+};
+`)
+
+        assert(result.modified, "only inner function becomes async")
+        assert.match(result.code, /async function inner/)
+        assert.doesNotMatch(result.code, /async function outer/)
+      })
+
+      test("make anonymous function expression async", () => {
+        const result = transform(`
+obj.handler = function() {
+  console.log(arguments);
+  return fetch('/data');
+};
+`)
+
+        assert(result.modified, "make anonymous function expression async")
+        assert.match(result.code, /async function/)
+      })
+
+      test("make anonymous arrow function async", () => {
+        const result = transform(`
+callbacks.push(() => {
+  return new Promise(r => r());
+});
+`)
+
+        assert(result.modified, "make anonymous arrow function async")
+        assert.match(result.code, /async/)
+      })
+
+      test("anonymous function expression with nested return", () => {
+        const result = transform(`
+obj.fn = function() {
+  console.log(arguments);
+  if (condition) {
+    return Promise.all([a, b]);
+  }
+  return null;
+};
+`)
+
+        assert(result.modified, "make anonymous function expression async with conditional")
+        assert.match(result.code, /async function/)
+      })
+
+      test("anonymous arrow with nested return", () => {
+        const result = transform(`
+callbacks.push(() => {
+  if (x) {
+    return fetch('/a');
+  }
+  return null;
+});
+`)
+
+        assert(result.modified, "make anonymous arrow async with conditional")
+        assert.match(result.code, /async/)
+      })
+
+      test("transform .then().catch() in anonymous arrow already async", () => {
+        const result = transform(`
+callbacks.push(async () => {
+  fetch('/api')
+    .then(data => {
+      console.log(data);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
+`)
+
+        assert(result.modified, "transform .then().catch() in async arrow")
+        assert.match(result.code, /try \{/)
+        assert.match(result.code, /const data = await fetch/)
+      })
+
+      test("skip .then() with multiple arguments", () => {
+        const result = transform(`
+function test() {
+  return promise.then(onSuccess, onError).catch(err => { doSomething(err); });
+}
+`)
+
+        assert(!result.modified, "skip .then() with two arguments")
+        assert.doesNotMatch(result.code, /try \{/)
+        assert.doesNotMatch(result.code, /await/)
+      })
+
+      test("skip .catch() with multiple arguments", () => {
+        const result = transform(`
+function test() {
+  return promise.then(data => { doSomething(data); }).catch(onError, onFinally);
+}
+`)
+
+        assert(!result.modified, "skip .catch() with multiple arguments")
       })
 
       test("skip promise chain at top level", () => {
