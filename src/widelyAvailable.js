@@ -987,48 +987,6 @@ export function constructorToClass(root) {
   }
 
   /**
-   * Check if a method value is acceptable for class transformation.
-   * Accepts function expressions and arrow functions that don't use 'this'.
-   *
-   * @param {import("ast-types").ASTNode} methodValue - The method value node
-   * @returns {boolean} True if the method can be transformed
-   */
-  function isAcceptableMethod(methodValue) {
-    // Accept function expressions
-    if (j.FunctionExpression.check(methodValue)) {
-      return true
-    }
-
-    // Accept arrow functions that don't use 'this' (safe to convert)
-    if (j.ArrowFunctionExpression.check(methodValue)) {
-      return !new NodeTest(methodValue.body).usesThis()
-    }
-
-    return false
-  }
-
-  /**
-   * Get the method body for class conversion.
-   * For arrow functions with expression bodies, wraps in a block statement with return.
-   *
-   * @param {import("ast-types").ASTNode} methodValue - The method value node
-   * @returns {import("ast-types").namedTypes.BlockStatement} The method body
-   */
-  function getMethodBody(methodValue) {
-    const methodBody = methodValue.body
-
-    // For arrow functions with expression body, wrap in return statement
-    if (
-      j.ArrowFunctionExpression.check(methodValue) &&
-      !j.BlockStatement.check(methodBody)
-    ) {
-      return j.blockStatement([j.returnStatement(methodBody)])
-    }
-
-    return methodBody
-  }
-
-  /**
    * Find and associate prototype methods with constructors.
    *
    * @param {import("jscodeshift").Collection} root - The root AST collection.
@@ -1072,7 +1030,7 @@ export function constructorToClass(root) {
         const methodName = left.property.name
         const methodValue = assignment.right
 
-        if (!isAcceptableMethod(methodValue)) {
+        if (!new NodeTest(methodValue).canBeClassMethod()) {
           return
         }
 
@@ -1133,7 +1091,7 @@ export function constructorToClass(root) {
             return
           }
 
-          if (!isAcceptableMethod(prop.value)) {
+          if (!new NodeTest(prop.value).canBeClassMethod()) {
             return
           }
 
@@ -1199,7 +1157,7 @@ export function constructorToClass(root) {
         const functionExpr = j.functionExpression(
           null,
           methodValue.params,
-          getMethodBody(methodValue),
+          new NodeTest(methodValue).toBlockStatement(),
           methodValue.generator || false,
         )
         

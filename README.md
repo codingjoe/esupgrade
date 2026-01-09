@@ -315,32 +315,11 @@ Functions using `this`, `arguments`, or `super` are not converted to preserve se
 +}
 ```
 
-Arrow functions on prototypes that don't use `this` are also transformed:
-
-```diff
--function Foo() {
--  this.name = "Foo";
--}
--
--Foo.prototype.getType = () => {
--  return "foo";
--};
-+class Foo {
-+  constructor() {
-+    this.name = "Foo";
-+  }
-+
-+  getType() {
-+    return "foo";
-+  }
-+}
-```
-
 Transforms constructor functions (both function declarations and variable declarations) that meet these criteria:
 
 - Function name starts with an uppercase letter
 - At least one prototype method is defined
-- Prototype methods can be function expressions or arrow functions (arrow functions must not use `this`)
+- Prototype methods must be function expressions (not arrow functions)
 - Prototype object literals with getters, setters, or computed properties are skipped
 
 #### `console.log()` → [console.info()][mdn-console]
