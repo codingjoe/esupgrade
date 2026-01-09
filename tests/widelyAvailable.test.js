@@ -2806,7 +2806,7 @@ Person.prototype.greet = function() {
       assert.match(result.code, /greet\(\)/)
     })
 
-    test("retain comments", () => {
+    test("keep comments", () => {
       const result = transform(`
 // Person
 function Person(name) {
@@ -2819,6 +2819,25 @@ Person.prototype.greet = function() {
       `)
 
       assert.match(result.code, /\/\/ Person/)
+    })
+
+    test("keep jsdocs", () => {
+      const result = transform(`
+/**
+  * Person
+  *
+  * @argument {string} name - The name of the person
+  */
+function Person(name) {
+  this.name = name;
+}
+
+Person.prototype.greet = function() {
+  return 'Hello, ' + this.name;
+};
+      `)
+
+      assert.match(result.code, /@argument \{string} name - The name of the person/)
     })
 
     test("constructor with multiple prototype methods", () => {
