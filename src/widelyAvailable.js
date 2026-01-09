@@ -2478,7 +2478,7 @@ export function defaultParameterValues(root) {
       let paramName = null
       let defaultValue = null
 
-      // Pattern 1: if (x === undefined) x = defaultValue
+      // Check for: if (x === undefined) x = defaultValue
       if (
         j.IfStatement.check(statement) &&
         !statement.alternate &&
@@ -2506,7 +2506,7 @@ export function defaultParameterValues(root) {
         }
       }
 
-      // Pattern 2: if (x === undefined) { x = defaultValue; }
+      // Check for: if (x === undefined) { x = defaultValue; }
       if (
         j.IfStatement.check(statement) &&
         !statement.alternate &&
