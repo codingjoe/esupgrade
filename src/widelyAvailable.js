@@ -1008,6 +1008,27 @@ export function constructorToClass(root) {
   }
 
   /**
+   * Get the method body for class conversion.
+   * For arrow functions with expression bodies, wraps in a block statement with return.
+   *
+   * @param {import("ast-types").ASTNode} methodValue - The method value node
+   * @returns {import("ast-types").namedTypes.BlockStatement} The method body
+   */
+  function getMethodBody(methodValue) {
+    const methodBody = methodValue.body
+
+    // For arrow functions with expression body, wrap in return statement
+    if (
+      j.ArrowFunctionExpression.check(methodValue) &&
+      !j.BlockStatement.check(methodBody)
+    ) {
+      return j.blockStatement([j.returnStatement(methodBody)])
+    }
+
+    return methodBody
+  }
+
+  /**
    * Find and associate prototype methods with constructors.
    *
    * @param {import("jscodeshift").Collection} root - The root AST collection.
@@ -1175,22 +1196,13 @@ export function constructorToClass(root) {
       ]
 
       info.prototypeMethods.forEach(({ methodName, methodValue }) => {
-        // For arrow functions, we need to ensure the body is a block statement
-        let methodBody = methodValue.body
-        if (j.ArrowFunctionExpression.check(methodValue)) {
-          // If arrow function has expression body, wrap it in a return statement
-          if (!j.BlockStatement.check(methodBody)) {
-            methodBody = j.blockStatement([j.returnStatement(methodBody)])
-          }
-        }
-
         const method = j.methodDefinition(
           "method",
           j.identifier(methodName),
           j.functionExpression(
             null,
             methodValue.params,
-            methodBody,
+            getMethodBody(methodValue),
             methodValue.generator,
             methodValue.async,
           ),
