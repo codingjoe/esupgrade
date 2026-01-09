@@ -6020,7 +6020,10 @@ function fn(config) {
       `)
 
         assert(result.modified, "transform with complex default")
-        assert.match(result.code, /function fn\(config = \{ timeout: 1000, retries: 3 \}\)/)
+        assert.match(
+          result.code,
+          /function fn\(config = \{ timeout: 1000, retries: 3 \}\)/,
+        )
       })
 
       test("identifier default value", () => {
