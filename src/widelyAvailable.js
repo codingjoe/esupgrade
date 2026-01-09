@@ -1196,16 +1196,22 @@ export function constructorToClass(root) {
       ]
 
       info.prototypeMethods.forEach(({ methodName, methodValue }) => {
+        const functionExpr = j.functionExpression(
+          null,
+          methodValue.params,
+          getMethodBody(methodValue),
+          methodValue.generator || false,
+        )
+        
+        // Preserve async property
+        if (methodValue.async) {
+          functionExpr.async = true
+        }
+
         const method = j.methodDefinition(
           "method",
           j.identifier(methodName),
-          j.functionExpression(
-            null,
-            methodValue.params,
-            getMethodBody(methodValue),
-            methodValue.generator,
-            methodValue.async,
-          ),
+          functionExpr,
           false,
         )
         classBody.push(method)

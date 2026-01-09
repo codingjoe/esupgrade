@@ -2885,6 +2885,23 @@ Person.prototype.getType = () => {
       assert.match(result.code, /return 'Person'/)
     })
 
+    test("transform async arrow function on prototype", () => {
+      const result = transform(`
+function Fetcher() {
+  this.url = "api.example.com";
+}
+
+Fetcher.prototype.fetch = async () => {
+  return "data";
+};
+      `)
+
+      assert(result.modified, "transform async arrow function")
+      assert.match(result.code, /class Fetcher/)
+      assert.match(result.code, /async fetch\(\)/)
+      assert.match(result.code, /return "data"/)
+    })
+
     test("constructor with no parameters", () => {
       const result = transform(`
 function Counter() {
