@@ -2806,6 +2806,21 @@ Person.prototype.greet = function() {
       assert.match(result.code, /greet\(\)/)
     })
 
+    test("retain comments", () => {
+      const result = transform(`
+// Person
+function Person(name) {
+  this.name = name;
+}
+
+Person.prototype.greet = function() {
+  return 'Hello, ' + this.name;
+};
+      `)
+
+      assert.match(result.code, /\/\/ Person/)
+    })
+
     test("constructor with multiple prototype methods", () => {
       const result = transform(`
 function Animal(type) {
