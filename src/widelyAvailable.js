@@ -2425,3 +2425,178 @@ export function argumentsToRestParameters(root) {
 
   return modified
 }
+
+/**
+ * Transform manual default value assignment to default parameters.
+ * Converts patterns like:
+ * - function fn(x) { x = x || defaultValue; ... } → function fn(x = defaultValue) { ... }
+ * - function fn(x) { if (x === undefined) x = defaultValue; ... } → function fn(x = defaultValue) { ... }
+ *
+ * Only transforms when:
+ * - The assignment is at the beginning of the function body
+ * - The parameter is not destructured or rest parameter
+ * - For || pattern: Be cautious with falsy values (0, '', false, null)
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
+ */
+export function defaultParameterValues(root) {
+  let modified = false
+
+  const functionNodes = [
+    ...root.find(j.FunctionDeclaration).paths(),
+    ...root.find(j.FunctionExpression).paths(),
+    ...root.find(j.ArrowFunctionExpression).paths(),
+  ]
+
+  functionNodes.forEach((path) => {
+    const func = path.node
+
+    // Skip if function body is not a block statement
+    if (!j.BlockStatement.check(func.body)) {
+      return
+    }
+
+    const body = func.body
+    if (body.body.length === 0) {
+      return
+    }
+
+    // Track parameters that have been assigned defaults
+    const paramsWithDefaults = new Map()
+
+    // Iterate through statements at the beginning of the function
+    let statementsToRemove = []
+
+    for (let i = 0; i < body.body.length; i++) {
+      const statement = body.body[i]
+      let foundPattern = false
+      let paramName = null
+      let defaultValue = null
+
+      // Pattern 1: x = x || defaultValue
+      if (
+        j.ExpressionStatement.check(statement) &&
+        j.AssignmentExpression.check(statement.expression) &&
+        statement.expression.operator === "=" &&
+        j.Identifier.check(statement.expression.left)
+      ) {
+        const assignment = statement.expression
+        const left = assignment.left
+        const right = assignment.right
+
+        // Check if right side is a LogicalExpression with ||
+        if (
+          j.LogicalExpression.check(right) &&
+          right.operator === "||" &&
+          j.Identifier.check(right.left) &&
+          right.left.name === left.name
+        ) {
+          paramName = left.name
+          defaultValue = right.right
+          foundPattern = true
+        }
+      }
+
+      // Pattern 2: if (x === undefined) x = defaultValue
+      if (
+        j.IfStatement.check(statement) &&
+        !statement.alternate &&
+        j.ExpressionStatement.check(statement.consequent) &&
+        j.AssignmentExpression.check(statement.consequent.expression) &&
+        statement.consequent.expression.operator === "=" &&
+        j.Identifier.check(statement.consequent.expression.left)
+      ) {
+        const test = statement.test
+        const assignment = statement.consequent.expression
+        const assignedVar = assignment.left.name
+
+        // Check if test is: x === undefined
+        if (
+          j.BinaryExpression.check(test) &&
+          test.operator === "===" &&
+          j.Identifier.check(test.left) &&
+          test.left.name === assignedVar &&
+          j.Identifier.check(test.right) &&
+          test.right.name === "undefined"
+        ) {
+          paramName = assignedVar
+          defaultValue = assignment.right
+          foundPattern = true
+        }
+      }
+
+      // Pattern 3: if (x === undefined) { x = defaultValue; }
+      if (
+        j.IfStatement.check(statement) &&
+        !statement.alternate &&
+        j.BlockStatement.check(statement.consequent) &&
+        statement.consequent.body.length === 1 &&
+        j.ExpressionStatement.check(statement.consequent.body[0]) &&
+        j.AssignmentExpression.check(statement.consequent.body[0].expression) &&
+        statement.consequent.body[0].expression.operator === "=" &&
+        j.Identifier.check(statement.consequent.body[0].expression.left)
+      ) {
+        const test = statement.test
+        const assignment = statement.consequent.body[0].expression
+        const assignedVar = assignment.left.name
+
+        // Check if test is: x === undefined
+        if (
+          j.BinaryExpression.check(test) &&
+          test.operator === "===" &&
+          j.Identifier.check(test.left) &&
+          test.left.name === assignedVar &&
+          j.Identifier.check(test.right) &&
+          test.right.name === "undefined"
+        ) {
+          paramName = assignedVar
+          defaultValue = assignment.right
+          foundPattern = true
+        }
+      }
+
+      if (foundPattern) {
+        // Check if this is a parameter
+        const paramIndex = func.params.findIndex(
+          (param) => j.Identifier.check(param) && param.name === paramName,
+        )
+
+        if (paramIndex !== -1) {
+          // Check if parameter doesn't already have a default
+          const param = func.params[paramIndex]
+          if (!j.AssignmentPattern.check(param)) {
+            paramsWithDefaults.set(paramName, {
+              paramIndex,
+              defaultValue,
+              statementIndex: i,
+            })
+            statementsToRemove.push(i)
+          }
+        }
+      } else {
+        // Stop looking for default value patterns once we hit a different statement
+        break
+      }
+    }
+
+    // Apply the transformations
+    if (paramsWithDefaults.size > 0) {
+      // Update parameters with defaults
+      paramsWithDefaults.forEach(({ paramIndex, defaultValue }) => {
+        const param = func.params[paramIndex]
+        func.params[paramIndex] = j.assignmentPattern(param, defaultValue)
+      })
+
+      // Remove the statements (in reverse order to maintain indices)
+      statementsToRemove.reverse().forEach((index) => {
+        body.body.splice(index, 1)
+      })
+
+      modified = true
+    }
+  })
+
+  return modified
+}
