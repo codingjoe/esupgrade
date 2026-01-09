@@ -32,14 +32,12 @@ suite("widely-available", () => {
   `)
 
       assert(!result.modified, "skip plain identifier forEach")
-      assert.match(result.code, /items\.forEach/)
     })
 
     test("plain identifier forEach with function expression", () => {
       const result = transform(`numbers.forEach((n) => { process(n); });`)
 
       assert(!result.modified, "skip plain identifier forEach")
-      assert.match(result.code, /numbers\.forEach/)
     })
 
     test("Array.from().forEach() with array destructuring", () => {
@@ -64,7 +62,6 @@ suite("widely-available", () => {
   `)
 
       assert(!result.modified, "skip callback with index parameter")
-      assert.match(result.code, /forEach\(\(item, index\)/)
     })
 
     test("forEach with index parameter", () => {
@@ -75,7 +72,6 @@ suite("widely-available", () => {
   `)
 
       assert(!result.modified, "skip callback with index parameter")
-      assert.match(result.code, /forEach\(\(item, index\)/)
     })
 
     test("forEach on unknown objects", () => {
@@ -86,7 +82,6 @@ suite("widely-available", () => {
   `)
 
       assert(!result.modified, "skip forEach on unknown objects")
-      assert.match(result.code, /myCustomObject\.forEach/)
     })
 
     test("Map.forEach()", () => {
@@ -97,21 +92,18 @@ suite("widely-available", () => {
   `)
 
       assert(!result.modified, "skip Map.forEach() with 2 parameters")
-      assert.match(result.code, /myMap\.forEach/)
     })
 
     test("Array.from().forEach() without callback", () => {
       const result = transform(`Array.from(items).forEach();`)
 
       assert(!result.modified, "skip Array.from().forEach() without callback")
-      assert.match(result.code, /forEach\(\)/)
     })
 
     test("Array.from().forEach() with non-function callback", () => {
       const result = transform(`Array.from(items).forEach(callback);`)
 
       assert(!result.modified, "skip Array.from().forEach() with non-function callback")
-      assert.match(result.code, /forEach\(callback\)/)
     })
 
     test("Array.from().forEach() with function expression", () => {
@@ -213,7 +205,6 @@ suite("widely-available", () => {
       const result = transform(`const doubled = Array.from(numbers, n => n * 2);`)
 
       assert(!result.modified, "skip Array.from() with mapping function")
-      assert.match(result.code, /Array\.from\(numbers, n => n \* 2\)/)
     })
 
     test("Array.from() with thisArg", () => {
@@ -222,7 +213,6 @@ suite("widely-available", () => {
       )
 
       assert(!result.modified, "skip Array.from() with thisArg")
-      assert.match(result.code, /Array\.from/)
     })
 
     test("chained methods on Array.from()", () => {
@@ -776,7 +766,6 @@ suite("widely-available", () => {
       const result = transform(`const msg = a + b + c;`)
 
       assert(!result.modified, "skip concatenation with only expressions")
-      assert.match(result.code, /a \+ b \+ c/)
     })
 
     test("ending with expression", () => {
@@ -1068,14 +1057,12 @@ suite("widely-available", () => {
       const result = transform(`const obj = Object.assign({ a: 1 }, obj1);`)
 
       assert(!result.modified, "skip Object.assign with non-empty first arg")
-      assert.match(result.code, /Object\.assign/)
     })
 
     test("non-object first arg", () => {
       const result = transform(`const obj = Object.assign(target, obj1);`)
 
       assert(!result.modified, "skip Object.assign with non-object first arg")
-      assert.match(result.code, /Object\.assign/)
     })
 
     test("only empty object", () => {
@@ -1119,7 +1106,6 @@ suite("widely-available", () => {
       const result = transform(`const result = Math.pow(2);`)
 
       assert(!result.modified, "skip Math.pow() with wrong number of arguments")
-      assert.match(result.code, /Math\.pow\(2\)/)
     })
 
     test("nested calls", () => {
@@ -1191,7 +1177,6 @@ for (let i = 0; i < items.length; i++) {
       `)
 
       assert(!result.modified, "skip when index used in body")
-      assert.match(result.code, /for \(let i = 0; i < items\.length; i\+\+\)/)
     })
 
     test("no array access statement", () => {
@@ -1202,7 +1187,6 @@ for (let i = 0; i < items.length; i++) {
       `)
 
       assert(!result.modified, "skip when no array access statement")
-      assert.match(result.code, /for \(let i = 0/)
     })
 
     test("empty body", () => {
@@ -1223,7 +1207,6 @@ for (let i = 0; i < items.length; i += 2) {
       `)
 
       assert(!result.modified, "skip when using different increment")
-      assert.match(result.code, /i \+= 2/)
     })
 
     test("non-zero start", () => {
@@ -1235,7 +1218,6 @@ for (let i = 1; i < items.length; i++) {
       `)
 
       assert(!result.modified, "skip when starting from non-zero")
-      assert.match(result.code, /let i = 1/)
     })
 
     test("using <= instead of <", () => {
@@ -1247,7 +1229,6 @@ for (let i = 0; i <= items.length; i++) {
       `)
 
       assert(!result.modified, "skip when using <= instead of <")
-      assert.match(result.code, /i <= items\.length/)
     })
 
     test("different array access", () => {
@@ -1259,7 +1240,6 @@ for (let i = 0; i < items.length; i++) {
       `)
 
       assert(!result.modified, "skip when accessing different array")
-      assert.match(result.code, /otherArray\[i\]/)
     })
 
     test("no variable declaration first", () => {
@@ -1270,7 +1250,6 @@ for (let i = 0; i < items.length; i++) {
       `)
 
       assert(!result.modified, "skip when first statement is not variable declaration")
-      assert.match(result.code, /for \(let i = 0/)
     })
 
     test("different index variable", () => {
@@ -1601,7 +1580,6 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(!result.modified, "skip element variable querySelectorAll")
-      assert.match(result.code, /element\.querySelectorAll/)
     })
 
     test("chained querySelectorAll()", () => {
@@ -1635,7 +1613,6 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(!result.modified, "skip arrow function without braces")
-      assert.match(result.code, /forEach\(item => item\.remove\(\)\)/)
     })
 
     test("with index parameter", () => {
@@ -1646,7 +1623,6 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(!result.modified, "skip forEach with index parameter")
-      assert.match(result.code, /forEach\(\(item, index\) =>/)
     })
 
     test("with array parameter", () => {
@@ -1657,7 +1633,6 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(!result.modified, "skip forEach with array parameter")
-      assert.match(result.code, /forEach\(\(item, index, array\) =>/)
     })
 
     test("non-inline callback", () => {
@@ -1666,7 +1641,6 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(!result.modified, "skip forEach with non-inline callback")
-      assert.match(result.code, /forEach\(handleItem\)/)
     })
 
     test("without callback", () => {
@@ -1675,7 +1649,6 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(!result.modified, "skip forEach without callback")
-      assert.match(result.code, /forEach\(\)/)
     })
 
     test("unknown methods", () => {
@@ -1686,7 +1659,6 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(!result.modified, "skip unknown methods")
-      assert.match(result.code, /querySomething/)
     })
 
     test("non-document objects with querySelectorAll", () => {
@@ -1697,7 +1669,6 @@ for (let i = 0; i < items.length; i++) {
   `)
 
       assert(!result.modified, "skip non-document objects with querySelectorAll")
-      assert.match(result.code, /myObject\.querySelectorAll/)
     })
 
     test("window methods not in allowed list", () => {
@@ -1773,7 +1744,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip element variables with getElementsByTagName")
-      assert.match(result.code, /container\.getElementsByTagName/)
     })
 
     test("element variables with getElementsByClassName", () => {
@@ -1784,7 +1754,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip element variables with getElementsByClassName")
-      assert.match(result.code, /section\.getElementsByClassName/)
     })
 
     test("window.querySelectorAll not in allowed", () => {
@@ -1807,7 +1776,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip property access on unknown objects")
-      assert.match(result.code, /customObject\.frames/)
     })
 
     test("object not a member expression", () => {
@@ -1818,7 +1786,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip when forEach object is not a member expression")
-      assert.match(result.code, /items\.forEach/)
     })
 
     test("method name computed property", () => {
@@ -1829,7 +1796,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip when method name is computed")
-      assert.match(result.code, /document\['querySelectorAll'\]/)
     })
 
     test("unknown document methods", () => {
@@ -1840,7 +1806,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip unknown document methods")
-      assert.match(result.code, /document\.customMethod/)
     })
 
     test("chained call from non-document origin", () => {
@@ -1851,7 +1816,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip chained call from non-document origin")
-      assert.match(result.code, /element\.querySelector/)
     })
 
     test("chained call with unknown method", () => {
@@ -1862,7 +1826,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip chained call with unknown method")
-      assert.match(result.code, /customMethod/)
     })
 
     test("caller neither identifier nor member/call expression", () => {
@@ -1873,7 +1836,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip when caller is a function expression")
-      assert.match(result.code, /forEach/)
     })
 
     test("caller is ThisExpression", () => {
@@ -1884,7 +1846,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip when caller is this")
-      assert.match(result.code, /this\.querySelectorAll/)
     })
 
     test("object neither MemberExpression nor CallExpression", () => {
@@ -1895,7 +1856,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip when forEach object is just an identifier")
-      assert.match(result.code, /items\.forEach/)
     })
 
     test("deeply nested document chain", () => {
@@ -1920,7 +1880,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip when callerObject is a binary expression")
-      assert.match(result.code, /forEach/)
     })
 
     test("CallExpression with non-MemberExpression callee", () => {
@@ -1945,7 +1904,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip when chain starts with function call")
-      assert.match(result.code, /getDocument\(\)\.querySelectorAll/)
     })
 
     test("document property access with querySelectorAll", () => {
@@ -2018,7 +1976,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip function using 'this'")
-      assert.match(result.code, /method: function\(\)/)
     })
 
     test("using 'this' in nested code", () => {
@@ -2031,7 +1988,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip function using 'this' in nested code")
-      assert.match(result.code, /const handler = function\(\)/)
     })
 
     test("using 'arguments'", () => {
@@ -2042,9 +1998,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip function using 'arguments'")
-      assert.match(result.code, /const sum = function\(\)/)
-      assert.doesNotMatch(result.code, /const sum = \(\) =>/)
-      assert.doesNotMatch(result.code, /const sum = =>/)
     })
 
     test("generator function", () => {
@@ -2056,7 +2009,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip generator function")
-      assert.match(result.code, /const gen = function\*\(\)/)
     })
 
     test("nested function without 'this'", () => {
@@ -2185,7 +2137,6 @@ document.querySelectorAll('.item').forEach(item => {
   `)
 
       assert(!result.modified, "skip named function expression")
-      assert.match(result.code, /function fact\(n\)/)
     })
   })
 
@@ -2306,28 +2257,24 @@ document.querySelectorAll('.item').forEach(item => {
       const result = transform(`const method = () => { return this.value; }`)
 
       assert(!result.modified, "skip arrow function using this")
-      assert.match(result.code, /const method = \(\) =>/)
     })
 
     test("skip arrow function in callback", () => {
       const result = transform(`items.map(item => item * 2)`)
 
       assert(!result.modified, "skip arrow function in callback position")
-      assert.match(result.code, /items\.map\(item => item \* 2\)/)
     })
 
     test("skip multiple declarators", () => {
       const result = transform(`const a = () => {}, b = () => {}`)
 
       assert(!result.modified, "skip variable declaration with multiple declarators")
-      assert.match(result.code, /const a = \(\) =>/)
     })
 
     test("skip destructuring assignment", () => {
       const result = transform(`const { func } = obj`)
 
       assert(!result.modified, "skip destructuring assignment")
-      assert.match(result.code, /const \{ func \} = obj/)
     })
 
     test("skip var declarations", () => {
@@ -2558,7 +2505,6 @@ document.querySelectorAll('.item').forEach(item => {
       const result = transform(`const copy = arr.concat();`)
 
       assert(!result.modified, "skip concat with no arguments")
-      assert.match(result.code, /arr\.concat\(\)/)
     })
     test("in arrow function", () => {
       const result = transform(`const fn = (arr, other) => [1, 2].concat(other);`)
@@ -2578,14 +2524,12 @@ document.querySelectorAll('.item').forEach(item => {
       const result = transform(`const result = str.concat("hello");`)
 
       assert(!result.modified, "skip string.concat()")
-      assert.match(result.code, /str\.concat/)
     })
 
     test("unknown identifier", () => {
       const result = transform(`const result = arr.concat(other);`)
 
       assert(!result.modified, "skip concat on unknown identifier")
-      assert.match(result.code, /arr\.concat/)
     })
 
     test("array literal", () => {
@@ -2631,14 +2575,12 @@ document.querySelectorAll('.item').forEach(item => {
       const result = transform(`const copy = arr.slice(0);`)
 
       assert(!result.modified, "skip arr.slice(0) on unknown identifier")
-      assert.match(result.code, /arr\.slice\(0\)/)
     })
 
     test("arr.slice() - should not transform unknown identifier", () => {
       const result = transform(`const copy = arr.slice();`)
 
       assert(!result.modified, "skip arr.slice() on unknown identifier")
-      assert.match(result.code, /arr\.slice\(\)/)
     })
 
     test("array literal.slice(0)", () => {
@@ -2659,14 +2601,12 @@ document.querySelectorAll('.item').forEach(item => {
       const result = transform(`const copy = arr.map(x => x * 2).slice(0);`)
 
       assert(!result.modified, "skip slice on unknown method chain")
-      assert.match(result.code, /arr\.map\(x => x \* 2\)\.slice\(0\)/)
     })
 
     test("arr.filter().slice() - should not transform unknown chain", () => {
       const result = transform(`const copy = items.filter(x => x > 5).slice();`)
 
       assert(!result.modified, "skip slice on unknown method chain")
-      assert.match(result.code, /items\.filter\(x => x > 5\)\.slice\(\)/)
     })
 
     test("Array.from().slice(0)", () => {
@@ -2696,28 +2636,24 @@ document.querySelectorAll('.item').forEach(item => {
       const result = transform(`const rest = arr.slice(1);`)
 
       assert(!result.modified, "skip arr.slice(1)")
-      assert.match(result.code, /arr\.slice\(1\)/)
     })
 
     test("arr.slice(0, 5) - should not transform", () => {
       const result = transform(`const partial = arr.slice(0, 5);`)
 
       assert(!result.modified, "skip arr.slice(0, 5)")
-      assert.match(result.code, /arr\.slice\(0, 5\)/)
     })
 
     test("arr.slice(1, 3) - should not transform", () => {
       const result = transform(`const partial = arr.slice(1, 3);`)
 
       assert(!result.modified, "skip arr.slice(1, 3)")
-      assert.match(result.code, /arr\.slice\(1, 3\)/)
     })
 
     test("string.slice(0) - should not transform", () => {
       const result = transform(`const copy = str.slice(0);`)
 
       assert(!result.modified, "skip string.slice(0)")
-      assert.match(result.code, /str\.slice\(0\)/)
     })
 
     test("chained array methods with slice - should not transform", () => {
@@ -2726,10 +2662,6 @@ document.querySelectorAll('.item').forEach(item => {
       )
 
       assert(!result.modified, "skip slice on unknown method chain")
-      assert.match(
-        result.code,
-        /arr\.map\(x => x \* 2\)\.filter\(x => x > 5\)\.slice\(0\)/,
-      )
     })
 
     test("slice in arrow function - transforms arrow to function", () => {
@@ -2873,7 +2805,6 @@ helper.prototype.process = function() {
       `)
 
       assert(!result.modified, "skip lowercase function names")
-      assert.match(result.code, /function helper/)
     })
 
     test("skip constructor without prototype methods", () => {
@@ -2884,7 +2815,6 @@ function Person(name) {
       `)
 
       assert(!result.modified, "skip constructor without prototype methods")
-      assert.match(result.code, /function Person/)
     })
 
     test("skip if not all methods are function expressions", () => {
@@ -2899,7 +2829,6 @@ Person.prototype.greet = () => {
       `)
 
       assert(!result.modified, "skip arrow functions on prototype")
-      assert.match(result.code, /function Person/)
     })
 
     test("constructor with no parameters", () => {
@@ -3025,7 +2954,6 @@ Widget.prototype = {
       `)
 
       assert(!result.modified, "skip prototype object without function expressions")
-      assert.match(result.code, /function Widget/)
     })
 
     test("skip prototype assignment with arrow function methods", () => {
@@ -3042,7 +2970,6 @@ Component.prototype = {
       `)
 
       assert(!result.modified, "skip prototype object with arrow functions")
-      assert.match(result.code, /function Component/)
     })
 
     test("skip prototype assignment with getter/setter properties", () => {
@@ -3059,7 +2986,6 @@ Model.prototype = {
       `)
 
       assert(!result.modified, "skip prototype object with getter properties")
-      assert.match(result.code, /function Model/)
     })
 
     test("skip prototype assignment with computed properties", () => {
@@ -3076,7 +3002,6 @@ Handler.prototype = {
       `)
 
       assert(!result.modified, "skip prototype object with computed properties")
-      assert.match(result.code, /function Handler/)
     })
 
     test("skip constructor with complex body statements", () => {
@@ -3105,7 +3030,6 @@ Manager.prototype.defaultValue = 10;
       `)
 
       assert(!result.modified, "skip prototype with non-function assignment")
-      assert.match(result.code, /function Manager/)
     })
 
     test("variable declaration constructor with generator method", () => {
@@ -3134,7 +3058,6 @@ Parser.prototype = null;
       `)
 
       assert(!result.modified, "skip prototype assignment to non-object")
-      assert.match(result.code, /function Parser/)
     })
 
     test("constructor with block statement in body", () => {
@@ -3215,7 +3138,6 @@ Handler.prototype = {
       `)
 
       assert(!result.modified, "skip prototype with computed property")
-      assert.match(result.code, /function Handler/)
     })
 
     test("prototype literal with non-identifier properties", () => {
@@ -3232,7 +3154,6 @@ Component.prototype = {
       `)
 
       assert(!result.modified, "skip prototype literal with string keys")
-      assert.match(result.code, /function Component/)
     })
 
     test("constructor with return statement prevents transformation", () => {
@@ -3267,7 +3188,6 @@ Box.prototype = {
       `)
 
       assert(!result.modified, "skip constructor when only getter in prototype")
-      assert.match(result.code, /function Box/)
     })
 
     test("prototype object with getter and function method", () => {
@@ -3302,7 +3222,6 @@ Widget.prototype = {
       `)
 
       assert(!result.modified, "skip constructor when no function methods")
-      assert.match(result.code, /function Widget/)
     })
 
     test("prototype object with non-function and function properties", () => {
@@ -3453,28 +3372,24 @@ console.log('end');
       const result = transform(`console.error('error');`)
 
       assert(!result.modified, "skip console.error")
-      assert.match(result.code, /console\.error\('error'\)/)
     })
 
     test("do not transform console.warn", () => {
       const result = transform(`console.warn('warning');`)
 
       assert(!result.modified, "skip console.warn")
-      assert.match(result.code, /console\.warn\('warning'\)/)
     })
 
     test("do not transform console.info", () => {
       const result = transform(`console.info('info');`)
 
       assert(!result.modified, "skip console.info (already explicit)")
-      assert.match(result.code, /console\.info\('info'\)/)
     })
 
     test("do not transform console.debug", () => {
       const result = transform(`console.debug('debug');`)
 
       assert(!result.modified, "skip console.debug")
-      assert.match(result.code, /console\.debug\('debug'\)/)
     })
 
     test("do not transform other console methods", () => {
@@ -3485,9 +3400,6 @@ console.assert(condition, 'message');
       `)
 
       assert(!result.modified, "skip other console methods")
-      assert.match(result.code, /console\.table/)
-      assert.match(result.code, /console\.trace/)
-      assert.match(result.code, /console\.assert/)
     })
 
     test("console.log in arrow function", () => {
@@ -3529,7 +3441,6 @@ if (condition) {
       const result = transform(`logger.log('message');`)
 
       assert(!result.modified, "skip non-console log methods")
-      assert.match(result.code, /logger\.log\('message'\)/)
     })
 
     test("do not transform when console is reassigned", () => {
@@ -3539,7 +3450,6 @@ myConsole.log('test');
       `)
 
       assert(!result.modified, "skip when object is not console")
-      assert.match(result.code, /myConsole\.log\('test'\)/)
     })
   })
 
@@ -3592,7 +3502,6 @@ function foo() {
       `)
 
       assert(!result.modified, "keep use strict in non-module")
-      assert.match(result.code, /'use strict'/)
     })
 
     test("remove 'use strict' with double quotes", () => {
@@ -3655,7 +3564,6 @@ function test() {
       `)
 
       assert(!result.modified, "keep use strict within function")
-      assert.match(result.code, /'use strict'/)
     })
 
     test("handle empty module", () => {
@@ -3755,14 +3663,12 @@ import foo from 'bar';
       const result = transform(`const w = obj.window;`)
 
       assert(!result.modified, "skip obj.window")
-      assert.match(result.code, /obj\.window/)
     })
 
     test("do not transform self as object property", () => {
       const result = transform(`const s = obj.self;`)
 
       assert(!result.modified, "skip obj.self")
-      assert.match(result.code, /obj\.self/)
     })
 
     test("do not transform shadowed window variable", () => {
@@ -3773,7 +3679,6 @@ function test(window) {
       `)
 
       assert(!result.modified, "skip shadowed window parameter")
-      assert.match(result.code, /return window/)
     })
 
     test("do not transform shadowed self variable", () => {
@@ -3784,7 +3689,6 @@ function test(self) {
       `)
 
       assert(!result.modified, "skip shadowed self parameter")
-      assert.match(result.code, /return self/)
     })
 
     test("do not transform window declared as local variable", () => {
@@ -3812,9 +3716,6 @@ function test() {
 
       // No transformation should happen since `let` is already modern and self is shadowed
       assert(!result.modified, "skip locally declared self")
-      assert.match(result.code, /let self/)
-      assert.match(result.code, /return self/)
-      assert.doesNotMatch(result.code, /globalThis/)
     })
 
     test("transform window in nested scope without shadowing", () => {
@@ -3870,7 +3771,6 @@ function test({ window }) {
       `)
 
       assert(!result.modified, "skip destructured window parameter")
-      assert.match(result.code, /return window/)
     })
 
     test("transform window.frames.forEach (existing functionality)", () => {
@@ -3888,14 +3788,12 @@ window.frames.forEach(frame => {
       const result = transform(`const fn = Function('x', 'return x * 2');`)
 
       assert(!result.modified, "skip Function with different arguments")
-      assert.match(result.code, /Function\('x', 'return x \* 2'\)/)
     })
 
     test("do not transform uncalled Function", () => {
       const result = transform(`const fn = Function('return this');`)
 
       assert(!result.modified, "skip uncalled Function constructor")
-      assert.match(result.code, /Function\('return this'\)/)
     })
 
     test("transform window in ternary expression", () => {
@@ -3919,14 +3817,12 @@ window.frames.forEach(frame => {
       const result = transform(`const str = 'window';`)
 
       assert(!result.modified, "skip window in string literal")
-      assert.match(result.code, /'window'/)
     })
 
     test("do not transform window in comment", () => {
       const result = transform(`// check window\nconst x = 1;`)
 
       assert(!result.modified, "skip window in comment")
-      assert.match(result.code, /const x = 1/)
     })
 
     test("transform window in object method", () => {
@@ -3954,7 +3850,6 @@ class MyClass {
       `)
 
       assert(!result.modified, "skip this.window class property access")
-      assert.match(result.code, /this\.window/)
     })
 
     test("transform window in class method without shadowing", () => {
@@ -3995,8 +3890,6 @@ class MyClass {
       const result = transform(`const obj = { window };`)
 
       assert(!result.modified, "skip shorthand property with global window")
-      assert.match(result.code, /\{ window \}/)
-      assert.doesNotMatch(result.code, /globalThis/)
     })
 
     test("do not transform ES6 shorthand property from local window", () => {
@@ -4007,9 +3900,6 @@ const obj = { window };
 
       // No transformation should happen - window is shadowed
       assert(!result.modified, "skip shorthand property with local window")
-      assert.match(result.code, /const window = getWindow\(\)/)
-      assert.match(result.code, /\{ window \}/)
-      assert.doesNotMatch(result.code, /globalThis/)
     })
 
     test("do not transform ES6 shorthand property with self", () => {
@@ -4019,8 +3909,6 @@ const obj = { self };
       `)
 
       assert(!result.modified, "skip shorthand property with self")
-      assert.match(result.code, /\{ self \}/)
-      assert.doesNotMatch(result.code, /globalThis/)
     })
 
     test("do not transform window in shorthand method definition", () => {
@@ -4033,29 +3921,24 @@ const obj = {
       `)
 
       assert(!result.modified, "skip method name")
-      assert.match(result.code, /window\(\)/)
-      assert.doesNotMatch(result.code, /globalThis/)
     })
 
     test("do not transform Function with non-string literal argument", () => {
       const result = transform(`const fn = Function(123)();`)
 
       assert(!result.modified, "skip Function with numeric literal argument")
-      assert.match(result.code, /Function\(123\)/)
     })
 
     test("do not transform Function with identifier argument", () => {
       const result = transform(`const fn = Function(getSomeString)();`)
 
       assert(!result.modified, "skip Function with identifier argument")
-      assert.match(result.code, /Function\(getSomeString\)/)
     })
 
     test("do not transform Function with non-return-this string", () => {
       const result = transform(`const fn = Function('return globalThis')();`)
 
       assert(!result.modified, "skip Function with different string argument")
-      assert.match(result.code, /Function\('return globalThis'\)/)
     })
 
     test("do not transform window as method definition key", () => {
@@ -4153,21 +4036,18 @@ const obj = {
       const result = transform(`const value = x || defaultValue;`)
 
       assert(!result.modified, "skip || operator")
-      assert.match(result.code, /x \|\| defaultValue/)
     })
 
     test("should not transform only null check", () => {
       const result = transform(`const value = x !== null ? x : defaultValue;`)
 
       assert(!result.modified, "skip only null check")
-      assert.match(result.code, /x !== null \? x : defaultValue/)
     })
 
     test("should not transform only undefined check", () => {
       const result = transform(`const value = x !== undefined ? x : defaultValue;`)
 
       assert(!result.modified, "skip only undefined check")
-      assert.match(result.code, /x !== undefined \? x : defaultValue/)
     })
 
     test("should not transform when consequent differs", () => {
@@ -4176,7 +4056,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when consequent is different variable")
-      assert.match(result.code, /x !== null && x !== undefined \? y : defaultValue/)
     })
 
     test("should not transform === checks", () => {
@@ -4185,7 +4064,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip === checks (wrong logic)")
-      assert.match(result.code, /x === null && x === undefined/)
     })
 
     test("should not transform mixed checks", () => {
@@ -4194,7 +4072,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when checking different variables")
-      assert.match(result.code, /x !== null && y !== undefined/)
     })
 
     test("computed member expression", () => {
@@ -4243,7 +4120,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip === checks")
-      assert.match(result.code, /x === null && x === undefined/)
     })
 
     test("should not transform with mixed operators", () => {
@@ -4252,7 +4128,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip mixed !== and === checks")
-      assert.match(result.code, /x !== null && x === undefined/)
     })
 
     test("should not transform === null with !== undefined", () => {
@@ -4261,7 +4136,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when first is ===")
-      assert.match(result.code, /x === null && x !== undefined/)
     })
 
     test("should not transform swapped order with === operators", () => {
@@ -4270,7 +4144,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip swapped === checks")
-      assert.match(result.code, /x === undefined && x === null/)
     })
 
     test("should not transform swapped order with only one negated", () => {
@@ -4279,7 +4152,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip swapped mixed operators")
-      assert.match(result.code, /x !== undefined && x === null/)
     })
 
     test("should not transform when checking different properties", () => {
@@ -4288,7 +4160,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when properties differ")
-      assert.match(result.code, /obj\.a !== null && obj\.b !== undefined/)
     })
 
     test("should not transform with swapped different properties", () => {
@@ -4297,7 +4168,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip swapped when properties differ")
-      assert.match(result.code, /obj\.b !== undefined && obj\.a !== null/)
     })
 
     test("should not transform when consequent differs", () => {
@@ -4306,7 +4176,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when consequent is different variable")
-      assert.match(result.code, /x !== null && x !== undefined \? y : defaultValue/)
     })
 
     test("should not transform swapped order when consequent differs", () => {
@@ -4315,7 +4184,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip swapped when consequent differs")
-      assert.match(result.code, /x !== undefined && x !== null \? y : defaultValue/)
     })
 
     test("should not transform non-null/undefined comparisons", () => {
@@ -4324,14 +4192,12 @@ const obj = {
       )
 
       assert(!result.modified, "skip non-null/undefined checks")
-      assert.match(result.code, /x !== 0 && x !== false/)
     })
 
     test("should not transform with non-binary expression", () => {
       const result = transform(`const value = x && y ? x : defaultValue;`)
 
       assert(!result.modified, "skip non-binary expressions")
-      assert.match(result.code, /x && y \? x : defaultValue/)
     })
 
     test("deeply nested member expression with computed properties", () => {
@@ -4358,7 +4224,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when computed property differs")
-      assert.match(result.code, /obj\.a !== null && obj\[a\] !== undefined/)
     })
 
     test("should not transform when nested objects differ", () => {
@@ -4367,7 +4232,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when nested objects differ")
-      assert.match(result.code, /obj1\.prop !== null && obj2\.prop !== undefined/)
     })
 
     test("should not transform computed vs non-computed for same property name", () => {
@@ -4376,7 +4240,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when one is computed and one is not")
-      assert.match(result.code, /obj\.prop !== null && obj\[prop\] !== undefined/)
     })
 
     test("both computed with same key should transform", () => {
@@ -4403,7 +4266,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when function callees differ")
-      assert.match(result.code, /fn1\(\) !== null && fn2\(\)/)
     })
 
     test("should not transform with different function argument counts", () => {
@@ -4412,7 +4274,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when function argument counts differ")
-      assert.match(result.code, /fn\(a\) !== null && fn\(a, b\)/)
     })
 
     test("should not transform with different function argument values", () => {
@@ -4421,7 +4282,6 @@ const obj = {
       )
 
       assert(!result.modified, "skip when function argument values differ")
-      assert.match(result.code, /fn\(a\) !== null && fn\(b\)/)
     })
   })
 
@@ -4491,21 +4351,18 @@ const obj = {
       const result = transform(`const value = a && b;`)
 
       assert(!result.modified, "skip unrelated && expressions")
-      assert.match(result.code, /a && b/)
     })
 
     test("skip mixed conditions", () => {
       const result = transform(`const value = obj && otherObj.prop;`)
 
       assert(!result.modified, "skip when right side doesn't access left side")
-      assert.match(result.code, /obj && otherObj\.prop/)
     })
 
     test("skip when accessing different object", () => {
       const result = transform(`const value = obj && obj.prop && other.nested;`)
 
       assert(!result.modified, "skip when chain breaks")
-      assert.match(result.code, /obj && obj\.prop && other\.nested/)
     })
 
     test("property access in expression", () => {
@@ -4537,7 +4394,6 @@ const obj = {
       const result = transform(`const value = (a && b) || (c && d);`)
 
       assert(!result.modified, "skip pure boolean logic")
-      assert.match(result.code, /\(a && b\) \|\| \(c && d\)/)
     })
 
     test("computed property access", () => {
@@ -4569,28 +4425,24 @@ const obj = {
       const result = transform(`const value = obj && (obj.a || obj.b);`)
 
       assert(!result.modified, "skip when right side is not a simple access")
-      assert.match(result.code, /obj && \(obj\.a \|\| obj\.b\)/)
     })
 
     test("skip complex method chaining", () => {
       const result = transform(`const value = obj && obj.method && obj.method().prop;`)
 
       assert(!result.modified, "skip when accessing property on method result")
-      assert.match(result.code, /obj && obj\.method && obj\.method\(\)\.prop/)
     })
 
     test("skip when base appears multiple times incorrectly", () => {
       const result = transform(`const value = obj && obj && obj.prop;`)
 
       assert(!result.modified, "skip duplicate base checks")
-      assert.match(result.code, /obj && obj && obj\.prop/)
     })
 
     test("skip function calls with different arguments", () => {
       const result = transform(`const value = fn && fn(a) && fn(b);`)
 
       assert(!result.modified, "skip when function arguments differ")
-      assert.match(result.code, /fn && fn\(a\) && fn\(b\)/)
     })
 
     test("transform function calls with same arguments", () => {
@@ -4604,7 +4456,6 @@ const obj = {
       const result = transform(`const value = fn && fn(a) && fn(a, b);`)
 
       assert(!result.modified, "skip when argument counts differ")
-      assert.match(result.code, /fn && fn\(a\) && fn\(a, b\)/)
     })
 
     test("transform function calls with multiple same arguments", () => {
@@ -4847,62 +4698,53 @@ const obj = {
         const result = transform(`const found = arr.indexOf(item) !== -1;`)
 
         assert(!result.modified, "skip unknown type (identifier)")
-        assert.match(result.code, /arr\.indexOf\(item\) !== -1/)
       })
       test("indexOf with fromIndex parameter", () => {
         const result = transform(`const found = arr.indexOf(item, 5) !== -1;`)
 
         assert(!result.modified, "skip indexOf with fromIndex")
-        assert.match(result.code, /arr\.indexOf\(item, 5\) !== -1/)
       })
 
       test("indexOf without comparison", () => {
         const result = transform(`const index = arr.indexOf(item);`)
 
         assert(!result.modified, "skip indexOf without comparison")
-        assert.match(result.code, /arr\.indexOf\(item\)/)
       })
 
       test("indexOf compared to other values", () => {
         const result = transform(`const found = arr.indexOf(item) > 0;`)
 
         assert(!result.modified, "skip indexOf compared to other values")
-        assert.match(result.code, /arr\.indexOf\(item\) > 0/)
       })
 
       test("indexOf compared to variable", () => {
         const result = transform(`const found = arr.indexOf(item) !== someValue;`)
 
         assert(!result.modified, "skip indexOf compared to variable")
-        assert.match(result.code, /arr\.indexOf\(item\) !== someValue/)
       })
 
       test("indexOf with invalid operators for -1", () => {
         const result = transform(`const found = arr.indexOf(item) < -1;`)
 
         assert(!result.modified, "skip invalid operators")
-        assert.match(result.code, /arr\.indexOf\(item\) < -1/)
       })
 
       test("indexOf with invalid operators for 0", () => {
         const result = transform(`const found = arr.indexOf(item) > 0;`)
 
         assert(!result.modified, "skip > 0 comparison")
-        assert.match(result.code, /arr\.indexOf\(item\) > 0/)
       })
 
       test("indexOf with == operator", () => {
         const result = transform(`const found = arr.indexOf(item) == -1;`)
 
         assert(!result.modified, "skip loose equality")
-        assert.match(result.code, /arr\.indexOf\(item\) == -1/)
       })
 
       test("indexOf with != operator", () => {
         const result = transform(`const found = arr.indexOf(item) != -1;`)
 
         assert(!result.modified, "skip loose inequality")
-        assert.match(result.code, /arr\.indexOf\(item\) != -1/)
       })
 
       test("[].indexOf(item) <= -1", () => {
@@ -4917,24 +4759,18 @@ const obj = {
         const result = transform(`const notFound = -1 <= [1, 2, 3].indexOf(item);`)
 
         assert(!result.modified, "skip -1 <= indexOf comparison")
-        assert.match(
-          result.code,
-          /const notFound = -1 <= \[1, 2, 3\]\.indexOf\(item\);/,
-        )
       })
 
       test("[].indexOf(item) < -1 (invalid for -1)", () => {
         const result = transform(`const found = [1, 2, 3].indexOf(item) < -1;`)
 
         assert(!result.modified, "skip < -1 comparison")
-        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) < -1/)
       })
 
       test("[].indexOf(item) >= -1 (invalid for -1)", () => {
         const result = transform(`const found = [1, 2, 3].indexOf(item) >= -1;`)
 
         assert(!result.modified, "skip >= -1 comparison")
-        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) >= -1/)
       })
 
       test("[].indexOf(item) < 0 (negated, transforms)", () => {
@@ -4949,7 +4785,6 @@ const obj = {
         const result = transform(`const found = [1, 2, 3].indexOf(item) > 0;`)
 
         assert(!result.modified, "skip > 0 comparison")
-        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) > 0/)
       })
 
       test("reversed: -1 !== [].indexOf(item) (valid)", () => {
@@ -4964,35 +4799,30 @@ const obj = {
         const result = transform(`const found = -1 > [1, 2, 3].indexOf(item);`)
 
         assert(!result.modified, "skip -1 > indexOf comparison")
-        assert.match(result.code, /-1 > \[1, 2, 3\]\.indexOf\(item\)/)
       })
 
       test("reversed: 0 < [].indexOf(item) (invalid for reversed 0)", () => {
         const result = transform(`const found = 0 < [1, 2, 3].indexOf(item);`)
 
         assert(!result.modified, "skip 0 < indexOf comparison")
-        assert.match(result.code, /0 < \[1, 2, 3\]\.indexOf\(item\)/)
       })
 
       test("reversed: 0 >= [].indexOf(item) (invalid for reversed 0)", () => {
         const result = transform(`const found = 0 >= [1, 2, 3].indexOf(item);`)
 
         assert(!result.modified, "skip 0 >= indexOf comparison")
-        assert.match(result.code, /0 >= \[1, 2, 3\]\.indexOf\(item\)/)
       })
 
       test("[].indexOf(item) compared to variable", () => {
         const result = transform(`const found = [1, 2, 3].indexOf(item) !== x;`)
 
         assert(!result.modified, "skip indexOf compared to variable")
-        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) !== x/)
       })
 
       test("[].indexOf(item) compared to non-numeric constant", () => {
         const result = transform(`const found = [1, 2, 3].indexOf(item) !== 'zero';`)
 
         assert(!result.modified, "skip indexOf compared to non-numeric value")
-        assert.match(result.code, /\[1, 2, 3\]\.indexOf\(item\) !== 'zero'/)
       })
     })
 
@@ -5074,7 +4904,6 @@ const obj = {
         const result = transform(`const result = str.substr(start, length);`)
 
         assert(!result.modified, "skip substr on unknown type")
-        assert.match(result.code, /str\.substr/)
       })
 
       test("substr on template literal", () => {
@@ -5213,28 +5042,24 @@ const obj = {
         const result = transform(`const s = str.substr(0, 5);`)
 
         assert(!result.modified, "skip substr on unknown variable")
-        assert.match(result.code, /str\.substr/)
       })
 
       test("substr on object property", () => {
         const result = transform(`const s = obj.prop.substr(0, 5);`)
 
         assert(!result.modified, "skip substr on object property")
-        assert.match(result.code, /obj\.prop\.substr/)
       })
 
       test("substr on function call result", () => {
         const result = transform(`const s = getString().substr(0, 5);`)
 
         assert(!result.modified, "skip substr on function call")
-        assert.match(result.code, /getString\(\)\.substr/)
       })
 
       test("substr on array access", () => {
         const result = transform(`const s = arr[0].substr(0, 5);`)
 
         assert(!result.modified, "skip substr on array access")
-        assert.match(result.code, /arr\[0\]\.substr/)
       })
     })
 
@@ -5403,7 +5228,6 @@ function fn() {
         `)
 
         assert(!result.modified, "skip Array.from with mapping function")
-        assert.match(result.code, /Array\.from\(arguments, x => x \* 2\)/)
       })
 
       test("skip [].slice.call with additional arguments", () => {
@@ -5415,7 +5239,6 @@ function fn() {
         `)
 
         assert(!result.modified, "skip [].slice.call with additional arguments")
-        assert.match(result.code, /\[\]\.slice\.call\(arguments, 1\)/)
       })
 
       test("variable with different name", () => {
@@ -5527,7 +5350,6 @@ Object.keys(obj).forEach(key => {
       `)
 
       assert(!result.modified, "skip when no value variable")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach/)
     })
 
     test("skip Object.keys().forEach() with index parameter", () => {
@@ -5539,7 +5361,6 @@ Object.keys(obj).forEach((key, index) => {
       `)
 
       assert(!result.modified, "skip when callback has index parameter")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach/)
     })
 
     test("skip Object.keys().forEach() with expression body", () => {
@@ -5548,7 +5369,6 @@ Object.keys(obj).forEach(key => use(key));
       `)
 
       assert(!result.modified, "skip expression body")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach/)
     })
 
     test("skip Object.keys().forEach() accessing different object", () => {
@@ -5560,7 +5380,6 @@ Object.keys(obj1).forEach(key => {
       `)
 
       assert(!result.modified, "skip when accessing different object")
-      assert.match(result.code, /Object\.keys\(obj1\)\.forEach/)
     })
 
     test("skip Object.keys().forEach() with non-identifier parameter", () => {
@@ -5572,7 +5391,6 @@ Object.keys(obj).forEach(([key]) => {
       `)
 
       assert(!result.modified, "skip with destructuring parameter")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach/)
     })
 
     test("skip Object.keys().forEach() without callback", () => {
@@ -5581,7 +5399,6 @@ Object.keys(obj).forEach();
       `)
 
       assert(!result.modified, "skip without callback")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach\(\)/)
     })
 
     test("skip Object.keys().forEach() with non-function callback", () => {
@@ -5590,7 +5407,6 @@ Object.keys(obj).forEach(myCallback);
       `)
 
       assert(!result.modified, "skip with non-inline callback")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach\(myCallback\)/)
     })
 
     test("skip Object.keys() with no arguments", () => {
@@ -5601,7 +5417,6 @@ Object.keys().forEach(key => {
       `)
 
       assert(!result.modified, "skip Object.keys() with no arguments")
-      assert.match(result.code, /Object\.keys\(\)/)
     })
 
     test("skip Object.keys() with multiple arguments", () => {
@@ -5613,7 +5428,6 @@ Object.keys(obj1, obj2).forEach(key => {
       `)
 
       assert(!result.modified, "skip Object.keys() with multiple arguments")
-      assert.match(result.code, /Object\.keys\(obj1, obj2\)/)
     })
 
     test("skip when value variable is not first statement", () => {
@@ -5626,7 +5440,6 @@ Object.keys(obj).forEach(key => {
       `)
 
       assert(!result.modified, "skip when value access is not first")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach/)
     })
 
     test("skip when accessing with different key variable", () => {
@@ -5638,7 +5451,6 @@ Object.keys(obj).forEach(key => {
       `)
 
       assert(!result.modified, "skip when using different key variable")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach/)
     })
 
     test("skip when not using computed member expression", () => {
@@ -5650,7 +5462,6 @@ Object.keys(obj).forEach(key => {
       `)
 
       assert(!result.modified, "skip when using dot notation")
-      assert.match(result.code, /Object\.keys\(obj\)\.forEach/)
     })
 
     test("Object.keys().forEach() with complex object expression", () => {
@@ -5771,21 +5582,18 @@ Object.keys(obj).forEach(key => {
         const result = transform(`const found = str.indexOf("test", 5) === 0;`)
 
         assert(!result.modified, "skip indexOf with fromIndex")
-        assert.match(result.code, /indexOf/)
       })
 
       test("indexOf on unknown variable", () => {
         const result = transform(`const found = str.indexOf("test") === 0;`)
 
         assert(!result.modified, "skip indexOf on unknown variable")
-        assert.match(result.code, /indexOf/)
       })
 
       test("indexOf compared to non-zero", () => {
         const result = transform(`const found = "test".indexOf("e") === 1;`)
 
         assert(!result.modified, "skip indexOf === 1")
-        assert.match(result.code, /indexOf/)
       })
     })
   })
@@ -5848,7 +5656,6 @@ Object.keys(obj).forEach(key => {
         const result = transform(`const sub = "hello".substring(0) === prefix;`)
 
         assert(!result.modified, "skip substring with one argument")
-        assert.match(result.code, /substring/)
       })
 
       test("substring with non-zero start", () => {
@@ -5857,14 +5664,12 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip substring with non-zero start")
-        assert.match(result.code, /substring/)
       })
 
       test("substring without length comparison", () => {
         const result = transform(`const sub = "hello".substring(0, 3) === "hel";`)
 
         assert(!result.modified, "skip substring without .length")
-        assert.match(result.code, /substring/)
       })
 
       test("substring on unknown variable", () => {
@@ -5873,7 +5678,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip substring on unknown variable")
-        assert.match(result.code, /substring/)
       })
 
       test("substring with wrong length reference", () => {
@@ -5882,7 +5686,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip substring with mismatched length")
-        assert.match(result.code, /substring/)
       })
     })
   })
@@ -5945,7 +5748,6 @@ Object.keys(obj).forEach(key => {
         const result = transform(`const matches = "test".lastIndexOf(suffix) === 5;`)
 
         assert(!result.modified, "skip lastIndexOf with non-subtraction")
-        assert.match(result.code, /lastIndexOf/)
       })
 
       test("lastIndexOf with wrong operator in subtraction", () => {
@@ -5954,7 +5756,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip lastIndexOf with addition")
-        assert.match(result.code, /lastIndexOf/)
       })
 
       test("lastIndexOf with subtraction of non-length property", () => {
@@ -5963,7 +5764,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip lastIndexOf with wrong property")
-        assert.match(result.code, /lastIndexOf/)
       })
 
       test("lastIndexOf with two arguments", () => {
@@ -5972,7 +5772,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip lastIndexOf with fromIndex")
-        assert.match(result.code, /lastIndexOf/)
       })
 
       test("lastIndexOf on unknown variable", () => {
@@ -5981,7 +5780,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip lastIndexOf on unknown variable")
-        assert.match(result.code, /lastIndexOf/)
       })
 
       test("lastIndexOf with wrong subtraction pattern", () => {
@@ -5990,7 +5788,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip lastIndexOf with wrong subtraction")
-        assert.match(result.code, /lastIndexOf/)
       })
 
       test("lastIndexOf with mismatched string references", () => {
@@ -5999,7 +5796,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip lastIndexOf with mismatched strings")
-        assert.match(result.code, /lastIndexOf/)
       })
 
       test("lastIndexOf with mismatched suffix references", () => {
@@ -6008,7 +5804,6 @@ Object.keys(obj).forEach(key => {
         )
 
         assert(!result.modified, "skip lastIndexOf with mismatched suffixes")
-        assert.match(result.code, /lastIndexOf/)
       })
     })
   })

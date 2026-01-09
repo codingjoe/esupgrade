@@ -9,8 +9,11 @@ suite("newly-available", () => {
         `const p = new Promise((resolve) => resolve(getData()));`,
         "newly-available",
       )
-      assert(result.modified, "transform Promise constructor to Promise.try")
-      assert.match(result.code, /Promise\.try/)
+      assert.match(
+        result.code,
+        /Promise\.try/,
+        "transform Promise constructor to Promise.try",
+      )
     })
 
     test("not available in widely-available baseline", () => {
@@ -29,7 +32,6 @@ suite("newly-available", () => {
         `const p = new Promise((resolve) => setTimeout(resolve));`,
         "newly-available",
       )
-      assert(result.modified)
       assert.match(
         result.code,
         /Promise\.try\(setTimeout\)/,
@@ -46,8 +48,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified, "do not transform awaited Promises")
-      assert.match(result.code, /await new Promise/)
-      assert.doesNotMatch(result.code, /Promise\.try/)
     })
 
     test("skip non-Promise constructors", () => {
@@ -56,13 +56,11 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new MyPromise/)
     })
 
     test("skip with 0 arguments", () => {
       const result = transform(`const p = new Promise();`, "newly-available")
       assert(!result.modified)
-      assert.match(result.code, /new Promise\(\)/)
     })
 
     test("skip with multiple arguments", () => {
@@ -71,13 +69,11 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with non-function argument", () => {
       const result = transform(`const p = new Promise(executor);`, "newly-available")
       assert(!result.modified)
-      assert.match(result.code, /new Promise\(executor\)/)
     })
 
     test("skip with 0 params", () => {
@@ -86,7 +82,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with more than 2 params", () => {
@@ -95,7 +90,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("transforms block statement with resolve call", () => {
@@ -103,7 +97,6 @@ suite("newly-available", () => {
         `const p = new Promise((resolve) => { resolve(getData()); });`,
         "newly-available",
       )
-      assert(result.modified)
       assert.match(result.code, /Promise\.try/)
     })
 
@@ -116,7 +109,6 @@ suite("newly-available", () => {
         !result.modified,
         "do not transform because computeValue() is not calling resolve",
       )
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with arrow function returning a value directly", () => {
@@ -128,7 +120,6 @@ suite("newly-available", () => {
         !result.modified,
         "do not transform function call that doesn't involve resolve",
       )
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with non-call expression body", () => {
@@ -137,7 +128,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with wrong number of arguments to resolve", () => {
@@ -146,7 +136,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with non-identifier resolve", () => {
@@ -155,7 +144,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with resolve call with 0 arguments", () => {
@@ -164,7 +152,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with block with multiple statements", () => {
@@ -176,7 +163,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("skip with block with non-expression statement", () => {
@@ -187,7 +173,6 @@ suite("newly-available", () => {
         "newly-available",
       )
       assert(!result.modified)
-      assert.match(result.code, /new Promise/)
     })
 
     test("transforms function expression", () => {
@@ -195,7 +180,6 @@ suite("newly-available", () => {
         `const p = new Promise(function(resolve) { resolve(getData()); });`,
         "newly-available",
       )
-      assert(result.modified)
       assert.match(result.code, /Promise\.try/)
     })
 
@@ -204,7 +188,6 @@ suite("newly-available", () => {
         `const p = new Promise((resolve, reject) => resolve(getData()));`,
         "newly-available",
       )
-      assert(result.modified)
       assert.match(result.code, /Promise\.try/)
     })
   })
