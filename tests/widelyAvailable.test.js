@@ -5921,5 +5921,213 @@ Object.keys(obj).forEach(key => {
         assert(!result.modified, "skip lastIndexOf with mismatched suffixes")
       })
     })
+
+    describe("promiseToAsyncAwait", () => {
+      test("promise.then().catch() pattern with return", () => {
+        const result = transform(`
+function doWork() {
+  return fetch('/api/data')
+    .then(result => {
+      processResult(result);
+    })
+    .catch(err => {
+      handleError(err);
+    });
+}
+`)
+
+        assert(result.modified, "transform promise.then().catch()")
+        assert.match(result.code, /async function doWork/)
+        assert.match(result.code, /try \{/)
+        assert.match(result.code, /const result = await fetch/)
+        assert.match(result.code, /processResult\(result\)/)
+        assert.match(result.code, /catch \(err\)/)
+        assert.match(result.code, /handleError\(err\)/)
+      })
+
+      test("promise chain in arrow function with return", () => {
+        const result = transform(`
+const handler = () => {
+  return fetch('/data')
+    .then(data => {
+      processData(data);
+    })
+    .catch(error => {
+      handleError(error);
+    });
+};
+`)
+
+        assert(result.modified, "transform promise chain in arrow function")
+        assert.match(result.code, /async function handler/)
+        assert.match(result.code, /const data = await fetch/)
+      })
+
+      test("promise chain with new Promise", () => {
+        const result = transform(`
+const fn = function() {
+  return new Promise((resolve, reject) => {
+    doSomething();
+  })
+    .then(user => {
+      saveUser(user);
+    })
+    .catch(err => {
+      logError(err);
+    });
+};
+`)
+
+        assert(result.modified, "transform promise chain with new Promise")
+        assert.match(result.code, /async function fn/)
+        assert.match(result.code, /const user = await new Promise/)
+      })
+
+      test("skip promise chain without return", () => {
+        const result = transform(`
+function doWork() {
+  fetch('/api/data')
+    .then(result => {
+      processResult(result);
+    })
+    .catch(err => {
+      handleError(err);
+    });
+}
+`)
+
+        assert(!result.modified, "skip promise chain without return")
+      })
+
+      test("skip then without catch", () => {
+        const result = transform(`
+function test() {
+  promise.then(result => {
+    processResult(result);
+  });
+}
+`)
+
+        assert(!result.modified, "skip then without catch")
+      })
+
+      test("skip catch without then", () => {
+        const result = transform(`
+function test() {
+  promise.catch(err => {
+    handleErrorWithLog(err);
+  });
+}
+`)
+
+        assert(!result.modified, "skip catch without then")
+      })
+
+      test("skip then with no parameters", () => {
+        const result = transform(`
+function test() {
+  promise
+    .then(() => {
+      doSomething();
+    })
+    .catch(err => {
+      handleErrorWithLog(err);
+    });
+}
+`)
+
+        assert(!result.modified, "skip then with no parameters")
+      })
+
+      test("skip catch with no parameters", () => {
+        const result = transform(`
+function test() {
+  promise
+    .then(result => {
+      processResult(result);
+    })
+    .catch(() => {
+      handleError();
+    });
+}
+`)
+
+        assert(!result.modified, "skip catch with no parameters")
+      })
+
+      test("skip then with expression body", () => {
+        const result = transform(`
+function test() {
+  promise
+    .then(result => result.value)
+    .catch(err => {
+      handleErrorWithLog(err);
+    });
+}
+`)
+
+        assert(!result.modified, "skip then with expression body")
+      })
+
+      test("skip catch with expression body", () => {
+        const result = transform(`
+function test() {
+  promise
+    .then(result => {
+      processResult(result);
+    })
+    .catch(err => null);
+}
+`)
+
+        assert(!result.modified, "skip catch with expression body")
+      })
+
+      test("skip then with multiple parameters", () => {
+        const result = transform(`
+function test() {
+  promise
+    .then((result, index) => {
+      processResult(result, index);
+    })
+    .catch(err => {
+      handleErrorWithLog(err);
+    });
+}
+`)
+
+        assert(!result.modified, "skip then with multiple parameters")
+      })
+
+      test("skip promise chain not in expression statement", () => {
+        const result = transform(`
+function test() {
+  const p = promise
+    .then(result => {
+      processResult(result);
+    })
+    .catch(err => {
+      handleErrorWithLog(err);
+    });
+}
+`)
+
+        assert(!result.modified, "skip promise chain not in expression statement")
+      })
+
+      test("skip promise chain at top level", () => {
+        const result = transform(`
+promise
+  .then(result => {
+    processResult(result);
+  })
+  .catch(err => {
+    handleErrorWithLog(err);
+  });
+`)
+
+        assert(!result.modified, "skip promise chain at top level")
+      })
+    })
   })
 })

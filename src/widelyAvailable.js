@@ -5,6 +5,7 @@ import {
   processSingleDeclarator,
   isShadowed,
   validateChecks,
+  findEnclosingFunction,
 } from "./types.js"
 
 /**
@@ -2425,3 +2426,171 @@ export function argumentsToRestParameters(root) {
 
   return modified
 }
+
+/**
+ * Check if an expression is a known promise-returning pattern.
+ *
+ * @param {import("ast-types").ASTNode} node - The node to check
+ * @returns {boolean} True if the node is a known promise
+ */
+function isKnownPromise(node) {
+  if (j.NewExpression.check(node) && j.Identifier.check(node.callee)) {
+    return node.callee.name === "Promise"
+  }
+
+  if (j.CallExpression.check(node) && j.Identifier.check(node.callee)) {
+    const knownPromiseFunctions = ["fetch", "Promise"]
+    return knownPromiseFunctions.includes(node.callee.name)
+  }
+
+  if (
+    j.CallExpression.check(node) &&
+    j.MemberExpression.check(node.callee) &&
+    j.Identifier.check(node.callee.property)
+  ) {
+    const promiseMethods = ["then", "catch", "finally", "all", "race", "resolve", "reject"]
+    return promiseMethods.includes(node.callee.property.name)
+  }
+
+  return false
+}
+
+/**
+ * Check if a statement is a return statement returning the given expression.
+ *
+ * @param {import("ast-types").ASTNode} statement - The statement to check
+ * @param {import("ast-types").ASTNode} expr - The expression to match
+ * @returns {boolean} True if statement returns the expression
+ */
+function isReturnStatement(statement, expr) {
+  return (
+    j.ReturnStatement.check(statement) &&
+    statement.argument &&
+    new NodeTest(statement.argument).isEqual(expr)
+  )
+}
+
+/**
+ * Transform Promise chains to async/await.
+ * Converts patterns like promise.then(result => {...}).catch(err => {...})
+ * to try { const result = await promise; ... } catch (err) { ... }.
+ * Only transforms when the function returns the promise chain.
+ *
+ * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @returns {boolean} True if code was modified
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+ */
+export function promiseToAsyncAwait(root) {
+  let modified = false
+
+  root
+    .find(j.CallExpression)
+    .filter((path) => {
+      const node = path.node
+      
+      if (
+        !j.MemberExpression.check(node.callee) ||
+        !j.Identifier.check(node.callee.property) ||
+        node.callee.property.name !== "catch"
+      ) {
+        return false
+      }
+
+      const thenCall = node.callee.object
+      if (
+        !j.CallExpression.check(thenCall) ||
+        !j.MemberExpression.check(thenCall.callee) ||
+        !j.Identifier.check(thenCall.callee.property) ||
+        thenCall.callee.property.name !== "then"
+      ) {
+        return false
+      }
+
+      if (thenCall.arguments.length !== 1 || node.arguments.length !== 1) {
+        return false
+      }
+
+      const thenCallback = thenCall.arguments[0]
+      const catchCallback = node.arguments[0]
+
+      if (
+        (!j.ArrowFunctionExpression.check(thenCallback) &&
+          !j.FunctionExpression.check(thenCallback)) ||
+        (!j.ArrowFunctionExpression.check(catchCallback) &&
+          !j.FunctionExpression.check(catchCallback))
+      ) {
+        return false
+      }
+
+      if (
+        thenCallback.params.length !== 1 ||
+        catchCallback.params.length !== 1 ||
+        !j.Identifier.check(thenCallback.params[0]) ||
+        !j.Identifier.check(catchCallback.params[0])
+      ) {
+        return false
+      }
+
+      if (
+        !j.BlockStatement.check(thenCallback.body) ||
+        !j.BlockStatement.check(catchCallback.body)
+      ) {
+        return false
+      }
+
+      const promiseExpr = thenCall.callee.object
+      
+      if (!isKnownPromise(promiseExpr)) {
+        return false
+      }
+
+      const parent = path.parent.node
+      if (!j.ReturnStatement.check(parent)) {
+        return false
+      }
+
+      const enclosingFunction = findEnclosingFunction(path)
+      if (!enclosingFunction) {
+        return false
+      }
+
+      return true
+    })
+    .forEach((path) => {
+      const node = path.node
+      const thenCall = node.callee.object
+      const promiseExpr = thenCall.callee.object
+
+      const thenCallback = thenCall.arguments[0]
+      const catchCallback = node.arguments[0]
+
+      const resultParam = thenCallback.params[0].name
+      const errorParam = catchCallback.params[0].name
+
+      const awaitExpr = j.awaitExpression(promiseExpr)
+      
+      const tryBody = j.blockStatement([
+        j.variableDeclaration("const", [
+          j.variableDeclarator(j.identifier(resultParam), awaitExpr),
+        ]),
+        ...thenCallback.body.body,
+      ])
+
+      const tryStatement = j.tryStatement(
+        tryBody,
+        j.catchClause(j.identifier(errorParam), null, catchCallback.body),
+      )
+
+      j(path.parent).replaceWith(tryStatement)
+
+      const enclosingFunction = findEnclosingFunction(path)
+      if (enclosingFunction) {
+        enclosingFunction.node.async = true
+      }
+
+      modified = true
+    })
+
+  return modified
+}
+

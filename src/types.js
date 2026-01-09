@@ -966,3 +966,25 @@ export function validateChecks(nullCheck, undefinedCheck, consequent) {
     new NodeTest(nullCheck.value).isEqual(consequent)
   )
 }
+
+/**
+ * Find the enclosing function for a given path.
+ *
+ * @param {import("ast-types").NodePath} path - The path to start from
+ * @returns {import("ast-types").NodePath | null} The enclosing function path or null
+ */
+export function findEnclosingFunction(path) {
+  let current = path
+  while (current && current.parent) {
+    const node = current.parent.node
+    if (
+      j.FunctionDeclaration.check(node) ||
+      j.FunctionExpression.check(node) ||
+      j.ArrowFunctionExpression.check(node)
+    ) {
+      return current.parent
+    }
+    current = current.parent
+  }
+  return null
+}

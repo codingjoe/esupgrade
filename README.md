@@ -504,6 +504,35 @@ Transforms the `arguments` object to rest parameters when:
 
 The transformer handles cases where `Array.from(arguments)` has already been converted to `[...arguments]` by other transformers.
 
+#### Promise chains → [async/await][mdn-async-await]
+
+```diff
+-return fetch('/api/data')
+-  .then(result => {
+-    // handle result
+-  })
+-  .catch(err => {
+-    // handle error
+-  });
++try {
++  const result = await fetch('/api/data');
++  // handle result
++} catch (err) {
++  // handle error
++}
+```
+
+Transforms Promise `.then()/.catch()` chains to async/await syntax when:
+
+- The pattern is `.then(callback).catch(errorHandler)`
+- Both callbacks have exactly one parameter
+- Both callbacks have block statement bodies (not expression bodies)
+- **The promise chain is returned from the function**
+- **The expression is a known promise** (`fetch()`, `new Promise()`, or a promise method)
+- The code is inside a function that can be marked `async`
+
+The enclosing function is automatically marked `async`. This transformation is only applied when the function already returns a promise, ensuring no breaking changes to function signatures.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
@@ -549,6 +578,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [calver]: https://calver.org/
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+[mdn-async-await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
