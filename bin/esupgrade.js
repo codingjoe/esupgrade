@@ -9,6 +9,7 @@ import { Command, Option } from "commander"
 import { fileURLToPath } from "url"
 import process from "node:process"
 import { diffLines } from "diff"
+import pkg from "../package.json" with { type: "json" }
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -298,6 +299,7 @@ const cliRunner = new CLIRunner(path.join(__dirname, "../src/worker.js"))
 program
   .name("esupgrade")
   .description("Auto-upgrade your JavaScript syntax")
+  .version(pkg.version)
   .argument("<files...>", "Files or directories to process")
   .addOption(
     new Option("--baseline <level>", "Set baseline level for transformations")

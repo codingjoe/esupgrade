@@ -33,6 +33,15 @@ describe("CLI", () => {
     assert.equal(result.status, 1, "exits with 1 when showing help")
   })
 
+  test("version", () => {
+    const result = spawnSync(process.execPath, [CLI_PATH, "--version"], {
+      encoding: "utf8",
+    })
+
+    assert.match(result.stdout, /0\.1\.0/, "--version displays version number")
+    assert.equal(result.status, 0, "--version exits with 0")
+  })
+
   test("transform a single file with --write", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = 1;`)
