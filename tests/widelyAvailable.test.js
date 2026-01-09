@@ -6873,6 +6873,25 @@ function all() {
         assert.match(result.code, /async function all/)
         assert.match(result.code, /return await Promise\.all/)
       })
+
+      test("transform promise chain in already async function without return", () => {
+        const result = transform(`
+async function handler() {
+  fetch('/api')
+    .then(result => {
+      processResult(result);
+    })
+    .catch(err => {
+      handleError(err);
+    });
+}
+`)
+
+        assert(result.modified, "transform expression statement promise chain")
+        assert.match(result.code, /async function handler/)
+        assert.match(result.code, /try \{/)
+        assert.match(result.code, /const result = await fetch/)
+      })
     })
   })
 })

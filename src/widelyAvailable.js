@@ -2615,6 +2615,49 @@ function unwrapPromiseResolveReject(node) {
 }
 
 /**
+ * Make a function async and transform its promise returns.
+ *
+ * @param {import("jscodeshift").NodePath} funcPath - The function path
+ * @param {Function} callback - Callback to transform return paths
+ * @returns {boolean} True if the function was modified
+ */
+function _transformFunctionToAsync(funcPath, callback) {
+  const func = funcPath.node
+
+  if (func.async || !j.BlockStatement.check(func.body)) {
+    return false
+  }
+
+  let hasPromiseReturn = false
+  const promiseReturns = []
+
+  j(funcPath)
+    .find(j.ReturnStatement)
+    .forEach((retPath) => {
+      const enclosing = findEnclosingFunction(retPath)
+      if (enclosing !== funcPath) {
+        return
+      }
+
+      if (
+        retPath.node.argument &&
+        new NodeTest(retPath.node.argument).isKnownPromise()
+      ) {
+        hasPromiseReturn = true
+        promiseReturns.push(retPath)
+      }
+    })
+
+  if (!hasPromiseReturn) {
+    return false
+  }
+
+  func.async = true
+  callback(promiseReturns)
+  return true
+}
+
+/**
  * Transform Promise-returning functions to async/await.
  * Makes functions async if they return a known promise, and converts
  * .then().catch() chains to try/catch with await.
@@ -2689,9 +2732,6 @@ export function promiseToAsyncAwait(root) {
       }
 
       const enclosingFunction = findEnclosingFunction(path)
-      if (!enclosingFunction) {
-        return false
-      }
 
       const parent = path.parent.node
 
@@ -2740,135 +2780,29 @@ export function promiseToAsyncAwait(root) {
       modified = true
     })
 
-  // Then, make functions async if they return other known promises
-  root.find(j.FunctionDeclaration).forEach((funcPath) => {
-    const func = funcPath.node
+  // Helper to transform promise returns.
+  function transformPromiseReturns(promiseReturns) {
+    promiseReturns.forEach((retPath) => {
+      const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
+      if (unwrapped._isReject) {
+        j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
+      } else if (unwrapped !== retPath.node.argument) {
+        retPath.node.argument = unwrapped
+      } else {
+        retPath.node.argument = j.awaitExpression(retPath.node.argument)
+      }
+    })
+  }
 
-    if (func.async || !j.BlockStatement.check(func.body)) {
-      return
-    }
-
-    let hasPromiseReturn = false
-    const promiseReturns = []
-
-    j(funcPath)
-      .find(j.ReturnStatement)
-      .forEach((retPath) => {
-        const enclosing = findEnclosingFunction(retPath)
-        if (enclosing !== funcPath) {
-          return
-        }
-
-        if (
-          retPath.node.argument &&
-          new NodeTest(retPath.node.argument).isKnownPromise()
-        ) {
-          hasPromiseReturn = true
-          promiseReturns.push(retPath)
+  ;[j.FunctionDeclaration, j.FunctionExpression, j.ArrowFunctionExpression].forEach(
+    (FunctionType) => {
+      root.find(FunctionType).forEach((funcPath) => {
+        if (_transformFunctionToAsync(funcPath, transformPromiseReturns)) {
+          modified = true
         }
       })
-
-    if (hasPromiseReturn) {
-      func.async = true
-      promiseReturns.forEach((retPath) => {
-        const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
-        if (unwrapped._isReject) {
-          j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
-        } else if (unwrapped !== retPath.node.argument) {
-          retPath.node.argument = unwrapped
-        } else {
-          retPath.node.argument = j.awaitExpression(retPath.node.argument)
-        }
-      })
-      modified = true
-    }
-  })
-
-  root.find(j.FunctionExpression).forEach((funcPath) => {
-    const func = funcPath.node
-
-    if (func.async || !j.BlockStatement.check(func.body)) {
-      return
-    }
-
-    let hasPromiseReturn = false
-    const promiseReturns = []
-
-    j(funcPath)
-      .find(j.ReturnStatement)
-      .forEach((retPath) => {
-        const enclosing = findEnclosingFunction(retPath)
-        if (enclosing !== funcPath) {
-          return
-        }
-
-        if (
-          retPath.node.argument &&
-          new NodeTest(retPath.node.argument).isKnownPromise()
-        ) {
-          hasPromiseReturn = true
-          promiseReturns.push(retPath)
-        }
-      })
-
-    if (hasPromiseReturn) {
-      func.async = true
-      promiseReturns.forEach((retPath) => {
-        const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
-        if (unwrapped._isReject) {
-          j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
-        } else if (unwrapped !== retPath.node.argument) {
-          retPath.node.argument = unwrapped
-        } else {
-          retPath.node.argument = j.awaitExpression(retPath.node.argument)
-        }
-      })
-      modified = true
-    }
-  })
-
-  root.find(j.ArrowFunctionExpression).forEach((funcPath) => {
-    const func = funcPath.node
-
-    if (func.async || !j.BlockStatement.check(func.body)) {
-      return
-    }
-
-    let hasPromiseReturn = false
-    const promiseReturns = []
-
-    j(funcPath)
-      .find(j.ReturnStatement)
-      .forEach((retPath) => {
-        const enclosing = findEnclosingFunction(retPath)
-        if (enclosing !== funcPath) {
-          return
-        }
-
-        if (
-          retPath.node.argument &&
-          new NodeTest(retPath.node.argument).isKnownPromise()
-        ) {
-          hasPromiseReturn = true
-          promiseReturns.push(retPath)
-        }
-      })
-
-    if (hasPromiseReturn) {
-      func.async = true
-      promiseReturns.forEach((retPath) => {
-        const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
-        if (unwrapped._isReject) {
-          j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
-        } else if (unwrapped !== retPath.node.argument) {
-          retPath.node.argument = unwrapped
-        } else {
-          retPath.node.argument = j.awaitExpression(retPath.node.argument)
-        }
-      })
-      modified = true
-    }
-  })
+    },
+  )
 
   return modified
 }
