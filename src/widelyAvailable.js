@@ -2466,97 +2466,104 @@ export function defaultParameterValues(root) {
       return
     }
 
-    // Track parameters that have been assigned defaults
-    const paramsWithDefaults = new Map()
+    /**
+     * Generator that yields default parameter patterns from function body.
+     *
+     * @generator
+     * @yields {{ paramName: string, defaultValue: any, statementIndex: number }}
+     */
+    function* findDefaultPatterns() {
+      for (let i = 0; i < body.body.length; i++) {
+        const statement = body.body[i]
+        let paramName = null
+        let defaultValue = null
 
-    // Iterate through statements at the beginning of the function
-    let statementsToRemove = []
-
-    for (let i = 0; i < body.body.length; i++) {
-      const statement = body.body[i]
-      let foundPattern = false
-      let paramName = null
-      let defaultValue = null
-
-      // Check for: if (x === undefined) x = defaultValue
-      if (
-        j.IfStatement.check(statement) &&
-        !statement.alternate &&
-        j.ExpressionStatement.check(statement.consequent) &&
-        j.AssignmentExpression.check(statement.consequent.expression) &&
-        statement.consequent.expression.operator === "=" &&
-        j.Identifier.check(statement.consequent.expression.left)
-      ) {
-        const test = statement.test
-        const assignment = statement.consequent.expression
-        const assignedVar = assignment.left.name
-
-        // Check if test is: x === undefined
+        // Check for: if (x === undefined) x = defaultValue
         if (
-          j.BinaryExpression.check(test) &&
-          test.operator === "===" &&
-          j.Identifier.check(test.left) &&
-          test.left.name === assignedVar &&
-          j.Identifier.check(test.right) &&
-          test.right.name === "undefined"
+          j.IfStatement.check(statement) &&
+          !statement.alternate &&
+          j.ExpressionStatement.check(statement.consequent) &&
+          j.AssignmentExpression.check(statement.consequent.expression) &&
+          statement.consequent.expression.operator === "=" &&
+          j.Identifier.check(statement.consequent.expression.left)
         ) {
-          paramName = assignedVar
-          defaultValue = assignment.right
-          foundPattern = true
-        }
-      }
+          const test = statement.test
+          const assignment = statement.consequent.expression
+          const assignedVar = assignment.left.name
 
-      // Check for: if (x === undefined) { x = defaultValue; }
-      if (
-        j.IfStatement.check(statement) &&
-        !statement.alternate &&
-        j.BlockStatement.check(statement.consequent) &&
-        statement.consequent.body.length === 1 &&
-        j.ExpressionStatement.check(statement.consequent.body[0]) &&
-        j.AssignmentExpression.check(statement.consequent.body[0].expression) &&
-        statement.consequent.body[0].expression.operator === "=" &&
-        j.Identifier.check(statement.consequent.body[0].expression.left)
-      ) {
-        const test = statement.test
-        const assignment = statement.consequent.body[0].expression
-        const assignedVar = assignment.left.name
-
-        // Check if test is: x === undefined
-        if (
-          j.BinaryExpression.check(test) &&
-          test.operator === "===" &&
-          j.Identifier.check(test.left) &&
-          test.left.name === assignedVar &&
-          j.Identifier.check(test.right) &&
-          test.right.name === "undefined"
-        ) {
-          paramName = assignedVar
-          defaultValue = assignment.right
-          foundPattern = true
-        }
-      }
-
-      if (foundPattern) {
-        // Check if this is a parameter
-        const paramIndex = func.params.findIndex(
-          (param) => j.Identifier.check(param) && param.name === paramName,
-        )
-
-        if (paramIndex !== -1) {
-          // Check if parameter doesn't already have a default
-          const param = func.params[paramIndex]
-          if (!j.AssignmentPattern.check(param)) {
-            paramsWithDefaults.set(paramName, {
-              paramIndex,
-              defaultValue,
-              statementIndex: i,
-            })
-            statementsToRemove.push(i)
+          // Check if test is: x === undefined
+          if (
+            j.BinaryExpression.check(test) &&
+            test.operator === "===" &&
+            j.Identifier.check(test.left) &&
+            test.left.name === assignedVar &&
+            j.Identifier.check(test.right) &&
+            test.right.name === "undefined"
+          ) {
+            paramName = assignedVar
+            defaultValue = assignment.right
           }
         }
-      } else {
-        // Stop looking for default value patterns once we hit a different statement
-        break
+
+        // Check for: if (x === undefined) { x = defaultValue; }
+        if (
+          j.IfStatement.check(statement) &&
+          !statement.alternate &&
+          j.BlockStatement.check(statement.consequent) &&
+          statement.consequent.body.length === 1 &&
+          j.ExpressionStatement.check(statement.consequent.body[0]) &&
+          j.AssignmentExpression.check(statement.consequent.body[0].expression) &&
+          statement.consequent.body[0].expression.operator === "=" &&
+          j.Identifier.check(statement.consequent.body[0].expression.left)
+        ) {
+          const test = statement.test
+          const assignment = statement.consequent.body[0].expression
+          const assignedVar = assignment.left.name
+
+          // Check if test is: x === undefined
+          if (
+            j.BinaryExpression.check(test) &&
+            test.operator === "===" &&
+            j.Identifier.check(test.left) &&
+            test.left.name === assignedVar &&
+            j.Identifier.check(test.right) &&
+            test.right.name === "undefined"
+          ) {
+            paramName = assignedVar
+            defaultValue = assignment.right
+          }
+        }
+
+        if (paramName) {
+          yield { paramName, defaultValue, statementIndex: i }
+        } else {
+          // Stop looking for default value patterns once we hit a different statement
+          break
+        }
+      }
+    }
+
+    // Track parameters that have been assigned defaults
+    const paramsWithDefaults = new Map()
+    const statementsToRemove = []
+
+    for (const { paramName, defaultValue, statementIndex } of findDefaultPatterns()) {
+      // Check if this is a parameter
+      const paramIndex = func.params.findIndex(
+        (param) => j.Identifier.check(param) && param.name === paramName,
+      )
+
+      if (paramIndex !== -1) {
+        // Check if parameter doesn't already have a default
+        const param = func.params[paramIndex]
+        if (!j.AssignmentPattern.check(param)) {
+          paramsWithDefaults.set(paramName, {
+            paramIndex,
+            defaultValue,
+            statementIndex,
+          })
+          statementsToRemove.push(statementIndex)
+        }
       }
     }
 

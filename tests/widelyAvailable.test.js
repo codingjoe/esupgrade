@@ -5931,7 +5931,6 @@ function fn(x) {
 }
       `)
 
-        // The || pattern should NOT be transformed as it's unsafe
         assert.doesNotMatch(result.code, /function fn\(x = 42\)/)
         assert.match(result.code, /x = x \|\| 42/)
       })
