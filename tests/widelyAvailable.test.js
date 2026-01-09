@@ -6413,7 +6413,10 @@ const fn = () => {
 const fn = () => fetch('/api');
 `)
 
-        assert(result.modified, "convert arrow with expression body that returns promise")
+        assert(
+          result.modified,
+          "convert arrow with expression body that returns promise",
+        )
         assert.match(result.code, /async function fn/)
       })
 
@@ -6699,7 +6702,10 @@ obj.fn = function() {
 };
 `)
 
-        assert(result.modified, "make anonymous function expression async with conditional")
+        assert(
+          result.modified,
+          "make anonymous function expression async with conditional",
+        )
         assert.match(result.code, /async function/)
         assert.match(result.code, /return await Promise\.all/)
       })

@@ -2601,13 +2601,13 @@ function unwrapPromiseResolveReject(node) {
     j.CallExpression.check(node) &&
     j.MemberExpression.check(node.callee) &&
     j.Identifier.check(node.callee.object) &&
-    node.callee.object.name === 'Promise' &&
+    node.callee.object.name === "Promise" &&
     j.Identifier.check(node.callee.property)
   ) {
-    if (node.callee.property.name === 'resolve' && node.arguments.length === 1) {
+    if (node.callee.property.name === "resolve" && node.arguments.length === 1) {
       return node.arguments[0]
     }
-    if (node.callee.property.name === 'reject' && node.arguments.length === 1) {
+    if (node.callee.property.name === "reject" && node.arguments.length === 1) {
       return { _isReject: true, argument: node.arguments[0] }
     }
   }
@@ -2743,25 +2743,30 @@ export function promiseToAsyncAwait(root) {
   // Then, make functions async if they return other known promises
   root.find(j.FunctionDeclaration).forEach((funcPath) => {
     const func = funcPath.node
-    
+
     if (func.async || !j.BlockStatement.check(func.body)) {
       return
     }
 
     let hasPromiseReturn = false
     const promiseReturns = []
-    
-    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
-      const enclosing = findEnclosingFunction(retPath)
-      if (enclosing !== funcPath) {
-        return
-      }
-      
-      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
-        hasPromiseReturn = true
-        promiseReturns.push(retPath)
-      }
-    })
+
+    j(funcPath)
+      .find(j.ReturnStatement)
+      .forEach((retPath) => {
+        const enclosing = findEnclosingFunction(retPath)
+        if (enclosing !== funcPath) {
+          return
+        }
+
+        if (
+          retPath.node.argument &&
+          new NodeTest(retPath.node.argument).isKnownPromise()
+        ) {
+          hasPromiseReturn = true
+          promiseReturns.push(retPath)
+        }
+      })
 
     if (hasPromiseReturn) {
       func.async = true
@@ -2781,25 +2786,30 @@ export function promiseToAsyncAwait(root) {
 
   root.find(j.FunctionExpression).forEach((funcPath) => {
     const func = funcPath.node
-    
+
     if (func.async || !j.BlockStatement.check(func.body)) {
       return
     }
 
     let hasPromiseReturn = false
     const promiseReturns = []
-    
-    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
-      const enclosing = findEnclosingFunction(retPath)
-      if (enclosing !== funcPath) {
-        return
-      }
-      
-      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
-        hasPromiseReturn = true
-        promiseReturns.push(retPath)
-      }
-    })
+
+    j(funcPath)
+      .find(j.ReturnStatement)
+      .forEach((retPath) => {
+        const enclosing = findEnclosingFunction(retPath)
+        if (enclosing !== funcPath) {
+          return
+        }
+
+        if (
+          retPath.node.argument &&
+          new NodeTest(retPath.node.argument).isKnownPromise()
+        ) {
+          hasPromiseReturn = true
+          promiseReturns.push(retPath)
+        }
+      })
 
     if (hasPromiseReturn) {
       func.async = true
@@ -2819,25 +2829,30 @@ export function promiseToAsyncAwait(root) {
 
   root.find(j.ArrowFunctionExpression).forEach((funcPath) => {
     const func = funcPath.node
-    
+
     if (func.async || !j.BlockStatement.check(func.body)) {
       return
     }
 
     let hasPromiseReturn = false
     const promiseReturns = []
-    
-    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
-      const enclosing = findEnclosingFunction(retPath)
-      if (enclosing !== funcPath) {
-        return
-      }
-      
-      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
-        hasPromiseReturn = true
-        promiseReturns.push(retPath)
-      }
-    })
+
+    j(funcPath)
+      .find(j.ReturnStatement)
+      .forEach((retPath) => {
+        const enclosing = findEnclosingFunction(retPath)
+        if (enclosing !== funcPath) {
+          return
+        }
+
+        if (
+          retPath.node.argument &&
+          new NodeTest(retPath.node.argument).isKnownPromise()
+        ) {
+          hasPromiseReturn = true
+          promiseReturns.push(retPath)
+        }
+      })
 
     if (hasPromiseReturn) {
       func.async = true

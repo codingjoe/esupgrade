@@ -773,7 +773,14 @@ export class NodeTest {
           callee.object.name === "Promise" &&
           j.Identifier.check(callee.property)
         ) {
-          const promiseStaticMethods = ["all", "race", "resolve", "reject", "allSettled", "any"]
+          const promiseStaticMethods = [
+            "all",
+            "race",
+            "resolve",
+            "reject",
+            "allSettled",
+            "any",
+          ]
           return promiseStaticMethods.includes(callee.property.name)
         }
 

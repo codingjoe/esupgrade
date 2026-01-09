@@ -95,10 +95,14 @@ describe("types", () => {
       const code = `function test() { return 42; }`
       const root = j(code)
       const program = root.find(j.Program).paths()[0]
-      
+
       const result = findEnclosingFunction(program)
-      
-      assert.strictEqual(result, null, "should return null for path with no parent function")
+
+      assert.strictEqual(
+        result,
+        null,
+        "should return null for path with no parent function",
+      )
     })
   })
 })
