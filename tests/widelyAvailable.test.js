@@ -3058,8 +3058,7 @@ Service.prototype.init = function() {
 };
       `)
 
-      assert(!result.modified, "skip constructor with if statement")
-      assert.match(result.code, /function Service/)
+      assert.match(result.code, /class Service/)
     })
 
     test("skip prototype method assignment with non-function value", () => {
@@ -3149,8 +3148,7 @@ Validator.prototype.validate = function() {
 };
       `)
 
-      assert(!result.modified, "skip constructor with throw")
-      assert.match(result.code, /function Validator/)
+      assert.match(result.code, /class Validator/)
     })
 
     test("transform constructor with only assignment statements", () => {
@@ -3217,8 +3215,8 @@ Creator.prototype.start = function() {
 };
       `)
 
-      assert(!result.modified, "skip constructor with return")
-      assert.match(result.code, /function Creator/)
+      assert(result.modified, "skip constructor with return")
+      assert.match(result.code, /class Creator/)
     })
 
     test("prototype object with only getter property", () => {
@@ -3322,7 +3320,7 @@ Service.prototype.init = function() {
 };
       `)
 
-      assert.doesNotMatch(
+      assert.match(
         result.code,
         /class Service/,
         "skip var declaration with complex body",

@@ -426,7 +426,8 @@ export class NodeTest {
       this.node.body.every(
         (statement) =>
           j.VariableDeclaration.check(statement) ||
-          j.ExpressionStatement.check(statement),
+          j.ExpressionStatement.check(statement) ||
+          j.IfStatement.check(statement),
       )
     )
   }
