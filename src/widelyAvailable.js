@@ -1138,21 +1138,20 @@ export function constructorToClass(root) {
         constructorNode = declarator.init
       }
 
-      const classBody = []
-
-      const constructorMethod = j.methodDefinition(
-        "constructor",
-        j.identifier("constructor"),
-        j.functionExpression(
-          null,
-          constructorNode.params,
-          constructorNode.body,
-          constructorNode.generator,
-          constructorNode.async,
+      const classBody = [
+        j.methodDefinition(
+          "constructor",
+          j.identifier("constructor"),
+          j.functionExpression(
+            null,
+            constructorNode.params,
+            constructorNode.body,
+            constructorNode.generator,
+            constructorNode.async,
+          ),
+          false,
         ),
-        false,
-      )
-      classBody.push(constructorMethod)
+      ]
 
       info.prototypeMethods.forEach(({ methodName, methodValue }) => {
         const method = j.methodDefinition(
@@ -1174,6 +1173,8 @@ export function constructorToClass(root) {
         j.identifier(constructorName),
         j.classBody(classBody),
       )
+
+      classDeclaration.comments = declarationNode.comments
 
       j(info.declaration).replaceWith(classDeclaration)
 
