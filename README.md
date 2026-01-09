@@ -521,31 +521,27 @@ Note: The `x = x || defaultValue` pattern is NOT transformed as it has different
 #### Promise chains → [async/await][mdn-async-await]
 
 ```diff
--return fetch('/api/data')
--  .then(result => {
--    // handle result
--  })
--  .catch(err => {
--    // handle error
--  });
-+try {
-+  const result = await fetch('/api/data');
-+  // handle result
-+} catch (err) {
-+  // handle error
+-function getData() {
+-  return fetch('/api/data')
+-    .then(result => {
+-      // handle result
+-    })
+-    .catch(err => {
+-      // handle error
+-    });
+-}
++async function getData() {
++  try {
++    const result = await fetch('/api/data');
++    // handle result
++  } catch (err) {
++    // handle error
++  }
 +}
 ```
 
-Transforms Promise `.then()/.catch()` chains to async/await syntax when:
-
-- The pattern is `.then(callback).catch(errorHandler)`
-- Both callbacks have one parameter
-- Both callbacks have block statement bodies (not expression bodies)
-- **The promise chain is returned from the function**
-- **The expression is a known promise** (`fetch()`, `new Promise()`, or a promise method)
-- The code is inside a function that can be marked `async`
-
-The enclosing function is automatically marked `async`. This transformation is applied when the function already returns a promise, ensuring no breaking changes to function signatures.
+- **The promise chain is returned from the function or used inside an already async function**
+- **The expression is a known promise** (`fetch()`, `new Promise()`, or promise methods)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">

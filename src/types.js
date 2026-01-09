@@ -747,6 +747,43 @@ export class NodeTest {
 
     return { hasShadowing, foundOurDeclaration }
   }
+
+  /**
+   * Check if node is a known promise-returning expression.
+   *
+   * @returns {boolean} True if the node is a known promise
+   */
+  isKnownPromise() {
+    if (j.NewExpression.check(this.node) && j.Identifier.check(this.node.callee)) {
+      return this.node.callee.name === "Promise"
+    }
+
+    if (j.CallExpression.check(this.node)) {
+      if (j.Identifier.check(this.node.callee)) {
+        const knownPromiseFunctions = ["fetch"]
+        return knownPromiseFunctions.includes(this.node.callee.name)
+      }
+
+      if (j.MemberExpression.check(this.node.callee)) {
+        const callee = this.node.callee
+        if (
+          j.Identifier.check(callee.object) &&
+          callee.object.name === "Promise" &&
+          j.Identifier.check(callee.property)
+        ) {
+          const promiseStaticMethods = ["all", "race", "resolve", "reject", "allSettled", "any"]
+          return promiseStaticMethods.includes(callee.property.name)
+        }
+
+        if (j.Identifier.check(callee.property)) {
+          const promiseMethods = ["then", "catch", "finally"]
+          return promiseMethods.includes(callee.property.name)
+        }
+      }
+    }
+
+    return false
+  }
 }
 
 /**
@@ -974,17 +1011,18 @@ export function validateChecks(nullCheck, undefinedCheck, consequent) {
  * @returns {import("ast-types").NodePath | null} The enclosing function path or null
  */
 export function findEnclosingFunction(path) {
-  let current = path
-  while (current?.parent) {
-    const node = current.parent.node
-    if (
-      j.FunctionDeclaration.check(node) ||
-      j.FunctionExpression.check(node) ||
-      j.ArrowFunctionExpression.check(node)
-    ) {
-      return current.parent
-    }
-    current = current.parent
+  if (!path?.parent) {
+    return null
   }
-  return null
+
+  const node = path.parent.node
+  if (
+    j.FunctionDeclaration.check(node) ||
+    j.FunctionExpression.check(node) ||
+    j.ArrowFunctionExpression.check(node)
+  ) {
+    return path.parent
+  }
+
+  return findEnclosingFunction(path.parent)
 }

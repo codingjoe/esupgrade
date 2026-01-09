@@ -6292,6 +6292,28 @@ function doWork() {
         assert(!result.modified, "skip promise chain without return")
       })
 
+      test("transform promise chain inside already async function", () => {
+        const result = transform(`
+async function bar() {
+  fetch('http://localhost')
+    .then(result => {
+      processResult(result);
+    })
+    .catch(err => {
+      handleError(err);
+    });
+}
+`)
+
+        assert(result.modified, "transform promise chain inside async function")
+        assert.match(result.code, /async function bar/)
+        assert.match(result.code, /try \{/)
+        assert.match(result.code, /const result = await fetch/)
+        assert.match(result.code, /processResult\(result\)/)
+        assert.match(result.code, /catch \(err\)/)
+        assert.match(result.code, /handleError\(err\)/)
+      })
+
       test("skip then without catch", () => {
         const result = transform(`
 function test() {

@@ -2589,61 +2589,11 @@ export function defaultParameterValues(root) {
 }
 
 /**
- * Check if an expression is a known promise-returning pattern.
- *
- * @param {import("ast-types").ASTNode} node - The node to check
- * @returns {boolean} True if the node is a known promise
- */
-function isKnownPromise(node) {
-  if (j.NewExpression.check(node) && j.Identifier.check(node.callee)) {
-    return node.callee.name === "Promise"
-  }
-
-  if (j.CallExpression.check(node) && j.Identifier.check(node.callee)) {
-    const knownPromiseFunctions = ["fetch", "Promise"]
-    return knownPromiseFunctions.includes(node.callee.name)
-  }
-
-  if (
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    j.Identifier.check(node.callee.property)
-  ) {
-    const promiseMethods = [
-      "then",
-      "catch",
-      "finally",
-      "all",
-      "race",
-      "resolve",
-      "reject",
-    ]
-    return promiseMethods.includes(node.callee.property.name)
-  }
-
-  return false
-}
-
-/**
- * Check if a statement is a return statement returning the given expression.
- *
- * @param {import("ast-types").ASTNode} statement - The statement to check
- * @param {import("ast-types").ASTNode} expr - The expression to match
- * @returns {boolean} True if statement returns the expression
- */
-function isReturnStatement(statement, expr) {
-  return (
-    j.ReturnStatement.check(statement) &&
-    statement.argument &&
-    new NodeTest(statement.argument).isEqual(expr)
-  )
-}
-
-/**
  * Transform Promise chains to async/await.
  * Converts patterns like promise.then(result => {...}).catch(err => {...})
  * to try { const result = await promise; ... } catch (err) { ... }.
- * Only transforms when the function returns the promise chain.
+ * Transforms when the function returns the promise chain or when used inside
+ * an already async function.
  *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
@@ -2709,12 +2659,7 @@ export function promiseToAsyncAwait(root) {
 
       const promiseExpr = thenCall.callee.object
 
-      if (!isKnownPromise(promiseExpr)) {
-        return false
-      }
-
-      const parent = path.parent.node
-      if (!j.ReturnStatement.check(parent)) {
+      if (!new NodeTest(promiseExpr).isKnownPromise()) {
         return false
       }
 
@@ -2723,7 +2668,17 @@ export function promiseToAsyncAwait(root) {
         return false
       }
 
-      return true
+      const parent = path.parent.node
+
+      if (j.ReturnStatement.check(parent)) {
+        return true
+      }
+
+      if (j.ExpressionStatement.check(parent) && enclosingFunction.node.async) {
+        return true
+      }
+
+      return false
     })
     .forEach((path) => {
       const node = path.node
