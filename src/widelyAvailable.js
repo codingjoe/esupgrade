@@ -987,6 +987,27 @@ export function constructorToClass(root) {
   }
 
   /**
+   * Check if a method value is acceptable for class transformation.
+   * Accepts function expressions and arrow functions that don't use 'this'.
+   *
+   * @param {import("ast-types").ASTNode} methodValue - The method value node
+   * @returns {boolean} True if the method can be transformed
+   */
+  function isAcceptableMethod(methodValue) {
+    // Accept function expressions
+    if (j.FunctionExpression.check(methodValue)) {
+      return true
+    }
+
+    // Accept arrow functions that don't use 'this' (safe to convert)
+    if (j.ArrowFunctionExpression.check(methodValue)) {
+      return !new NodeTest(methodValue.body).usesThis()
+    }
+
+    return false
+  }
+
+  /**
    * Find and associate prototype methods with constructors.
    *
    * @param {import("jscodeshift").Collection} root - The root AST collection.
@@ -1030,28 +1051,15 @@ export function constructorToClass(root) {
         const methodName = left.property.name
         const methodValue = assignment.right
 
-        // Accept function expressions
-        if (j.FunctionExpression.check(methodValue)) {
-          constructors.get(constructorName).prototypeMethods.push({
-            path,
-            methodName,
-            methodValue,
-          })
+        if (!isAcceptableMethod(methodValue)) {
           return
         }
 
-        // Accept arrow functions that don't use 'this' (safe to convert)
-        if (j.ArrowFunctionExpression.check(methodValue)) {
-          if (new NodeTest(methodValue.body).usesThis()) {
-            return
-          }
-          constructors.get(constructorName).prototypeMethods.push({
-            path,
-            methodName,
-            methodValue,
-          })
-          return
-        }
+        constructors.get(constructorName).prototypeMethods.push({
+          path,
+          methodName,
+          methodValue,
+        })
       })
 
     // Pattern 2: ConstructorName.prototype = { methodName: function() {...}, ... }
@@ -1104,30 +1112,16 @@ export function constructorToClass(root) {
             return
           }
 
-          // Accept function expressions
-          if (j.FunctionExpression.check(prop.value)) {
-            constructors.get(constructorName).prototypeMethods.push({
-              path,
-              methodName,
-              methodValue: prop.value,
-              isObjectLiteral: true,
-            })
+          if (!isAcceptableMethod(prop.value)) {
             return
           }
 
-          // Accept arrow functions that don't use 'this' (safe to convert)
-          if (j.ArrowFunctionExpression.check(prop.value)) {
-            if (new NodeTest(prop.value.body).usesThis()) {
-              return
-            }
-            constructors.get(constructorName).prototypeMethods.push({
-              path,
-              methodName,
-              methodValue: prop.value,
-              isObjectLiteral: true,
-            })
-            return
-          }
+          constructors.get(constructorName).prototypeMethods.push({
+            path,
+            methodName,
+            methodValue: prop.value,
+            isObjectLiteral: true,
+          })
         })
       })
   }
