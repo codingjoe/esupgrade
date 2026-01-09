@@ -319,7 +319,7 @@ Transforms constructor functions (both function declarations and variable declar
 
 - Function name starts with an uppercase letter
 - At least one prototype method is defined
-- Prototype methods must be function expressions (not arrow functions)
+- Prototype methods using `this` in arrow functions are skipped
 - Prototype object literals with getters, setters, or computed properties are skipped
 
 #### `console.log()` → [console.info()][mdn-console]

@@ -1030,7 +1030,7 @@ export function constructorToClass(root) {
         const methodName = left.property.name
         const methodValue = assignment.right
 
-        if (!j.FunctionExpression.check(methodValue)) {
+        if (!new NodeTest(methodValue).canBeClassMethod()) {
           return
         }
 
@@ -1091,7 +1091,7 @@ export function constructorToClass(root) {
             return
           }
 
-          if (!j.FunctionExpression.check(prop.value)) {
+          if (!new NodeTest(prop.value).canBeClassMethod()) {
             return
           }
 
@@ -1154,16 +1154,22 @@ export function constructorToClass(root) {
       ]
 
       info.prototypeMethods.forEach(({ methodName, methodValue }) => {
+        const functionExpr = j.functionExpression(
+          null,
+          methodValue.params,
+          new NodeTest(methodValue).toBlockStatement(),
+          methodValue.generator || false,
+        )
+
+        // Preserve async property
+        if (methodValue.async) {
+          functionExpr.async = true
+        }
+
         const method = j.methodDefinition(
           "method",
           j.identifier(methodName),
-          j.functionExpression(
-            null,
-            methodValue.params,
-            methodValue.body,
-            methodValue.generator,
-            methodValue.async,
-          ),
+          functionExpr,
           false,
         )
         classBody.push(method)

@@ -359,6 +359,35 @@ export class NodeTest {
   }
 
   /**
+   * Check if a function can be safely converted to a class method.
+   * Function expressions are always safe. Arrow functions are safe only if they don't use 'this'.
+   *
+   * @returns {boolean} True if the function can be converted to a class method
+   */
+  canBeClassMethod() {
+    if (j.FunctionExpression.check(this.node)) {
+      return true
+    } else if (j.ArrowFunctionExpression.check(this.node)) {
+      return !new NodeTest(this.node.body).usesThis()
+    }
+    return false
+  }
+
+  /**
+   * Convert a function's body to a block statement.
+   * For arrow functions with expression bodies, wrap the expression in a return statement.
+   *
+   * @returns {import("ast-types").namedTypes.BlockStatement} The function body as a block statement.
+   */
+  toBlockStatement() {
+    if (j.BlockStatement.check(this.node.body)) {
+      return this.node.body
+    } else if (j.ArrowFunctionExpression.check(this.node)) {
+      return j.blockStatement([j.returnStatement(this.node.body)])
+    }
+  }
+
+  /**
    * Check if node is a string literal.
    *
    * @returns {boolean} True if node is a StringLiteral or a string-valued Literal
