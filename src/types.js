@@ -750,6 +750,8 @@ export class NodeTest {
 
   /**
    * Check if node is a known promise-returning expression.
+   * This includes new Promise(), fetch(), Promise static methods,
+   * and any method called on a promise.
    *
    * @returns {boolean} True if the node is a known promise
    */
@@ -775,10 +777,7 @@ export class NodeTest {
           return promiseStaticMethods.includes(callee.property.name)
         }
 
-        if (j.Identifier.check(callee.property)) {
-          const promiseMethods = ["then", "catch", "finally"]
-          return promiseMethods.includes(callee.property.name)
-        }
+        return new NodeTest(callee.object).isKnownPromise()
       }
     }
 

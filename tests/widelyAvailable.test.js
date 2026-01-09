@@ -6314,6 +6314,74 @@ async function bar() {
         assert.match(result.code, /handleError\(err\)/)
       })
 
+      test("make function async when it returns fetch", () => {
+        const result = transform(`
+function getData() {
+  return fetch('/api/data');
+}
+`)
+
+        assert(result.modified, "make function async when returning fetch")
+        assert.match(result.code, /async function getData/)
+        assert.match(result.code, /return fetch/)
+      })
+
+      test("make function async when it returns new Promise", () => {
+        const result = transform(`
+function loadUser() {
+  return new Promise((resolve, reject) => {
+    loadFromDB(resolve, reject);
+  });
+}
+`)
+
+        assert(result.modified, "make function async when returning new Promise")
+        assert.match(result.code, /async function loadUser/)
+      })
+
+      test("make function async when it returns promise chain", () => {
+        const result = transform(`
+function getJson() {
+  return fetch('/api').then(res => res.json());
+}
+`)
+
+        assert(result.modified, "make function async when returning promise chain")
+        assert.match(result.code, /async function getJson/)
+        assert.match(result.code, /return fetch/)
+      })
+
+      test("make function async when it returns Promise.all", () => {
+        const result = transform(`
+function getAll() {
+  return Promise.all([fetch('/a'), fetch('/b')]);
+}
+`)
+
+        assert(result.modified, "make function async when returning Promise.all")
+        assert.match(result.code, /async function getAll/)
+      })
+
+      test("skip function that doesn't return promise", () => {
+        const result = transform(`
+function getData() {
+  return { data: 'value' };
+}
+`)
+
+        assert(!result.modified, "skip function that doesn't return promise")
+      })
+
+      test("skip already async function without changes", () => {
+        const result = transform(`
+async function getData() {
+  return fetch('/api');
+}
+`)
+
+        assert(!result.modified, "skip already async function")
+      })
+
       test("skip then without catch", () => {
         const result = transform(`
 function test() {

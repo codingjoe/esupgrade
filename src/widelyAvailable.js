@@ -2589,11 +2589,9 @@ export function defaultParameterValues(root) {
 }
 
 /**
- * Transform Promise chains to async/await.
- * Converts patterns like promise.then(result => {...}).catch(err => {...})
- * to try { const result = await promise; ... } catch (err) { ... }.
- * Transforms when the function returns the promise chain or when used inside
- * an already async function.
+ * Transform Promise-returning functions to async/await.
+ * Makes functions async if they return a known promise, and converts
+ * .then().catch() chains to try/catch with await.
  *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
@@ -2601,6 +2599,84 @@ export function defaultParameterValues(root) {
  */
 export function promiseToAsyncAwait(root) {
   let modified = false
+
+  root.find(j.FunctionDeclaration).forEach((funcPath) => {
+    const func = funcPath.node
+    
+    if (func.async || !j.BlockStatement.check(func.body)) {
+      return
+    }
+
+    let hasPromiseReturn = false
+    
+    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
+      const enclosing = findEnclosingFunction(retPath)
+      if (enclosing !== funcPath) {
+        return
+      }
+      
+      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
+        hasPromiseReturn = true
+      }
+    })
+
+    if (hasPromiseReturn) {
+      func.async = true
+      modified = true
+    }
+  })
+
+  root.find(j.FunctionExpression).forEach((funcPath) => {
+    const func = funcPath.node
+    
+    if (func.async || !j.BlockStatement.check(func.body)) {
+      return
+    }
+
+    let hasPromiseReturn = false
+    
+    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
+      const enclosing = findEnclosingFunction(retPath)
+      if (enclosing !== funcPath) {
+        return
+      }
+      
+      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
+        hasPromiseReturn = true
+      }
+    })
+
+    if (hasPromiseReturn) {
+      func.async = true
+      modified = true
+    }
+  })
+
+  root.find(j.ArrowFunctionExpression).forEach((funcPath) => {
+    const func = funcPath.node
+    
+    if (func.async || !j.BlockStatement.check(func.body)) {
+      return
+    }
+
+    let hasPromiseReturn = false
+    
+    j(funcPath).find(j.ReturnStatement).forEach((retPath) => {
+      const enclosing = findEnclosingFunction(retPath)
+      if (enclosing !== funcPath) {
+        return
+      }
+      
+      if (retPath.node.argument && new NodeTest(retPath.node.argument).isKnownPromise()) {
+        hasPromiseReturn = true
+      }
+    })
+
+    if (hasPromiseReturn) {
+      func.async = true
+      modified = true
+    }
+  })
 
   root
     .find(j.CallExpression)
@@ -2708,7 +2784,7 @@ export function promiseToAsyncAwait(root) {
       j(path.parent).replaceWith(tryStatement)
 
       const enclosingFunction = findEnclosingFunction(path)
-      if (enclosingFunction) {
+      if (enclosingFunction && !enclosingFunction.node.async) {
         enclosingFunction.node.async = true
       }
 
