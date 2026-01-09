@@ -2433,9 +2433,13 @@ export function argumentsToRestParameters(root) {
  * - function fn(x) { if (x === undefined) x = defaultValue; ... } → function fn(x = defaultValue) { ... }
  *
  * Only transforms when:
- * - The assignment is at the beginning of the function body
+ * - The assignment is at the beginning of the function body (stops at first non-default statement)
  * - The parameter is not destructured or rest parameter
- * - For || pattern: Be cautious with falsy values (0, '', false, null)
+ *
+ * IMPORTANT: The || pattern transformation changes behavior for falsy values.
+ * - Original: `x = x || defaultValue` uses defaultValue for ANY falsy value (0, '', false, null, undefined)
+ * - Transformed: `x = defaultValue` only uses defaultValue when x is undefined
+ * This is generally the desired behavior, but may break code that relies on treating other falsy values as missing.
  *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
