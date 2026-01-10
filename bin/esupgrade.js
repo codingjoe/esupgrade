@@ -164,58 +164,6 @@ class WorkerPool {
 }
 
 /**
- * Finds JavaScript files from patterns.
- */
-class FileFinder {
-  static IGNORED_DIRS = ["node_modules", ".git"]
-  static JS_EXTENSIONS = [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"]
-
-  constructor() {}
-
-  /**
-   * Find files matching patterns.
-   * @param {string[]} patterns - File or directory patterns.
-   * @yields {string} File paths matching the patterns.
-   */
-  *find(patterns) {
-    for (const pattern of patterns) {
-      try {
-        const stats = fs.statSync(pattern)
-
-        if (stats.isFile()) {
-          yield pattern
-        } else if (stats.isDirectory()) {
-          yield* this.#walkDirectory(pattern)
-        }
-      } catch (error) {
-        console.error(`Error: Cannot access '${pattern}': ${error.message}`)
-        process.exit(1)
-      }
-    }
-  }
-
-  *#walkDirectory(dir) {
-    const entries = fs.readdirSync(dir, { withFileTypes: true })
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name)
-
-      if (entry.isDirectory()) {
-        if (FileFinder.IGNORED_DIRS.includes(entry.name)) {
-          continue
-        }
-        yield* this.#walkDirectory(fullPath)
-      } else if (entry.isFile()) {
-        const ext = path.extname(entry.name)
-        if (FileFinder.JS_EXTENSIONS.includes(ext)) {
-          yield fullPath
-        }
-      }
-    }
-  }
-}
-
-/**
  * Orchestrates the CLI application.
  */
 class CLIRunner {
@@ -223,19 +171,32 @@ class CLIRunner {
     const workerRunner = new WorkerRunner(workerPath)
     const fileProcessor = new FileProcessor(workerRunner)
     this.workerPool = new WorkerPool(fileProcessor)
-    this.fileFinder = new FileFinder()
   }
 
   /**
    * Process files and report results.
-   * @param {string[]} patterns - File or directory patterns.
+   * @param {string[]} patterns - File paths to process (no globbing).
    * @param {Object} options - Processing options.
    */
   async run(patterns, options) {
-    const files = [...this.fileFinder.find(patterns)]
+    // Validate that each provided pattern exists and is a file.
+    const files = []
+    for (const p of patterns) {
+      try {
+        const stats = fs.statSync(p)
+        if (!stats.isFile()) {
+          console.error(`Error: '${p}' is not a file`)
+          process.exit(1)
+        }
+        files.push(p)
+      } catch (error) {
+        console.error(`Error: Cannot access '${p}': ${error.message}`)
+        process.exit(1)
+      }
+    }
 
     if (files.length === 0) {
-      console.info("No JavaScript files found")
+      console.info("No files provided")
       process.exit(0)
     }
 
