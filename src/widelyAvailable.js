@@ -2610,7 +2610,8 @@ function unwrapPromiseResolveReject(node) {
     if (node.callee.property.name === "reject") {
       return {
         _isReject: true,
-        argument: node.arguments.length === 1 ? node.arguments[0] : j.identifier("undefined")
+        argument:
+          node.arguments.length === 1 ? node.arguments[0] : j.identifier("undefined"),
       }
     }
   }
