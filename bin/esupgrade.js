@@ -3,7 +3,7 @@
 import { Command, Option } from "commander"
 import { diffLines } from "diff"
 import { once } from "events"
-import fs from "fs"
+import fs from "fs/promises"
 import process from "node:process"
 import os from "os"
 import path from "path"
@@ -60,6 +60,18 @@ class FileProcessor {
    * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
    */
   async processFile(filePath, options) {
+    // Validate that the provided path exists and is a file.
+    try {
+      const stats = await fs.stat(filePath)
+      if (!stats.isFile()) {
+        console.error(`Error: '${filePath}' is not a file`)
+        process.exit(1)
+      }
+    } catch (error) {
+      console.error(`Error: Cannot access '${filePath}': ${error.message}`)
+      process.exit(1)
+    }
+
     try {
       const workerResult = await this.workerRunner.run(filePath, options.baseline)
 
@@ -77,7 +89,7 @@ class FileProcessor {
         }
 
         if (options.write) {
-          fs.writeFileSync(filePath, result.code, "utf8")
+          await fs.writeFile(filePath, result.code, "utf8")
           if (!options.check) {
             console.info(`\x1b[32m✓\x1b[0m ${filePath}`)
           }
@@ -179,29 +191,14 @@ class CLIRunner {
    * @param {Object} options - Processing options.
    */
   async run(patterns, options) {
-    // Validate that each provided pattern exists and is a file.
-    const files = []
-    for (const p of patterns) {
-      try {
-        const stats = fs.statSync(p)
-        if (!stats.isFile()) {
-          console.error(`Error: '${p}' is not a file`)
-          process.exit(1)
-        }
-        files.push(p)
-      } catch (error) {
-        console.error(`Error: Cannot access '${p}': ${error.message}`)
-        process.exit(1)
-      }
-    }
-
-    if (files.length === 0) {
+    if (!patterns || patterns.length === 0) {
       console.info("No files provided")
       process.exit(0)
     }
 
     console.time("Processing")
-    const results = await this.workerPool.processFiles(files, options)
+    // Hand CLI-provided names directly to the worker pool; file validation occurs in processFile.
+    const results = await this.workerPool.processFiles(patterns, options)
     console.timeEnd("Processing")
 
     this.#reportSummary(results, options)
