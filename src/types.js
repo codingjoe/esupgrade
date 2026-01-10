@@ -747,6 +747,49 @@ export class NodeTest {
 
     return { hasShadowing, foundOurDeclaration }
   }
+
+  /**
+   * Check if node is a known promise-returning expression.
+   * This includes new Promise(), fetch(), Promise static methods,
+   * and any method called on a promise.
+   *
+   * @returns {boolean} True if the node is a known promise
+   */
+  isKnownPromise() {
+    if (j.NewExpression.check(this.node) && j.Identifier.check(this.node.callee)) {
+      return this.node.callee.name === "Promise"
+    }
+
+    if (j.CallExpression.check(this.node)) {
+      if (j.Identifier.check(this.node.callee)) {
+        const knownPromiseFunctions = ["fetch"]
+        return knownPromiseFunctions.includes(this.node.callee.name)
+      }
+
+      if (j.MemberExpression.check(this.node.callee)) {
+        const callee = this.node.callee
+        if (
+          j.Identifier.check(callee.object) &&
+          callee.object.name === "Promise" &&
+          j.Identifier.check(callee.property)
+        ) {
+          const promiseStaticMethods = [
+            "all",
+            "race",
+            "resolve",
+            "reject",
+            "allSettled",
+            "any",
+          ]
+          return promiseStaticMethods.includes(callee.property.name)
+        }
+
+        return new NodeTest(callee.object).isKnownPromise()
+      }
+    }
+
+    return false
+  }
 }
 
 /**
@@ -965,4 +1008,27 @@ export function validateChecks(nullCheck, undefinedCheck, consequent) {
     new NodeTest(nullCheck.value).isEqual(undefinedCheck.value) &&
     new NodeTest(nullCheck.value).isEqual(consequent)
   )
+}
+
+/**
+ * Find the enclosing function for a given path.
+ *
+ * @param {import("ast-types").NodePath} path - The path to start from
+ * @returns {import("ast-types").NodePath | null} The enclosing function path or null
+ */
+export function findEnclosingFunction(path) {
+  if (!path?.parent) {
+    return null
+  }
+
+  const node = path.parent.node
+  if (
+    j.FunctionDeclaration.check(node) ||
+    j.FunctionExpression.check(node) ||
+    j.ArrowFunctionExpression.check(node)
+  ) {
+    return path.parent
+  }
+
+  return findEnclosingFunction(path.parent)
 }

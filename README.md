@@ -516,7 +516,32 @@ The transformer handles cases where `Array.from(arguments)` has already been con
 +}
 ```
 
-Note: The `x = x || defaultValue` pattern is NOT transformed as it has different semantics (triggers on any falsy value, not just `undefined`).
+Note: The `x = x || defaultValue` pattern is NOT transformed as it has different semantics (triggers on any falsy value, instead of `undefined`).
+
+#### Promise chains → [async/await][mdn-async-await]
+
+```diff
+-function getData() {
+-  return fetch('/api/data')
+-    .then(result => {
+-      // handle result
+-    })
+-    .catch(err => {
+-      // handle error
+-    });
+-}
++async function getData() {
++  try {
++    const result = await fetch('/api/data');
++    // handle result
++  } catch (err) {
++    // handle error
++  }
++}
+```
+
+- The promise chain is returned from the function or used inside an already async function
+- The expression is a known promise (`fetch()`, `new Promise()`, or promise methods)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
@@ -563,6 +588,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [calver]: https://calver.org/
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
+[mdn-async-await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const

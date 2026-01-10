@@ -2,7 +2,7 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { default as j } from "jscodeshift"
 import { transform } from "../src/index.js"
-import { NodeTest } from "../src/types.js"
+import { NodeTest, findEnclosingFunction } from "../src/types.js"
 
 describe("types", () => {
   describe("NodeTest", () => {
@@ -87,6 +87,22 @@ describe("types", () => {
       assert(result.modified, "transform var with leading hole")
       assert.match(result.code, /const \[ , a, b\] = arr/)
       assert.doesNotMatch(result.code, /var/)
+    })
+  })
+
+  describe("findEnclosingFunction", () => {
+    test("returns null when path has no parent", () => {
+      const code = `function test() { return 42; }`
+      const root = j(code)
+      const program = root.find(j.Program).paths()[0]
+
+      const result = findEnclosingFunction(program)
+
+      assert.strictEqual(
+        result,
+        null,
+        "should return null for path with no parent function",
+      )
     })
   })
 })
