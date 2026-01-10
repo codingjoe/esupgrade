@@ -1,6 +1,8 @@
 - id: esupgrade
   name: esupgrade
+  description: 'Upgrade your ECMAScript syntax to Baseline.'
   entry: esupgrade
   args: [--check, --write]
   language: node
   types_or: [javascript, jsx, ts, tsx]
+  require_serial: true

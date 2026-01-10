@@ -34,10 +34,12 @@ repos:
     hooks:
       - id: esupgrade
         name: esupgrade
+        description: 'Upgrade your ECMAScript syntax to Baseline.'
         entry: npx .
         args: [--write]
         language: system
-        types_or: [javascript]
+        types_or: [javascript, jsx, ts, tsx]
+        require_serial: true
       - id: prettier
         name: prettier
         entry: prettier --check --write --ignore-unknown
@@ -46,6 +48,7 @@ repos:
         language: node
         additional_dependencies: ["prettier"]
         types_or: [javascript]
+        require_serial: true
 ci:
   autoupdate_schedule: weekly
   skip:
