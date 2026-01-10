@@ -1,4 +1,4 @@
-import fs from "fs"
+import fs from "fs/promises"
 import { parentPort, workerData } from "worker_threads"
 import { transform } from "./index.js"
 
@@ -7,7 +7,7 @@ import { transform } from "./index.js"
 const { filePath, baseline } = workerData
 
 try {
-  const code = fs.readFileSync(filePath, "utf8")
+  const code = await fs.readFile(filePath, "utf8")
   const result = transform(code, baseline)
 
   parentPort.postMessage({
