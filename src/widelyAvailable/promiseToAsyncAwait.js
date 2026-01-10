@@ -2,36 +2,6 @@ import { default as j } from "jscodeshift"
 import { findEnclosingFunction, NodeTest } from "../types.js"
 
 /**
- * Unwrap Promise.resolve() and Promise.reject() calls.
- * - Promise.resolve(value) -> value
- * - Promise.reject(error) -> marker object { _isReject: true, argument: error } for special handling
- *
- * @param {*} node - The AST node to potentially unwrap
- * @returns {*} The unwrapped value, a reject marker object, or the original node
- */
-function unwrapPromiseResolveReject(node) {
-  if (
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    j.Identifier.check(node.callee.object) &&
-    node.callee.object.name === "Promise" &&
-    j.Identifier.check(node.callee.property)
-  ) {
-    if (node.callee.property.name === "resolve") {
-      return node.arguments.length === 1 ? node.arguments[0] : j.identifier("undefined")
-    }
-    if (node.callee.property.name === "reject") {
-      return {
-        _isReject: true,
-        argument:
-          node.arguments.length === 1 ? node.arguments[0] : j.identifier("undefined"),
-      }
-    }
-  }
-  return node
-}
-
-/**
  * Make a function async and transform its promise returns.
  *
  * @param {import("jscodeshift").NodePath} funcPath - The function path
@@ -204,7 +174,7 @@ export function promiseToAsyncAwait(root) {
   // Helper to transform promise returns.
   function transformPromiseReturns(promiseReturns) {
     promiseReturns.forEach((retPath) => {
-      const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
+      const unwrapped = new NodeTest(retPath.node.argument).unwrapPromiseResolveReject()
       if (unwrapped && typeof unwrapped === "object" && unwrapped._isReject) {
         j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
       } else if (unwrapped !== retPath.node.argument) {

@@ -790,6 +790,39 @@ export class NodeTest {
 
     return false
   }
+
+  /**
+   * Unwrap Promise.resolve() and Promise.reject() calls.
+   * - Promise.resolve(value) -> value
+   * - Promise.reject(error) -> marker object { _isReject: true, argument: error } for special handling
+   *
+   * @returns {*} The unwrapped value, a reject marker object, or the original node
+   */
+  unwrapPromiseResolveReject() {
+    if (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      j.Identifier.check(this.node.callee.object) &&
+      this.node.callee.object.name === "Promise" &&
+      j.Identifier.check(this.node.callee.property)
+    ) {
+      if (this.node.callee.property.name === "resolve") {
+        return this.node.arguments.length === 1
+          ? this.node.arguments[0]
+          : j.identifier("undefined")
+      }
+      if (this.node.callee.property.name === "reject") {
+        return {
+          _isReject: true,
+          argument:
+            this.node.arguments.length === 1
+              ? this.node.arguments[0]
+              : j.identifier("undefined"),
+        }
+      }
+    }
+    return this.node
+  }
 }
 
 /**
