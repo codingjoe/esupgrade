@@ -540,8 +540,8 @@ Note: The `x = x || defaultValue` pattern is NOT transformed as it has different
 +}
 ```
 
-- **The promise chain is returned from the function or used inside an already async function**
-- **The expression is a known promise** (`fetch()`, `new Promise()`, or promise methods)
+- The promise chain is returned from the function or used inside an already async function
+- The expression is a known promise (`fetch()`, `new Promise()`, or promise methods)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">

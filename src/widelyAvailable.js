@@ -2591,10 +2591,10 @@ export function defaultParameterValues(root) {
 /**
  * Unwrap Promise.resolve() and Promise.reject() calls.
  * - Promise.resolve(value) -> value
- * - Promise.reject(error) -> throw statement (returns null to indicate special handling needed)
+ * - Promise.reject(error) -> marker object { _isReject: true, argument: error } for special handling
  *
  * @param {*} node - The AST node to potentially unwrap
- * @returns {*} The unwrapped value or the original node
+ * @returns {*} The unwrapped value, a reject marker object, or the original node
  */
 function unwrapPromiseResolveReject(node) {
   if (
@@ -2604,11 +2604,14 @@ function unwrapPromiseResolveReject(node) {
     node.callee.object.name === "Promise" &&
     j.Identifier.check(node.callee.property)
   ) {
-    if (node.callee.property.name === "resolve" && node.arguments.length === 1) {
-      return node.arguments[0]
+    if (node.callee.property.name === "resolve") {
+      return node.arguments.length === 1 ? node.arguments[0] : j.identifier("undefined")
     }
-    if (node.callee.property.name === "reject" && node.arguments.length === 1) {
-      return { _isReject: true, argument: node.arguments[0] }
+    if (node.callee.property.name === "reject") {
+      return {
+        _isReject: true,
+        argument: node.arguments.length === 1 ? node.arguments[0] : j.identifier("undefined")
+      }
     }
   }
   return node
@@ -2739,7 +2742,11 @@ export function promiseToAsyncAwait(root) {
         return true
       }
 
-      if (j.ExpressionStatement.check(parent) && enclosingFunction.node.async) {
+      if (
+        j.ExpressionStatement.check(parent) &&
+        enclosingFunction &&
+        enclosingFunction.node.async
+      ) {
         return true
       }
 
@@ -2784,7 +2791,7 @@ export function promiseToAsyncAwait(root) {
   function transformPromiseReturns(promiseReturns) {
     promiseReturns.forEach((retPath) => {
       const unwrapped = unwrapPromiseResolveReject(retPath.node.argument)
-      if (unwrapped._isReject) {
+      if (unwrapped && typeof unwrapped === "object" && unwrapped._isReject) {
         j(retPath).replaceWith(j.throwStatement(unwrapped.argument))
       } else if (unwrapped !== retPath.node.argument) {
         retPath.node.argument = unwrapped

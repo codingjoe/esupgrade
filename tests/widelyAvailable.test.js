@@ -6767,7 +6767,7 @@ function test() {
 
       test("skip promise chain at top level", () => {
         const result = transform(`
-promise
+fetch('url')
   .then(result => {
     processResult(result);
   })
@@ -6860,6 +6860,32 @@ function test() {
         assert.match(result.code, /async function test/)
         assert.match(result.code, /return ['"]success['"]/)
         assert.match(result.code, /return await fetch/)
+      })
+
+      test("unwrap Promise.resolve() with no arguments", () => {
+        const result = transform(`
+function foo() {
+  return Promise.resolve();
+}
+`)
+
+        assert(result.modified, "unwrap Promise.resolve() with no args")
+        assert.match(result.code, /async function foo/)
+        assert.match(result.code, /return undefined/)
+        assert.doesNotMatch(result.code, /await/)
+      })
+
+      test("unwrap Promise.reject() with no arguments", () => {
+        const result = transform(`
+function bar() {
+  return Promise.reject();
+}
+`)
+
+        assert(result.modified, "unwrap Promise.reject() with no args")
+        assert.match(result.code, /async function bar/)
+        assert.match(result.code, /throw undefined/)
+        assert.doesNotMatch(result.code, /return/)
       })
 
       test("still await Promise.all", () => {
