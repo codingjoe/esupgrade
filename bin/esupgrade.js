@@ -191,11 +191,6 @@ class CLIRunner {
    * @param {Object} options - Processing options.
    */
   async run(patterns, options) {
-    if (!patterns || patterns.length === 0) {
-      console.info("No files provided")
-      process.exit(0)
-    }
-
     console.time("Processing")
     // Hand CLI-provided names directly to the worker pool; file validation occurs in processFile.
     const results = await this.workerPool.processFiles(patterns, options)

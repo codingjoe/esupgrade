@@ -1,15 +1,16 @@
 import { default as j } from "jscodeshift"
 import assert from "node:assert/strict"
-import { describe, test } from "node:test"
+import { describe, suite, test } from "node:test"
 import { transform } from "../src/index.js"
 import { NodeTest, findEnclosingFunction } from "../src/types.js"
 
-describe("types", () => {
+suite("types", () => {
   describe("NodeTest", () => {
     test("getIndexOfInfo returns null for non-binary expressions", () => {
       const node = j.literal(1)
+      assert(!j.BinaryExpression.check(node))
       const test = new NodeTest(node)
-      assert.strictEqual(test.getIndexOfInfo(), null)
+      assert.equal(test.getIndexOfInfo(), null)
     })
   })
 
