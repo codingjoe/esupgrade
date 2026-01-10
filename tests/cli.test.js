@@ -172,43 +172,6 @@ describe("CLI", () => {
     assert.equal(result.status, 1, "exits with 1 with --check")
   })
 
-  test("process directory recursively", () => {
-    const subDir = path.join(tempDir, "src")
-    fs.mkdirSync(subDir)
-
-    const file1 = path.join(tempDir, "test1.js")
-    const file2 = path.join(subDir, "test2.js")
-    fs.writeFileSync(file1, `var x = 1;`)
-    fs.writeFileSync(file2, `var y = 2;`)
-
-    const result = spawnSync(process.execPath, [CLI_PATH, tempDir, "--write"], {
-      encoding: "utf8",
-    })
-
-    assert.match(fs.readFileSync(file1, "utf8"), /const x = 1/, "transforms file1")
-    assert.match(fs.readFileSync(file2, "utf8"), /const y = 2/, "transforms file2")
-    assert.match(result.stdout, /2 files upgraded/, "reports 2 files upgraded")
-    assert.equal(result.status, 0, "exits successfully")
-  })
-
-  test("skip node_modules and .git directories", () => {
-    const nodeModules = path.join(tempDir, "node_modules")
-    const gitDir = path.join(tempDir, ".git")
-    fs.mkdirSync(nodeModules)
-    fs.mkdirSync(gitDir)
-
-    const file1 = path.join(tempDir, "test.js")
-    fs.writeFileSync(file1, `var x = 1;`)
-    fs.writeFileSync(path.join(nodeModules, "test.js"), `var y = 2;`)
-    fs.writeFileSync(path.join(gitDir, "test.js"), `var z = 3;`)
-
-    const result = spawnSync(process.execPath, [CLI_PATH, tempDir, "--write"], {
-      encoding: "utf8",
-    })
-
-    assert.equal(result.status, 0, "exits successfully skipping ignored dirs")
-  })
-
   test("process multiple file extensions", () => {
     const jsFile = path.join(tempDir, "test.js")
     const mjsFile = path.join(tempDir, "test.mjs")
@@ -220,9 +183,13 @@ describe("CLI", () => {
     fs.writeFileSync(cjsFile, `var c = 3;`)
     fs.writeFileSync(jsxFile, `var d = 4;`)
 
-    const result = spawnSync(process.execPath, [CLI_PATH, tempDir, "--write"], {
-      encoding: "utf8",
-    })
+    const result = spawnSync(
+      process.execPath,
+      [CLI_PATH, "--write", jsFile, mjsFile, cjsFile, jsxFile],
+      {
+        encoding: "utf8",
+      },
+    )
 
     assert.match(result.stdout, /4 files upgraded/, "reports 4 files upgraded")
     assert.equal(result.status, 0, "exits successfully")
@@ -235,7 +202,7 @@ describe("CLI", () => {
     fs.writeFileSync(tsFile, `var a = 1;`)
     fs.writeFileSync(tsxFile, `var b = 2;`)
 
-    const result = spawnSync(process.execPath, [CLI_PATH, tempDir, "--write"], {
+    const result = spawnSync(process.execPath, [CLI_PATH, "--write", tsFile, tsxFile], {
       encoding: "utf8",
     })
 
@@ -350,12 +317,8 @@ describe("CLI", () => {
       encoding: "utf8",
     })
 
-    assert.match(
-      result.stdout,
-      /No JavaScript files found/,
-      "reports no JS files found",
-    )
-    assert.equal(result.status, 0, "exits successfully")
+    assert.match(result.stderr, /is not a file/)
+    assert.equal(result.status, 1, "exits with 1 because argument is not a file")
   })
 
   test("group changes by type in --check output", () => {
@@ -479,7 +442,7 @@ describe("CLI", () => {
     fs.writeFileSync(file1, `var x = 1;`)
     fs.writeFileSync(file2, `var y = 2;`)
 
-    const result = spawnSync(process.execPath, [CLI_PATH, file1, subDir, "--write"], {
+    const result = spawnSync(process.execPath, [CLI_PATH, file1, file2, "--write"], {
       encoding: "utf8",
     })
 
