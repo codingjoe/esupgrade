@@ -465,5 +465,5 @@ process(item);
         "trailing comment should be preserved",
       )
     })
-    })
+  })
 })
