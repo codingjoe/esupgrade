@@ -15,6 +15,12 @@ Keeping your JavaScript and TypeScript code up to date with full browser compati
 esupgrade is safe and meant to be used automatically on your codebase.
 We recommend integrating it into your development workflow using [pre-commit].
 
+To just try it out on any repo without writing any changes, run:
+
+```bash
+npx esupgrade $(git ls-files | grep -E -i -w '.*\.(t|j)sx?')
+```
+
 ### pre-commit
 
 ```bash
