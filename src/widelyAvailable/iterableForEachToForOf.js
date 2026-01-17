@@ -155,6 +155,7 @@ export function iterableForEachToForOf(root) {
       // Replace the expression statement containing the forEach call
       const statement = path.parent
       if (j.ExpressionStatement.check(statement.node)) {
+        forOfLoop.comments = statement.node.comments
         j(statement).replaceWith(forOfLoop)
 
         modified = true

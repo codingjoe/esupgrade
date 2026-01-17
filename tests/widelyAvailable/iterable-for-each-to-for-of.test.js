@@ -408,5 +408,62 @@ process(item);
       )
       assert.match(result.code, /for \(const div of document\.body\.querySelectorAll/)
     })
+
+    test("preserves leading comments", () => {
+      const result = transform(`
+    // Process all test elements with data-test attribute
+    document.querySelectorAll("[data-test]").forEach(function (element) {
+    element.classList.add("processed")
+    })
+    `)
+
+      assert(result.modified, "transform querySelectorAll with leading comment")
+      assert.match(result.code, /for \(const element of document\.querySelectorAll/)
+      assert.match(
+        result.code,
+        /\/\/ Process all test elements with data-test attribute/,
+        "comment should be preserved",
+      )
+    })
+
+    test("preserves trailing comments", () => {
+      const result = transform(`
+    document.querySelectorAll("[data-test]").forEach(function (element) {
+    element.classList.add("processed")
+    })
+    // End of element processing
+    `)
+
+      assert(result.modified, "transform with trailing comment")
+      assert.match(result.code, /for \(const element of document\.querySelectorAll/)
+      assert.match(
+        result.code,
+        /\/\/ End of element processing/,
+        "trailing comment should be preserved",
+      )
+    })
+
+    test("preserves multiple comments", () => {
+      const result = transform(`
+    // Start processing
+    document.querySelectorAll("[data-test]").forEach(function(item) {
+    console.log(item)
+    })
+    // Done processing
+    `)
+
+      assert(result.modified, "transform with leading and trailing comments")
+      assert.match(result.code, /for \(const item of document\.querySelectorAll/)
+      assert.match(
+        result.code,
+        /\/\/ Start processing/,
+        "leading comment should be preserved",
+      )
+      assert.match(
+        result.code,
+        /\/\/ Done processing/,
+        "trailing comment should be preserved",
+      )
+    })
   })
 })
