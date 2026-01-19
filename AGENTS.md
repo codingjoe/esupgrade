@@ -1,6 +1,6 @@
-# Agents
+# esupgrade
 
-The package includes transformation agents for upgrading JavaScript syntax.
+The package includes transfomers for upgrading JavaScript syntax.
 
 ## Categories
 

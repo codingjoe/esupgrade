@@ -20,3 +20,7 @@ Or instead run the linters once with:
 ```console
 uvx pre-commit run --all-files
 ```
+
+## Naming conversions
+
+When writing code, please follow the [naming guidelines](https://raw.githubusercontent.com/codingjoe/naming-things/refs/heads/main/README.md).
