@@ -1,6 +1,6 @@
 # esupgrade
 
-The package includes transfomers for upgrading JavaScript syntax.
+The package includes transformers for upgrading JavaScript syntax.
 
 ## Categories
 
