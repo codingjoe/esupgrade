@@ -30,6 +30,16 @@ repos:
     hooks:
       - id: write-good
         args: [--no-passive]
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.39.1
+    hooks:
+      - id: eslint
+        args: ["--fix"]
+        require_serial: true
+        additional_dependencies:
+          - "@eslint/js@9.39.2"
+          - "eslint@9.39.2"
+          - "globals@17.0.0"
   - repo: local
     hooks:
       - id: esupgrade
