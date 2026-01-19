@@ -92,7 +92,10 @@ suite("widely-available", () => {
         const result = transform(`const s = "  hello  ".trim().substr(0, 3);`)
 
         assert(result.modified, "transform substr after trim")
-        assert.match(result.code, /const s = "  hello  "\.trim\(\)\.slice\(0, 0 \+ 3\)/)
+        assert.match(
+          result.code,
+          /const s = " {2}hello {2}"\.trim\(\)\.slice\(0, 0 \+ 3\)/,
+        )
         assert.doesNotMatch(result.code, /substr/)
       })
 
