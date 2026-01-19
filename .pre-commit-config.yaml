@@ -38,7 +38,7 @@ repos:
         require_serial: true
         additional_dependencies:
           - "@eslint/js@9.39.2"
-          - "eslint@9.39.1"
+          - "eslint@9.39.2"
           - "globals@17.0.0"
   - repo: local
     hooks:
