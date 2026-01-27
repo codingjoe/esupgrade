@@ -98,7 +98,8 @@ export function cssToStyleAndComputed(root) {
           const parentNodeType = path.parent?.node?.type
           switch (parentNodeType) {
             case "ExpressionStatement":
-              j(path.parent).replaceWith(j.blockStatement(stmts))
+              // Replace the CallExpression directly with BlockStatement for statement context
+              j(path).replaceWith(j.blockStatement(stmts))
               break
             default:
               // Wrap in IIFE for expression contexts

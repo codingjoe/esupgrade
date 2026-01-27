@@ -60,7 +60,8 @@ export function readyToDOMContentLoaded(root) {
       const parentNodeType = path.parent?.node?.type
       switch (parentNodeType) {
         case "ExpressionStatement":
-          j(path.parent).replaceWith(ifStmt)
+          // Replace the CallExpression directly with IfStatement for statement context
+          j(path).replaceWith(ifStmt)
           break
         default:
           // Wrap in IIFE for expression contexts
