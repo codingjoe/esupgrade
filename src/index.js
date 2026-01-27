@@ -4,6 +4,12 @@ import * as widelyAvailable from "./widelyAvailable.js"
 import * as jQueryTransformers from "./jQuery.js"
 
 /**
+ * Transformer function type.
+ *
+ * @typedef {function(import('jscodeshift').Collection): boolean} Transformer
+ */
+
+/**
  * Result of a transformation.
  *
  * @typedef {Object} TransformResult
@@ -16,22 +22,20 @@ import * as jQueryTransformers from "./jQuery.js"
  *
  * @param {string} code - The source code to transform.
  * @param {import('jscodeshift').JSCodeshift} j - jscodeshift instance.
- * @param {Object} transformers - Transformer functions.
+ * @param {Transformer[]} transformers - Transformer functions.
  * @param {boolean} globalModified - Whether any modifications have occurred.
  * @returns {TransformResult} Object with transformed code and modification status.
  */
-function applyTransformersRecursively(code, j, transformers, globalModified) {
+function applyTransformersRecursively(code, j, transformers, globalModified = false) {
   const root = j(code)
   let passModified = false
 
-  for (const transformer of Object.values(transformers)) {
-    if (transformer(root)) {
-      passModified = true
-    }
+  for (const transformer of transformers) {
+    passModified = transformer(root) || passModified
   }
 
   if (passModified) {
-    return applyTransformersRecursively(root.toSource(), j, transformers, true)
+    return applyTransformersRecursively(root.toSource(), j, transformers, passModified)
   }
 
   return {
@@ -60,5 +64,5 @@ export function transform(code, baseline = "widely-available", jQuery) {
     transformers = { ...transformers, ...jQueryTransformers }
   }
 
-  return applyTransformersRecursively(code, j, transformers, false)
+  return applyTransformersRecursively(code, j, Object.values(transformers))
 }
