@@ -25,5 +25,13 @@ suite("jQuery", () => {
       assert.equal(readyToDOMContentLoaded(root), false)
       assert.equal(root.toSource(), "$(document).on('click', handler)")
     })
+
+    test("transform in expression context wraps in IIFE", () => {
+      const root = j("const x = $(document).ready(fn)")
+      assert(readyToDOMContentLoaded(root))
+      const output = root.toSource()
+      // In expression context, should wrap in arrow function IIFE
+      assert(output.includes("() =>"), "should wrap in arrow function for expression context")
+    })
   })
 })

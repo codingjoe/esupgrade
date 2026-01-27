@@ -24,5 +24,14 @@ suite("jQuery", () => {
       assert(output.includes("nextElementSibling"))
       assert(output.includes("matches"))
     })
+
+    test("transform next with selector includes null check", () => {
+      const root = j("$(node).next('.class')")
+      assert(nextToNextElementSibling(root))
+      const output = root.toSource()
+      // Verify null check is present in while condition
+      assert(output.includes("n &&"), "should include null check in while condition")
+      assert(output.includes("!n.matches"), "should check matches after null check")
+    })
   })
 })

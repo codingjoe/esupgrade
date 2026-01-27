@@ -55,5 +55,14 @@ suite("jQuery", () => {
       assert.equal(cssToStyleAndComputed(root), false)
       assert.equal(root.toSource(), "$(node).css({})")
     })
+
+    test("transform css object in expression context wraps in IIFE", () => {
+      const root = j("const result = $(node).css({ color: 'red' })")
+      assert(cssToStyleAndComputed(root))
+      const output = root.toSource()
+      // In expression context, should wrap in arrow function IIFE
+      assert(output.includes("() =>"), "should wrap in arrow function for expression context")
+      assert(output.includes("node.style.color = 'red'"), "should include assignment")
+    })
   })
 })
