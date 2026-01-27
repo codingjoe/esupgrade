@@ -56,7 +56,21 @@ export function readyToDOMContentLoaded(root) {
 
       const ifStmt = j.ifStatement(testExpr, consequent, alternate)
 
-      j(path).replaceWith(ifStmt)
+      // Check if the parent is an ExpressionStatement
+      const parentNodeType = path.parent?.node?.type
+      switch (parentNodeType) {
+        case "ExpressionStatement":
+          j(path.parent).replaceWith(ifStmt)
+          break
+        default:
+          // Wrap in IIFE for expression contexts
+          const iifeExpression = j.callExpression(
+            j.arrowFunctionExpression([], j.blockStatement([ifStmt])),
+            [],
+          )
+          j(path).replaceWith(iifeExpression)
+          break
+      }
       modified = true
     })
   return modified

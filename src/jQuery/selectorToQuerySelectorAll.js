@@ -51,8 +51,6 @@ export function selectorToQuerySelectorAll(root) {
 
       // Check if all chained methods are transformable
       if (!areAllChainedMethodsTransformable(path)) return
-
-      if (!areAllChainedMethodsTransformable(path)) return
       if (!isSafeToTransformInitializer(root, path)) return
 
       j(path).replaceWith(

@@ -34,9 +34,20 @@ export function transform(code, baseline = "widely-available", jQuery) {
   let currentCode = code
   let globalModified = false
   let passModified = true
+  let iterations = 0
+  const maxIterations = 5
 
   // Run transformers repeatedly until no further changes occur
   while (passModified) {
+    iterations++
+    if (iterations > maxIterations) {
+      const error = new Error(
+        `Maximum iteration limit (${maxIterations}) exceeded. This indicates conflicting transformers that repeatedly transform the same code.`,
+      )
+      error.code = 128
+      throw error
+    }
+
     passModified = false
     const root = j(currentCode)
 
