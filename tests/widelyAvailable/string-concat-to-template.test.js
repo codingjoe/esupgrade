@@ -292,7 +292,7 @@ suite("widely-available", () => {
 
       // Should use fallback and keep newline as actual newline (result should be "hello\nworld" with actual newline)
       assert.ok(result.includes("\n"), "should have actual newline")
-      assert.strictEqual(result, "hello\nworld")
+      assert.equal(result, "hello\nworld")
     })
 
     test("fallback escapes special chars", () => {

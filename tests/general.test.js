@@ -39,5 +39,21 @@ suite("widely-available", () => {
       assert.match(result.code, /const userName/)
       assert.match(result.code, /`Hello \$\{userName\}`/)
     })
+
+    test("multiple passes until stable", () => {
+      const result = transform(
+        `$('#test').val(forms.length);`,
+        "widely-available",
+        true,
+      )
+
+      assert(result.modified, "should transform jQuery code")
+      assert.match(
+        result.code,
+        /document\.getElementById\("test"\)\.value/,
+        "should fully resolve nested transformations in one run",
+      )
+      assert(!result.code.includes("$"), "should not have any jQuery left")
+    })
   })
 })

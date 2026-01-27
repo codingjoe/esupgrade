@@ -30,11 +30,12 @@ class WorkerRunner {
    * Run a worker thread to process a file.
    * @param {string} filePath - Path to the file to process.
    * @param {string} baseline - Baseline level for transformations.
+   * @param {boolean} jQuery - Whether to include jQuery transformers.
    * @returns {Promise<Object>} Worker message result.
    */
-  async run(filePath, baseline) {
+  async run(filePath, baseline, jQuery) {
     const worker = new Worker(this.workerPath, {
-      workerData: { filePath, baseline },
+      workerData: { filePath, baseline, jQuery },
     })
 
     const [message] = await once(worker, "message")
@@ -57,6 +58,7 @@ class FileProcessor {
    * @param {string} options.baseline - Baseline level for transformations.
    * @param {boolean} options.check - Whether to only check for changes.
    * @param {boolean} options.write - Whether to write changes to file.
+   * @param {boolean} options.jQuery - Whether to include jQuery transformers.
    * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
    */
   async processFile(filePath, options) {
@@ -73,7 +75,11 @@ class FileProcessor {
     }
 
     try {
-      const workerResult = await this.workerRunner.run(filePath, options.baseline)
+      const workerResult = await this.workerRunner.run(
+        filePath,
+        options.baseline,
+        options.jQuery,
+      )
 
       if (!workerResult.success) {
         console.error(`\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error}`)
@@ -193,6 +199,7 @@ class CLIRunner {
   async run(patterns, options) {
     console.time("Processing")
     // Hand CLI-provided names directly to the worker pool; file validation occurs in processFile.
+    // Pass jQuery to worker pool
     const results = await this.workerPool.processFiles(patterns, options)
     console.timeEnd("Processing")
 
@@ -259,21 +266,15 @@ program
       .choices(["widely-available", "newly-available"])
       .default("widely-available"),
   )
-  .option("--check", "Report which files need upgrading and exit with code 1 if any do")
-  .option("--write", "Write changes to files")
+  .option(
+    "--check",
+    "Report which files need upgrading and exit with code 1 if any do",
+    false,
+  )
+  .option("--write", "Write changes to files", false)
+  .option("--jquery, --jQuery", "Enable jQuery specific transformers", false)
   .action(async (files, options) => {
-    // Handle check/write options - they are not mutually exclusive
-    // Default: write is false (read-only mode unless --write is specified)
-    const shouldWrite = options.write || false
-    const shouldCheck = options.check || false
-
-    const processingOptions = {
-      baseline: options.baseline,
-      write: shouldWrite,
-      check: shouldCheck,
-    }
-
-    await cliRunner.run(files, processingOptions)
+    await cliRunner.run(files, options)
   })
 
 program.parse()

@@ -481,4 +481,65 @@ describe("CLI", () => {
     assert.match(result.stderr, /Error:/, "displays error for write issues")
     assert.equal(result.status, 128, "exits with 1 on write errors")
   })
+
+  test("accept --jQuery flag without error", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = 1;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--jQuery"], {
+      encoding: "utf8",
+    })
+
+    assert.match(
+      result.stdout,
+      /All files are up to date|would be upgraded|needs upgrading|upgraded/,
+      "CLI runs with --jQuery",
+    )
+    assert.equal(result.status, 0, "exits successfully with --jQuery")
+  })
+
+  test("combine --jQuery with --write and --check", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = 1;`)
+
+    const result = spawnSync(
+      process.execPath,
+      [CLI_PATH, testFile, "--jQuery", "--write", "--check"],
+      { encoding: "utf8" },
+    )
+
+    assert.match(
+      result.stdout,
+      /Changes have been written|needs upgrading|upgraded/,
+      "CLI runs with --jQuery and other flags",
+    )
+    assert.equal(result.status === 0 || result.status === 1, true, "exits with 0 or 1")
+  })
+
+  test("does not transform code differently with --jQuery (no transformers yet)", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = 1;`)
+
+    spawnSync(process.execPath, [CLI_PATH, testFile, "--write"], {
+      encoding: "utf8",
+    })
+    const codeNoJQuery = fs.readFileSync(testFile, "utf8")
+
+    fs.writeFileSync(testFile, `var x = 1;`)
+    const resultWithJQuery = spawnSync(
+      process.execPath,
+      [CLI_PATH, testFile, "--jQuery", "--write"],
+      {
+        encoding: "utf8",
+      },
+    )
+    const codeWithJQuery = fs.readFileSync(testFile, "utf8")
+
+    assert.equal(
+      codeNoJQuery,
+      codeWithJQuery,
+      "code is unchanged with --jQuery (no transformers)",
+    )
+    assert.equal(resultWithJQuery.status, 0, "exits successfully with --jQuery")
+  })
 })
