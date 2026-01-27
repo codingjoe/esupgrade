@@ -94,7 +94,21 @@ export function cssToStyleAndComputed(root) {
           })
           .filter(Boolean)
         if (stmts.length > 0) {
-          j(path).replaceWith(j.blockStatement(stmts))
+          // Check if the parent is an ExpressionStatement
+          const parentNodeType = path.parent?.node?.type
+          switch (parentNodeType) {
+            case "ExpressionStatement":
+              j(path.parent).replaceWith(j.blockStatement(stmts))
+              break
+            default:
+              // Wrap in IIFE for expression contexts
+              const iifeExpression = j.callExpression(
+                j.arrowFunctionExpression([], j.blockStatement(stmts)),
+                [],
+              )
+              j(path).replaceWith(iifeExpression)
+              break
+          }
           modified = true
           return
         }

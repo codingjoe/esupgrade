@@ -42,7 +42,7 @@ suite("widely-available", () => {
       const result = transform(`const result = Math.pow(Math.pow(2, 3), 4);`)
 
       assert(result.modified, "transform nested Math.pow() in multiple passes")
-      assert.match(result.code, /2 \*\* 3 \*\* 4/)
+      assert.match(result.code, /\(2 \*\* 3\) \*\* 4/)
     })
   })
 })

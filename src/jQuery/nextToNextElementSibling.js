@@ -43,11 +43,15 @@ export function nextToNextElementSibling(root) {
               [j.identifier("n")],
               j.blockStatement([
                 j.whileStatement(
-                  j.unaryExpression(
-                    "!",
-                    j.callExpression(
-                      j.memberExpression(j.identifier("n"), j.identifier("matches")),
-                      [sel],
+                  j.logicalExpression(
+                    "&&",
+                    j.identifier("n"),
+                    j.unaryExpression(
+                      "!",
+                      j.callExpression(
+                        j.memberExpression(j.identifier("n"), j.identifier("matches")),
+                        [sel],
+                      ),
                     ),
                   ),
                   j.expressionStatement(

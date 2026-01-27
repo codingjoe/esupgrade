@@ -24,7 +24,35 @@ export function mathPowToExponentiation(root) {
     })
     .forEach((path) => {
       const node = path.node
-      const [base, exponent] = node.arguments
+      let [base, exponent] = node.arguments
+
+      // Check if base is a Math.pow call that will become ** in this pass
+      const baseIsMathPow =
+        j.CallExpression.check(base) &&
+        j.MemberExpression.check(base.callee) &&
+        j.Identifier.check(base.callee.object) &&
+        base.callee.object.name === "Math" &&
+        j.Identifier.check(base.callee.property) &&
+        base.callee.property.name === "pow" &&
+        base.arguments?.length === 2
+
+      // Check if exponent is a Math.pow call that will become ** in this pass
+      const exponentIsMathPow =
+        j.CallExpression.check(exponent) &&
+        j.MemberExpression.check(exponent.callee) &&
+        j.Identifier.check(exponent.callee.object) &&
+        exponent.callee.object.name === "Math" &&
+        j.Identifier.check(exponent.callee.property) &&
+        exponent.callee.property.name === "pow" &&
+        exponent.arguments?.length === 2
+
+      // Wrap binary expressions or Math.pow calls in parentheses to preserve order of operations
+      if (j.BinaryExpression.check(base) || baseIsMathPow) {
+        base = j.parenthesizedExpression(base)
+      }
+      if (j.BinaryExpression.check(exponent) || exponentIsMathPow) {
+        exponent = j.parenthesizedExpression(exponent)
+      }
 
       // Create exponentiation expression
       const expExpression = j.binaryExpression("**", base, exponent)

@@ -26,14 +26,14 @@ suite("jQuery", () => {
     test("transform $.inArray in !== -1 comparison", () => {
       const root = j("if ($.inArray(value, array) !== -1) { }")
       assert(inArrayToIncludes(root))
-      // Transforms the call but leaves the comparison
-      assert.equal(root.toSource(), "if (array.includes(value) !== -1) { }")
+      // Should remove the !== -1 comparison
+      assert.equal(root.toSource(), "if (array.includes(value)) { }")
     })
 
     test("transform jQuery.inArray in !== -1 comparison", () => {
       const root = j("if (jQuery.inArray(item, list) !== -1) { }")
       assert(inArrayToIncludes(root))
-      assert.equal(root.toSource(), "if (list.includes(item) !== -1) { }")
+      assert.equal(root.toSource(), "if (list.includes(item)) { }")
     })
 
     test("skip binary expression without left side", () => {
