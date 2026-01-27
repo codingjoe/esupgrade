@@ -12,6 +12,41 @@ import * as jQueryTransformers from "./jQuery.js"
  */
 
 /**
+ * Apply transformers to code recursively until no changes occur.
+ *
+ * @param {string} code - The source code to transform.
+ * @param {import('jscodeshift').JSCodeshift} j - jscodeshift instance.
+ * @param {Object} transformers - Transformer functions.
+ * @param {boolean} globalModified - Whether any modifications have occurred.
+ * @returns {TransformResult} Object with transformed code and modification status.
+ */
+function applyTransformersRecursively(code, j, transformers, globalModified) {
+  const root = j(code)
+  let passModified = false
+
+  for (const transformer of Object.values(transformers)) {
+    if (transformer(root)) {
+      passModified = true
+    }
+  }
+
+  switch (passModified) {
+    case true:
+      return applyTransformersRecursively(
+        root.toSource(),
+        j,
+        transformers,
+        true,
+      )
+    default:
+      return {
+        code,
+        modified: globalModified,
+      }
+  }
+}
+
+/**
  * Transform JavaScript code using the specified transformers.
  *
  * @param {string} code - The source code to transform.
@@ -31,40 +66,5 @@ export function transform(code, baseline = "widely-available", jQuery) {
     transformers = { ...transformers, ...jQueryTransformers }
   }
 
-  let currentCode = code
-  let globalModified = false
-  let passModified = true
-  let iterations = 0
-  const maxIterations = 5
-
-  // Run transformers repeatedly until no further changes occur
-  while (passModified) {
-    iterations++
-    if (iterations > maxIterations) {
-      const error = new Error(
-        `Maximum iteration limit (${maxIterations}) exceeded. This indicates conflicting transformers that repeatedly transform the same code.`,
-      )
-      error.code = 128
-      throw error
-    }
-
-    passModified = false
-    const root = j(currentCode)
-
-    for (const transformer of Object.values(transformers)) {
-      if (transformer(root)) {
-        passModified = true
-        globalModified = true
-      }
-    }
-
-    if (passModified) {
-      currentCode = root.toSource()
-    }
-  }
-
-  return {
-    code: currentCode,
-    modified: globalModified,
-  }
+  return applyTransformersRecursively(code, j, transformers, false)
 }
