@@ -31,7 +31,10 @@ suite("jQuery", () => {
       assert(readyToDOMContentLoaded(root))
       const output = root.toSource()
       // In expression context, should wrap in arrow function IIFE
-      assert(output.includes("() =>"), "should wrap in arrow function for expression context")
+      assert(
+        output.includes("() =>"),
+        "should wrap in arrow function for expression context",
+      )
     })
   })
 })

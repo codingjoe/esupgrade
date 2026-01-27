@@ -55,7 +55,9 @@ suite("widely-available", () => {
     })
 
     test("double nested calls", () => {
-      const result = transform(`const result = Math.pow(Math.pow(2, 3), Math.pow(4, 5));`)
+      const result = transform(
+        `const result = Math.pow(Math.pow(2, 3), Math.pow(4, 5));`,
+      )
 
       assert(result.modified, "transform double nested Math.pow()")
       assert(result.code.includes("2 ** 3"), "should have base exponentiation")
