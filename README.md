@@ -574,7 +574,7 @@ These transformations are mainly to harden code for future releases and should b
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://jquery.com/wp-content/themes/jquery/images/logo-jquery@2x.png">
   <source media="(prefers-color-scheme: light)" srcset="https://upload.wikimedia.org/wikipedia/commons/f/fd/JQuery-Logo.svg">
-  <img alt="Baseline: Newly available" src="https://upload.wikimedia.org/wikipedia/commons/f/fd/JQuery-Logo.svg" height="32" align="right">
+  <img alt="jQuery logo" src="https://upload.wikimedia.org/wikipedia/commons/f/fd/JQuery-Logo.svg" height="32" align="right">
 </picture>
 
 ## jQuery
