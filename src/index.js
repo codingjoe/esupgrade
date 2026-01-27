@@ -30,19 +30,13 @@ function applyTransformersRecursively(code, j, transformers, globalModified) {
     }
   }
 
-  switch (passModified) {
-    case true:
-      return applyTransformersRecursively(
-        root.toSource(),
-        j,
-        transformers,
-        true,
-      )
-    default:
-      return {
-        code,
-        modified: globalModified,
-      }
+  if (passModified) {
+    return applyTransformersRecursively(root.toSource(), j, transformers, true)
+  }
+
+  return {
+    code,
+    modified: globalModified,
   }
 }
 
