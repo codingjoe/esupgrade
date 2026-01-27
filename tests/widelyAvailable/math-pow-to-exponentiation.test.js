@@ -41,8 +41,27 @@ suite("widely-available", () => {
     test("nested calls", () => {
       const result = transform(`const result = Math.pow(Math.pow(2, 3), 4);`)
 
-      assert(result.modified, "transform nested Math.pow() in single pass")
-      assert.match(result.code, /Math\.pow\(2, 3\) \*\* 4/)
+      assert(result.modified, "transform nested Math.pow() in multiple passes")
+      assert.match(result.code, /\(2 \*\* 3\) \*\* 4/)
+    })
+
+    test("nested calls in exponent position", () => {
+      const result = transform(`const result = Math.pow(2, Math.pow(3, 4));`)
+
+      assert(result.modified, "transform nested Math.pow() in exponent position")
+      // Due to how transformations work in passes, exponent gets parenthesized
+      assert(result.code.includes("2 ** "), "should have base exponentiation")
+      assert(result.code.includes("3 ** 4"), "should have nested exponentiation")
+    })
+
+    test("double nested calls", () => {
+      const result = transform(
+        `const result = Math.pow(Math.pow(2, 3), Math.pow(4, 5));`,
+      )
+
+      assert(result.modified, "transform double nested Math.pow()")
+      assert(result.code.includes("2 ** 3"), "should have base exponentiation")
+      assert(result.code.includes("4 ** 5"), "should have exponent exponentiation")
     })
   })
 })

@@ -15,7 +15,7 @@ Keeping your JavaScript and TypeScript code up to date with full browser compati
 esupgrade is safe and meant to be used automatically on your codebase.
 We recommend integrating it into your development workflow using [pre-commit].
 
-To just try it out on any repo without writing any changes, run:
+To try it out on a repository without writing changes, run:
 
 ```bash
 npx esupgrade $(git ls-files | grep -E -i -w '.*\.(t|j)sx?')
@@ -571,6 +571,189 @@ These transformations are mainly to harden code for future releases and should b
 +});
 ```
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://jquery.com/wp-content/themes/jquery/images/logo-jquery@2x.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://upload.wikimedia.org/wikipedia/commons/f/fd/JQuery-Logo.svg">
+  <img alt="jQuery logo" src="https://upload.wikimedia.org/wikipedia/commons/f/fd/JQuery-Logo.svg" height="32" align="right">
+</picture>
+
+## jQuery
+
+esupgrade can transform common [jQuery] patterns to modern, standards-based DOM APIs via the `--jQuery` argument.
+For further reading, we recommend: [You Might Not Need jQuery](https://youmightnotneedjquery.com/).
+
+```bash
+npx esupgrade --jQuery <files>
+```
+
+> [!WARNING]
+> jQuery transformers are experimental and may produce unsafe code in complex scenarios.
+> Review all changes before applying them to your codebase.
+
+### Selection
+
+#### `$(selector)` → `document.querySelectorAll()` / `document.getElementById()`
+
+```diff
+-$('.foo')
+- $('#bar')
++document.querySelectorAll('.foo')
++document.getElementById('bar')
+```
+
+Skipped when jQuery chaining is present (e.g. `$('.x').css(...).addClass(...)`).
+
+### Class and Attributes
+
+#### Class helpers
+
+```diff
+-$(el).addClass('a b');
+-$(el).removeClass('a');
+-$(el).toggleClass('x');
+-$(el).hasClass('x');
++el.classList.add('a', 'b');
++el.classList.remove('a');
++el.classList.toggle('x');
++el.classList.contains('x');
+```
+
+#### Attribute helpers
+
+```diff
+-$(el).attr('data');
+-$(el).attr('data', v);
+-$(el).removeAttr('disabled');
++el.getAttribute('data');
++el.setAttribute('data', v);
++el.removeAttribute('disabled');
+```
+
+### Content and Value
+
+#### Text and HTML accessors
+
+```diff
+-const text = $(el).text();
+-$(el).text('new text');
+-const html = $(el).html();
+-$(el).html('<b>bold</b>');
++const text = el.textContent;
++el.textContent = 'new text';
++const html = el.innerHTML;
++el.innerHTML = '<b>bold</b>';
+```
+
+#### Value accessors
+
+```diff
+-const val = $(el).val();
+-$(el).val('new value');
++const val = el.value;
++el.value = 'new value';
+```
+
+### DOM Manipulation
+
+#### Insertion and Removal
+
+```diff
+-$(parent).append(child);
+-$(parent).prepend(child);
+-$(el).before(node);
+-$(el).after(node);
+-$(el).remove();
+-$(el).empty();
++parent.append(child);
++parent.prepend(child);
++el.before(node);
++el.after(node);
++el.remove();
++el.replaceChildren();
+```
+
+### Events
+
+#### Event Listeners
+
+```diff
+-$(el).on('click', handler);
+-$(el).off('click', handler);
+-$(el).click(handler);
++el.addEventListener('click', handler);
++el.removeEventListener('click', handler);
++el.addEventListener('click', handler);
+```
+
+#### Dispatching and Ready
+
+```diff
+-$(el).trigger('custom');
+-$(document).ready(fn);
++el.dispatchEvent(new CustomEvent('custom'));
++document.addEventListener('DOMContentLoaded', fn);
+```
+
+### Traversal
+
+#### Traversal helpers
+
+```diff
+-$(el).find('.sel');
+-$(el).parent();
+-$(el).closest('.sel');
+-$(el).next();
+-$(el).prev();
+-$(el).children();
+-$(el).siblings();
++el.querySelectorAll('.sel');
++el.parentElement;
++el.closest('.sel');
++el.nextElementSibling;
++el.previousElementSibling;
++Array.from(el.children);
++Array.from(el.parentElement.children).filter(c => c !== el);
+```
+
+### Style and Sizing
+
+#### CSS and Display
+
+```diff
+-$(el).css('color');
+-$(el).css('color', 'red');
+-$(el).show();
+-$(el).hide();
++getComputedStyle(el).color;
++el.style.color = 'red';
++el.style.display = '';
++el.style.display = 'none';
+```
+
+#### Dimensions
+
+```diff
+-$(el).width();
+-$(el).height();
++el.clientWidth;
++el.clientHeight;
+```
+
+### Static Utilities
+
+#### Collection and String utilities
+
+```diff
+-$.each(array, fn);
+-$.map(array, fn);
+-$.inArray(val, array) !== -1;
+-$.trim(str);
++array.forEach(fn);
++array.map(fn);
++array.includes(val);
++str.trim();
+```
+
 ## Versioning
 
 esupgrade uses the [calver] `YYYY.MINOR.PATCH` versioning scheme.
@@ -593,6 +776,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [baseline]: https://web.dev/baseline/
 [calver]: https://calver.org/
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
+[jquery]: https://jquery.com/
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
 [mdn-async-await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes

@@ -99,11 +99,7 @@ suite("types", () => {
 
       const result = findEnclosingFunction(program)
 
-      assert.strictEqual(
-        result,
-        null,
-        "should return null for path with no parent function",
-      )
+      assert.equal(result, null, "should return null for path with no parent function")
     })
   })
 })

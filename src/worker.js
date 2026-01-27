@@ -4,11 +4,11 @@ import { transform } from "./index.js"
 
 /** Worker thread for processing files in parallel. */
 
-const { filePath, baseline } = workerData
+const { filePath, baseline, jQuery } = workerData
 
 try {
   const code = await fs.readFile(filePath, "utf8")
-  const result = transform(code, baseline)
+  const result = transform(code, baseline, jQuery)
 
   parentPort.postMessage({
     success: true,
