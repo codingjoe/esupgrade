@@ -26,7 +26,7 @@ node --input-type=module <<'EOF'
 import { transform } from './src/index.js';
 
 const sample = "const v = $(input).val();";
-const res = transform(sample, undefined, true);
+const res = transform(sample);
 console.log('modified:', res.modified);
 console.log('code:\n' + res.code);
 EOF
