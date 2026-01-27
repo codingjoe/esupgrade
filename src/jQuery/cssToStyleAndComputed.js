@@ -103,11 +103,12 @@ export function cssToStyleAndComputed(root) {
               break
             default:
               // Wrap in IIFE for expression contexts
-              const iifeExpression = j.callExpression(
-                j.arrowFunctionExpression([], j.blockStatement(stmts)),
-                [],
+              j(path).replaceWith(
+                j.callExpression(
+                  j.arrowFunctionExpression([], j.blockStatement(stmts)),
+                  [],
+                ),
               )
-              j(path).replaceWith(iifeExpression)
               break
           }
           modified = true

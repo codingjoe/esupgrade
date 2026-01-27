@@ -65,11 +65,12 @@ export function readyToDOMContentLoaded(root) {
           break
         default:
           // Wrap in IIFE for expression contexts
-          const iifeExpression = j.callExpression(
-            j.arrowFunctionExpression([], j.blockStatement([ifStmt])),
-            [],
+          j(path).replaceWith(
+            j.callExpression(
+              j.arrowFunctionExpression([], j.blockStatement([ifStmt])),
+              [],
+            ),
           )
-          j(path).replaceWith(iifeExpression)
           break
       }
       modified = true
