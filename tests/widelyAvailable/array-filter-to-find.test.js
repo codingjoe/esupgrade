@@ -68,9 +68,7 @@ suite("widely-available", () => {
     })
 
     test("two arguments to filter - should not transform", () => {
-      const result = transform(
-        `const first = [1, 2, 3].filter(fn, thisArg)[0];`,
-      )
+      const result = transform(`const first = [1, 2, 3].filter(fn, thisArg)[0];`)
 
       assert(!result.modified, "skip filter()[0] with two filter arguments")
     })
