@@ -224,6 +224,19 @@ Supports:
 +const clone = [...Array.from(items)];
 ```
 
+#### `Array.filter()[0]` → [`Array.find()`][mdn-find]
+
+```diff
+-const first = items.filter(predicate)[0];
+-const match = [1, 2, 3].filter(x => x > 0)[0];
++const first = items.find(predicate);
++const match = [1, 2, 3].find(x => x > 0);
+```
+
+Transforms `filter(predicate)[0]` to the more explicit and performant `find(predicate)`, which stops at the first match instead of filtering the entire array.
+
+Transformations are limited to when the receiver can be verified as an array (array literals, `new Array()`, or known array method chains) and `filter()` is called with exactly one argument.
+
 #### `Math.pow()` → [Exponentiation operator \*\*][mdn-exponentiation]
 
 ```diff
@@ -785,6 +798,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
 [mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
+[mdn-find]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
 [mdn-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions
 [mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
