@@ -36,7 +36,6 @@ export function arrayFilterToFind(root) {
 
       if (
         !j.MemberExpression.check(filterCall.callee) ||
-        !j.Identifier.check(filterCall.callee.property) ||
         filterCall.callee.property.name !== "filter"
       ) {
         return false

@@ -227,10 +227,8 @@ Supports:
 #### `Array.filter()[0]` → [`Array.find()`][mdn-find]
 
 ```diff
--const first = items.filter(predicate)[0];
--const match = [1, 2, 3].filter(x => x > 0)[0];
-+const first = items.find(predicate);
-+const match = [1, 2, 3].find(x => x > 0);
+-const first = [1, 2, 3].filter(n => n > 1)[0];
++const first = [1, 2, 3].find(n => n > 1);
 ```
 
 Transforms `filter(predicate)[0]` to the more explicit and performant `find(predicate)`, which stops at the first match instead of filtering the entire array.

@@ -43,6 +43,18 @@ suite("widely-available", () => {
       assert.match(result.code, /\.find\(fn\)/)
     })
 
+    test("non-filter method with [0] - should not transform", () => {
+      const result = transform(`const first = [1, 2, 3].sort(fn)[0];`)
+
+      assert(!result.modified, "skip [0] access on non-filter method call")
+    })
+
+    test("function call result with [0] - should not transform", () => {
+      const result = transform(`const first = getItems()[0];`)
+
+      assert(!result.modified, "skip [0] access on plain function call result")
+    })
+
     test("unknown identifier - should not transform", () => {
       const result = transform(`const first = arr.filter(fn)[0];`)
 
