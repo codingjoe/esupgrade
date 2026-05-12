@@ -21,6 +21,7 @@ repos:
           - mdformat-footnote
           - mdformat-gfm
           - mdformat-gfm-alerts
+        exclude: '.github/agents/'
   - repo: https://github.com/google/yamlfmt
     rev: v0.21.0
     hooks:
