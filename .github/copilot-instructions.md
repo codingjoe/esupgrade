@@ -1,15 +1,15 @@
+YOUR PRIORITY IS TO ENSURE THE SAFETY OF ALL TRANSFORMATIONS.
+
 When writing code, you MUST ALWAYS follow the [naming guidelines](https://raw.githubusercontent.com/codingjoe/naming-things/refs/heads/main/README.md).
 
 Usage:
 
 ```console
-curl -sL https://raw.githubusercontent.com/codingjoe/naming-things/refs/heads/main/README.md
+curl -sL https://raw.githubusercontent.com/codingjoe/naming-things/refs/heads/main/README.md | head -n 500
 ```
 
 All code must be fully tested with a 100% coverage. Unreachable code must be removed.
 Follow the [CONTRIBUTING.md](./CONTRIBUTING.md) guidelines for testing and linting.
-The test suite will fail if the line coverage is below 100%.
-The test coverage will be written to stdout when running the tests via `npm test | grep -v '100.00'`.
 
 All transformers must be documented in the README.md.
 
