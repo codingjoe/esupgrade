@@ -495,6 +495,57 @@ export class NodeTest {
   }
 
   /**
+   * Determine whether an inline function has side effects.
+   * Extracts parameter names from the function node and checks the body against a
+   * strict whitelist: only literals, parameter identifiers, binary expressions, and
+   * non-computed member access on parameters are side-effect free.
+   *
+   * @returns {boolean} True if the function has side effects
+   */
+  hasSideEffects() {
+    const paramNames = new Set(
+      this.node.params.flatMap((param) =>
+        Array.from(new NodeTest(param).extractIdentifiersFromPattern()),
+      ),
+    )
+    return this.#hasNodeSideEffects(this.node.body, paramNames)
+  }
+
+  /**
+   * Recursively determine if an AST node has side effects given a set of allowed
+   * identifiers. Returns false only for literals, known-parameter identifiers, binary
+   * expressions, non-computed property access on side-effect-free sub-expressions, and
+   * single-return-statement block bodies. Returns true for all other node types.
+   *
+   * @param {import("ast-types").ASTNode} node - The node to inspect
+   * @param {Set<string>} paramNames - Set of allowed identifier names
+   * @returns {boolean} True if the node has side effects
+   */
+  #hasNodeSideEffects(node, paramNames) {
+    if (j.Literal.check(node)) return false
+    if (j.Identifier.check(node)) return !paramNames.has(node.name)
+    if (j.BinaryExpression.check(node)) {
+      return (
+        this.#hasNodeSideEffects(node.left, paramNames) ||
+        this.#hasNodeSideEffects(node.right, paramNames)
+      )
+    }
+    if (j.MemberExpression.check(node)) {
+      if (node.computed) return true
+      return this.#hasNodeSideEffects(node.object, paramNames)
+    }
+    if (j.BlockStatement.check(node)) {
+      if (node.body.length !== 1) return true
+      const [stmt] = node.body
+      return (
+        !j.ReturnStatement.check(stmt) ||
+        this.#hasNodeSideEffects(stmt.argument, paramNames)
+      )
+    }
+    return true
+  }
+
+  /**
    * Check if node eventually chains from document.
    *
    * @returns {boolean} True if it is document or a chain from document

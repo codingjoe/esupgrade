@@ -1,6 +1,7 @@
 export { anonymousFunctionToArrow } from "./widelyAvailable/anonymousFunctionToArrow.js"
 export { argumentsToRestParameters } from "./widelyAvailable/argumentsToRestParameters.js"
 export { arrayConcatToSpread } from "./widelyAvailable/arrayConcatToSpread.js"
+export { arrayFilterToFind } from "./widelyAvailable/arrayFilterToFind.js"
 export { arrayFromForEachToForOf } from "./widelyAvailable/arrayFromForEachToForOf.js"
 export { arrayFromToSpread } from "./widelyAvailable/arrayFromToSpread.js"
 export { arraySliceToSpread } from "./widelyAvailable/arraySliceToSpread.js"
