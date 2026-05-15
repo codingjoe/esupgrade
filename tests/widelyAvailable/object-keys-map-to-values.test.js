@@ -4,7 +4,7 @@ import { transform } from "../../src/index.js"
 
 suite("widely-available", () => {
   describe("objectKeysMapToValues", () => {
-    test("arrow function expression body", () => {
+    test("transform arrow function with expression body", () => {
       const result = transform(`Object.keys(obj).map(key => obj[key])`)
 
       assert(result.modified)
@@ -12,14 +12,14 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /Object\.keys/)
     })
 
-    test("arrow function block body with return", () => {
+    test("transform arrow function with block body and return", () => {
       const result = transform(`Object.keys(obj).map(key => { return obj[key]; })`)
 
       assert(result.modified)
       assert.match(result.code, /Object\.values\(obj\)/)
     })
 
-    test("function expression body", () => {
+    test("transform regular function expression", () => {
       const result = transform(
         `Object.keys(obj).map(function(key) { return obj[key]; })`,
       )
@@ -28,7 +28,7 @@ suite("widely-available", () => {
       assert.match(result.code, /Object\.values\(obj\)/)
     })
 
-    test("member expression object", () => {
+    test("transform when object is a member expression", () => {
       const result = transform(
         `Object.keys(config.options).map(key => config.options[key])`,
       )
@@ -89,7 +89,7 @@ suite("widely-available", () => {
       assert(!result.modified)
     })
 
-    test("function call as target object", () => {
+    test("transform when target object is a function call", () => {
       const result = transform(`Object.keys(getObj()).map(key => getObj()[key])`)
 
       assert(result.modified)
