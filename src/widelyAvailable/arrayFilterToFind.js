@@ -56,10 +56,7 @@ export function arrayFilterToFind(root) {
         return false
       }
 
-      const paramNames = new Set(
-        predicate.params.flatMap((p) => [...new NodeTest(p).extractIdentifiersFromPattern()]),
-      )
-      if (!new NodeTest(predicate.body).isPurePredicate(paramNames)) {
+      if (new NodeTest(predicate).hasSideEffects()) {
         return false
       }
 
