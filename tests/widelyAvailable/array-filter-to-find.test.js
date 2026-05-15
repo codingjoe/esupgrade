@@ -10,6 +10,14 @@ suite("widely-available", () => {
       assert(!result.modified, "skip filter()[0] with named function predicate")
     })
 
+    test("array literal with side effect - should not transform", () => {
+      const result = transform(`const first = [1, 2, 3].filter(x => {
+        throw new Error("Side effect");
+      })[0];`)
+
+      assert(!result.modified, "skip filter()[0] with named function predicate")
+    })
+
     test("array literal with arrow function", () => {
       const result = transform(`const first = [1, 2, 3].filter(x => x > 0)[0];`)
 
@@ -29,7 +37,9 @@ suite("widely-available", () => {
     })
 
     test("new Array() with arrow function", () => {
-      const result = transform(`const first = new Array(1, 2, 3).filter(n => n > 1)[0];`)
+      const result = transform(
+        `const first = new Array(1, 2, 3).filter(n => n > 1)[0];`,
+      )
 
       assert(result.modified, "transform filter()[0] on new Array()")
       assert.match(result.code, /new Array\(1, 2, 3\)\.find\(n => n > 1\)/)
@@ -58,7 +68,10 @@ suite("widely-available", () => {
     test("unknown receiver with arrow predicate - should not transform", () => {
       const result = transform(`const first = arr.filter(n => n > 0)[0];`)
 
-      assert(!result.modified, "skip filter()[0] on unknown receiver even with inline predicate")
+      assert(
+        !result.modified,
+        "skip filter()[0] on unknown receiver even with inline predicate",
+      )
     })
 
     test("non-filter method with [0] - should not transform", () => {
