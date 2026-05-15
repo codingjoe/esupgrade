@@ -495,6 +495,48 @@ export class NodeTest {
   }
 
   /**
+   * Check if the predicate body is side-effect free and does not access outer scope.
+   * Only literals, parameter identifiers, binary expressions, and non-computed member
+   * access on parameters are considered pure.
+   *
+   * @param {Set<string>} paramNames - Set of parameter names bound by the predicate
+   * @returns {boolean} True if the predicate body is pure
+   */
+  isPurePredicate(paramNames) {
+    return this.#isPureNode(this.node, paramNames)
+  }
+
+  /**
+   * Recursively determine if an AST node is pure given a set of allowed identifiers.
+   * Allows literals, known-parameter identifiers, binary expressions, and non-computed
+   * property access on pure sub-expressions. Rejects all other node types.
+   *
+   * @param {import("ast-types").ASTNode} node - The node to inspect
+   * @param {Set<string>} paramNames - Set of allowed identifier names
+   * @returns {boolean} True if the node is pure
+   */
+  #isPureNode(node, paramNames) {
+    if (j.Literal.check(node)) return true
+    if (j.Identifier.check(node)) return paramNames.has(node.name)
+    if (j.BinaryExpression.check(node)) {
+      return (
+        this.#isPureNode(node.left, paramNames) &&
+        this.#isPureNode(node.right, paramNames)
+      )
+    }
+    if (j.MemberExpression.check(node)) {
+      if (node.computed) return false
+      return this.#isPureNode(node.object, paramNames)
+    }
+    if (j.BlockStatement.check(node)) {
+      if (node.body.length !== 1) return false
+      const [stmt] = node.body
+      return j.ReturnStatement.check(stmt) && this.#isPureNode(stmt.argument, paramNames)
+    }
+    return false
+  }
+
+  /**
    * Check if node eventually chains from document.
    *
    * @returns {boolean} True if it is document or a chain from document

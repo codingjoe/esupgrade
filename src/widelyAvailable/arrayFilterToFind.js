@@ -46,13 +46,20 @@ export function arrayFilterToFind(root) {
         return false
       }
 
-      // Predicate must be an inline function to avoid transforming side-effectful predicates.
+      // Predicate must be an inline function whose body is proven side-effect free.
       // Named function references are skipped because their bodies cannot be inspected.
       const predicate = filterCall.arguments[0]
       if (
         !j.ArrowFunctionExpression.check(predicate) &&
         !j.FunctionExpression.check(predicate)
       ) {
+        return false
+      }
+
+      const paramNames = new Set(
+        predicate.params.flatMap((p) => [...new NodeTest(p).extractIdentifiersFromPattern()]),
+      )
+      if (!new NodeTest(predicate.body).isPurePredicate(paramNames)) {
         return false
       }
 

@@ -18,6 +18,40 @@ suite("widely-available", () => {
       assert(!result.modified, "skip filter()[0] with named function predicate")
     })
 
+    test("predicate accessing outer scope - should not transform", () => {
+      const result = transform(`const first = [1, 2, 3].filter(x => x > threshold)[0];`)
+
+      assert(!result.modified, "skip filter()[0] when predicate accesses outer scope")
+    })
+
+    test("predicate calling a function - should not transform", () => {
+      const result = transform(`const first = [1, 2, 3].filter(x => sideEffect(x))[0];`)
+
+      assert(!result.modified, "skip filter()[0] when predicate calls a function")
+    })
+
+    test("predicate using computed member access - should not transform", () => {
+      const result = transform(`const first = [1, 2, 3].filter(x => x[0] > 0)[0];`)
+
+      assert(!result.modified, "skip filter()[0] when predicate uses computed member access")
+    })
+
+    test("predicate with multi-statement body - should not transform", () => {
+      const result = transform(
+        `const first = [1, 2, 3].filter(n => { const doubled = n * 2; return n > doubled; })[0];`,
+      )
+
+      assert(!result.modified, "skip filter()[0] when predicate body has multiple statements")
+    })
+
+    test("predicate with member access on parameter", () => {
+      const result = transform(`const first = ['ab', 'abc'].filter(x => x.length > 1)[0];`)
+
+      assert(result.modified, "transform filter()[0] when predicate uses non-computed member access on parameter")
+      assert.match(result.code, /\.find\(x => x\.length > 1\)/)
+      assert.doesNotMatch(result.code, /filter/)
+    })
+
     test("array literal with arrow function", () => {
       const result = transform(`const first = [1, 2, 3].filter(x => x > 0)[0];`)
 
