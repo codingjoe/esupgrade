@@ -10,9 +10,18 @@ suite("widely-available", () => {
       assert(!result.modified, "skip filter()[0] with named function predicate")
     })
 
-    test("array literal with side effect - should not transform", () => {
+    test("array literal with side effect exception - should not transform", () => {
       const result = transform(`const first = [1, 2, 3].filter(x => {
         throw new Error("Side effect");
+      })[0];`)
+
+      assert(!result.modified, "skip filter()[0] with named function predicate")
+    })
+
+    test("array literal with side effect out of scope variable - should not transform", () => {
+      const result = transform(`const someList = []
+      const first = [1, 2, 3].filter(x => {
+        someList.push(x);
       })[0];`)
 
       assert(!result.modified, "skip filter()[0] with named function predicate")
@@ -33,7 +42,10 @@ suite("widely-available", () => {
     test("predicate using computed member access - should not transform", () => {
       const result = transform(`const first = [1, 2, 3].filter(x => x[0] > 0)[0];`)
 
-      assert(!result.modified, "skip filter()[0] when predicate uses computed member access")
+      assert(
+        !result.modified,
+        "skip filter()[0] when predicate uses computed member access",
+      )
     })
 
     test("predicate with multi-statement body - should not transform", () => {
@@ -41,13 +53,21 @@ suite("widely-available", () => {
         `const first = [1, 2, 3].filter(n => { const doubled = n * 2; return n > doubled; })[0];`,
       )
 
-      assert(!result.modified, "skip filter()[0] when predicate body has multiple statements")
+      assert(
+        !result.modified,
+        "skip filter()[0] when predicate body has multiple statements",
+      )
     })
 
     test("predicate with member access on parameter", () => {
-      const result = transform(`const first = ['ab', 'abc'].filter(x => x.length > 1)[0];`)
+      const result = transform(
+        `const first = ['ab', 'abc'].filter(x => x.length > 1)[0];`,
+      )
 
-      assert(result.modified, "transform filter()[0] when predicate uses non-computed member access on parameter")
+      assert(
+        result.modified,
+        "transform filter()[0] when predicate uses non-computed member access on parameter",
+      )
       assert.match(result.code, /\.find\(x => x\.length > 1\)/)
       assert.doesNotMatch(result.code, /filter/)
     })
