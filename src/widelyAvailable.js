@@ -20,6 +20,7 @@ export { namedArrowFunctionToNamedFunction } from "./widelyAvailable/namedArrowF
 export { nullishCoalescingOperator } from "./widelyAvailable/nullishCoalescingOperator.js"
 export { objectAssignToSpread } from "./widelyAvailable/objectAssignToSpread.js"
 export { objectKeysForEachToEntries } from "./widelyAvailable/objectKeysForEachToEntries.js"
+export { objectKeysMapToValues } from "./widelyAvailable/objectKeysMapToValues.js"
 export { optionalChaining } from "./widelyAvailable/optionalChaining.js"
 export { promiseToAsyncAwait } from "./widelyAvailable/promiseToAsyncAwait.js"
 export { removeUseStrictFromModules } from "./widelyAvailable/removeUseStrictFromModules.js"
