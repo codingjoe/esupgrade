@@ -46,6 +46,16 @@ export function arrayFilterToFind(root) {
         return false
       }
 
+      // Predicate must be an inline function to avoid transforming side-effectful predicates.
+      // Named function references are skipped because their bodies cannot be inspected.
+      const predicate = filterCall.arguments[0]
+      if (
+        !j.ArrowFunctionExpression.check(predicate) &&
+        !j.FunctionExpression.check(predicate)
+      ) {
+        return false
+      }
+
       // Object being filtered must be a known array
       return new NodeTest(filterCall.callee.object).hasIndexOfAndIncludes()
     })
