@@ -47,9 +47,9 @@ npx esupgrade --help
 ```
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-wordmark-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-wordmark.svg">
-  <img alt="Baseline: widely available" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-wordmark.svg" height="32" align="right">
+  <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-wordmark-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-wordmark.svg">
+  <img alt="Baseline: widely available" src="https://web-platform-dx.github.io/assets/img/baseline-wordmark.svg" height="32" align="right">
 </picture>
 
 ## Browser Support & Baseline
@@ -78,9 +78,9 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 ## Transformations
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word.svg">
-  <img alt="Baseline: widely available" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-widely-word.svg" height="32" align="right">
+  <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-widely-word-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-widely-word.svg">
+  <img alt="Baseline: widely available" src="https://web-platform-dx.github.io/assets/img/baseline-widely-word.svg" height="32" align="right">
 </picture>
 
 ### Widely available
@@ -561,9 +561,9 @@ Note: The `x = x || defaultValue` pattern is NOT transformed as it has different
 - The expression is a known promise (`fetch()`, `new Promise()`, or promise methods)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg">
-  <img alt="Baseline: Newly available" src="https://web-platform-dx.github.io/web-features/assets/img/baseline-newly-word.svg" height="32" align="right">
+  <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word.svg">
+  <img alt="Baseline: Newly available" src="https://web-platform-dx.github.io/assets/img/baseline-newly-word.svg" height="32" align="right">
 </picture>
 
 ### Newly available
