@@ -50,9 +50,7 @@ suite("widely-available", () => {
     })
 
     test("skip when callback has multiple parameters", () => {
-      const result = transform(
-        `Object.keys(obj).map((key, index) => obj[key])`,
-      )
+      const result = transform(`Object.keys(obj).map((key, index) => obj[key])`)
 
       assert(!result.modified)
     })
