@@ -87,7 +87,17 @@ export function objectKeysMapToValues(root) {
         return false
       }
 
+      if (callback.async || callback.generator) {
+        return false
+      }
+
       if (callback.params.length !== 1 || !j.Identifier.check(callback.params[0])) {
+        return false
+      }
+
+      // Only allow plain identifier targets to avoid changing evaluation count
+      // of expressions with side-effects (getters, function calls, etc.)
+      if (!j.Identifier.check(object.arguments[0])) {
         return false
       }
 

@@ -33,8 +33,7 @@ suite("widely-available", () => {
         `Object.keys(config.options).map(key => config.options[key])`,
       )
 
-      assert(result.modified)
-      assert.match(result.code, /Object\.values\(config\.options\)/)
+      assert(!result.modified)
     })
 
     test("skip when key not used as index", () => {
@@ -87,11 +86,24 @@ suite("widely-available", () => {
       assert(!result.modified)
     })
 
-    test("transform when target object is a function call", () => {
+    test("skip when target object is a function call", () => {
       const result = transform(`Object.keys(getObj()).map(key => getObj()[key])`)
 
-      assert(result.modified)
-      assert.match(result.code, /Object\.values\(getObj\(\)\)/)
+      assert(!result.modified)
+    })
+
+    test("skip when async arrow function callback", () => {
+      const result = transform(`Object.keys(obj).map(async key => obj[key])`)
+
+      assert(!result.modified)
+    })
+
+    test("skip when generator function callback", () => {
+      const result = transform(
+        `Object.keys(obj).map(function*(key) { return obj[key]; })`,
+      )
+
+      assert(!result.modified)
     })
   })
 })
