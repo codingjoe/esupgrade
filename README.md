@@ -457,6 +457,21 @@ Transforms when:
 - The first statement in the callback assigns `obj[key]` to a variable
 - The object being accessed matches the object passed to Object.keys()
 
+#### `Object.keys().map()` → [Object.values()][mdn-object-values]
+
+```diff
+-Object.keys(obj).map(key => obj[key])
++Object.values(obj)
+```
+
+Transforms `Object.keys(obj).map(key => obj[key])` patterns to use `Object.values()` directly. This eliminates redundant property lookups and expresses intent more clearly.
+
+Transforms when:
+
+- The callback has exactly one parameter (the key)
+- The callback body returns `obj[key]` (expression or block with a single return statement)
+- The object being accessed matches the object passed to Object.keys()
+
 #### `indexOf()` prefix check → [String.startsWith()][mdn-startswith]
 
 ```diff
@@ -804,6 +819,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-object-entries]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
+[mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-rest-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
 [mdn-slice]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice
