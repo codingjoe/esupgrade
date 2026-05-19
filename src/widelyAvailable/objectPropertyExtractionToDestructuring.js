@@ -51,6 +51,10 @@ export function objectPropertyExtractionToDestructuring(root) {
         return
       }
 
+      if (isParamReferencedInOtherParams(func.params, paramIndex, paramName)) {
+        return
+      }
+
       if (wouldPromoteDirective(body, result)) {
         return
       }
@@ -179,7 +183,7 @@ function isMixedDeclaratorUsingParam(body, paramName, extractions) {
 }
 
 /**
- * Check if removing extraction statements would promote a string literal expression
+ * Check if removing extraction statements would promote a "use strict" string literal
  * to a function directive. Non-simple parameter lists (destructuring) cannot have a
  * "use strict" directive.
  *
@@ -210,7 +214,23 @@ function wouldPromoteDirective(body, result) {
   return (
     nextStatement !== undefined &&
     j.ExpressionStatement.check(nextStatement) &&
-    isStringLiteralNode(nextStatement.expression)
+    isStringLiteralNode(nextStatement.expression) &&
+    nextStatement.expression.value === "use strict"
+  )
+}
+
+/**
+ * Check if the parameter identifier is referenced in any other parameter in the list.
+ * Covers default values such as `function fn(obj, y = obj.x)`.
+ *
+ * @param {Array<import("ast-types").ASTNode>} params - The full parameter list
+ * @param {number} paramIndex - Index of the parameter being transformed
+ * @param {string} paramName - The parameter identifier name
+ * @returns {boolean} True if the identifier appears in another parameter
+ */
+function isParamReferencedInOtherParams(params, paramIndex, paramName) {
+  return params.some(
+    (param, i) => i !== paramIndex && deepContainsIdentifier(param, paramName),
   )
 }
 

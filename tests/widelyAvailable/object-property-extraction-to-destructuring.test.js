@@ -257,5 +257,32 @@ function fn(obj) {
       assert.match(result.code, /function fn\(obj\)/)
       assert.match(result.code, /const x = obj\.x/)
     })
+
+    test("transform when non-use-strict string literal follows extractions", () => {
+      const result = transform(`
+function fn(obj) {
+  const x = obj.x;
+  "@jsx";
+  return x;
+}
+      `)
+
+      assert(result.modified, "should transform when string literal is not use strict")
+      assert.match(result.code, /function fn\(\s*\{\s*x\s*\}/)
+      assert.doesNotMatch(result.code, /const x = obj\.x/)
+    })
+
+    test("skip when parameter is referenced in another parameter's default value", () => {
+      const result = transform(`
+function fn(obj, y = obj.x) {
+  const x = obj.x;
+  return x + y;
+}
+      `)
+
+      assert(!result.modified, "should not transform when param used in other param default")
+      assert.match(result.code, /function fn\(obj,/)
+      assert.match(result.code, /const x = obj\.x/)
+    })
   })
 })
