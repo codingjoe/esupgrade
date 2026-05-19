@@ -148,7 +148,9 @@ function isParamUsedAfterExtractions(body, paramName, result) {
  */
 function isMixedDeclaratorUsingParam(body, paramName, extractions) {
   const extractionSet = new Set(
-    extractions.map(({ statementIndex, declaratorIndex }) => `${statementIndex}:${declaratorIndex}`),
+    extractions.map(
+      ({ statementIndex, declaratorIndex }) => `${statementIndex}:${declaratorIndex}`,
+    ),
   )
 
   return body.body.some((statement, statementIndex) => {
