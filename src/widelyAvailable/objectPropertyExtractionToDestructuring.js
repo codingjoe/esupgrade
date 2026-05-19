@@ -1,5 +1,6 @@
 import { default as j } from "jscodeshift"
-import { NodeTest } from "../types.js"
+
+const SKIP_KEYS = new Set(["loc", "start", "end", "tokens", "comments"])
 
 /**
  * Transform manual property extraction to destructuring in function parameters.
@@ -47,6 +48,10 @@ export function objectPropertyExtractionToDestructuring(root) {
       }
 
       if (isParamUsedAfterExtractions(body, paramName, result)) {
+        return
+      }
+
+      if (wouldPromoteDirective(body, result)) {
         return
       }
 
@@ -121,6 +126,8 @@ function isPropertyExtractionFrom(declarator, paramName) {
 
 /**
  * Check if the original parameter identifier is still referenced after the extraction zone.
+ * Uses deep traversal that crosses nested function boundaries, since the parameter
+ * name is in the outer scope and closures may reference it.
  *
  * @param {import("ast-types").namedTypes.BlockStatement} body - The function body
  * @param {string} paramName - The parameter identifier name
@@ -129,9 +136,8 @@ function isPropertyExtractionFrom(declarator, paramName) {
  */
 function isParamUsedAfterExtractions(body, paramName, result) {
   const remainingStatements = body.body.slice(result.boundary)
-  const remainingBlock = j.blockStatement(remainingStatements)
 
-  if (new NodeTest(remainingBlock).usesIdentifier(paramName)) {
+  if (remainingStatements.some((stmt) => deepContainsIdentifier(stmt, paramName))) {
     return true
   }
 
@@ -163,9 +169,100 @@ function isMixedDeclaratorUsingParam(body, paramName, extractions) {
         return false
       }
 
-      return new NodeTest(declarator.init).usesIdentifier(paramName)
+      if (!declarator.init) {
+        return false
+      }
+
+      return deepContainsIdentifier(declarator.init, paramName)
     })
   })
+}
+
+/**
+ * Check if removing extraction statements would promote a string literal expression
+ * to a function directive. Non-simple parameter lists (destructuring) cannot have a
+ * "use strict" directive.
+ *
+ * @param {import("ast-types").namedTypes.BlockStatement} body - The function body
+ * @param {{ extractions: Array<{statementIndex: number, declaratorIndex: number}>, boundary: number }} result - Result from findExtractions
+ * @returns {boolean} True if the transformation would produce an illegal directive
+ */
+function wouldPromoteDirective(body, result) {
+  const extractionSet = new Set(
+    result.extractions.map(
+      ({ statementIndex, declaratorIndex }) => `${statementIndex}:${declaratorIndex}`,
+    ),
+  )
+
+  for (let i = 0; i < result.boundary; i++) {
+    const statement = body.body[i]
+    const hasRemainingDeclarators = statement.declarations.some(
+      (_, di) => !extractionSet.has(`${i}:${di}`),
+    )
+
+    if (hasRemainingDeclarators) {
+      return false
+    }
+  }
+
+  const nextStatement = body.body[result.boundary]
+
+  return (
+    nextStatement !== undefined &&
+    j.ExpressionStatement.check(nextStatement) &&
+    isStringLiteralNode(nextStatement.expression)
+  )
+}
+
+/**
+ * Deeply check if an identifier name appears anywhere in an AST subtree,
+ * including inside nested functions and arrow functions.
+ *
+ * @param {import("ast-types").ASTNode | null | undefined} node - The node to search
+ * @param {string} name - The identifier name to search for
+ * @returns {boolean} True if the identifier is found anywhere in the subtree
+ */
+function deepContainsIdentifier(node, name) {
+  if (!node || typeof node !== "object") {
+    return false
+  }
+
+  if (node.type === "Identifier" && node.name === name) {
+    return true
+  }
+
+  for (const key in node) {
+    if (SKIP_KEYS.has(key)) {
+      continue
+    }
+
+    const value = node[key]
+
+    if (Array.isArray(value)) {
+      if (value.some((item) => deepContainsIdentifier(item, name))) {
+        return true
+      }
+    } else if (value && typeof value === "object") {
+      if (deepContainsIdentifier(value, name)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+/**
+ * Check if a node is a string literal.
+ *
+ * @param {import("ast-types").ASTNode} node - The node to check
+ * @returns {boolean} True if the node is a string literal
+ */
+function isStringLiteralNode(node) {
+  return (
+    j.StringLiteral.check(node) ||
+    (j.Literal.check(node) && typeof node.value === "string")
+  )
 }
 
 /**

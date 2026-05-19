@@ -27,9 +27,7 @@ function fn(obj) {
       `)
 
       assert(result.modified, "transform multiple property extractions")
-      assert.match(result.code, /function fn\(\s*\{/)
-      assert.match(result.code, /x/)
-      assert.match(result.code, /y/)
+      assert.match(result.code, /function fn\(\s*\{\s*x,\s*y\s*\}/)
       assert.doesNotMatch(result.code, /const x = obj\.x/)
       assert.doesNotMatch(result.code, /const y = obj\.y/)
     })
@@ -215,6 +213,47 @@ function fn(obj) {
 }
       `)
 
+      assert.match(result.code, /function fn\(obj\)/)
+      assert.match(result.code, /const x = obj\.x/)
+    })
+
+    test("uninitialised variable declaration does not crash", () => {
+      const result = transform(`
+function fn(obj) {
+  const x = obj.x;
+  let y;
+  return x;
+}
+      `)
+
+      assert(result.modified, "transform with uninitialised variable in body")
+      assert.match(result.code, /function fn\(\s*\{\s*x\s*\}/)
+      assert.doesNotMatch(result.code, /const x = obj\.x/)
+    })
+
+    test("skip when nested function closes over the parameter", () => {
+      const result = transform(`
+function fn(obj) {
+  const x = obj.x;
+  return () => obj;
+}
+      `)
+
+      assert(!result.modified, "should not transform when nested function closes over parameter")
+      assert.match(result.code, /function fn\(obj\)/)
+      assert.match(result.code, /const x = obj\.x/)
+    })
+
+    test("skip when extraction removal would promote use strict to a directive", () => {
+      const result = transform(`
+function fn(obj) {
+  const x = obj.x;
+  "use strict";
+  return x;
+}
+      `)
+
+      assert(!result.modified, "should not transform when removal would promote use strict directive")
       assert.match(result.code, /function fn\(obj\)/)
       assert.match(result.code, /const x = obj\.x/)
     })
