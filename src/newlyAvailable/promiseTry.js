@@ -151,3 +151,4 @@ export function promiseTry(root) {
 
   return modified
 }
+promiseTry.baselineDate = "2025-01-07"

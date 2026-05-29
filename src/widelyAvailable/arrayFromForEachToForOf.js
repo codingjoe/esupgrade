@@ -72,3 +72,4 @@ export function arrayFromForEachToForOf(root) {
 
   return modified
 }
+arrayFromForEachToForOf.baselineDate = "2016-09-20"

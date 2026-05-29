@@ -54,3 +54,4 @@ export function arraySliceToSpread(root) {
 
   return modified
 }
+arraySliceToSpread.baselineDate = "2015-10-14"

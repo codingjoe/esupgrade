@@ -137,3 +137,4 @@ export function forLoopToForOf(root) {
 
   return modified
 }
+forLoopToForOf.baselineDate = "2015-07-29"

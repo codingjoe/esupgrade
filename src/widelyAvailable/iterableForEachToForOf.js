@@ -163,3 +163,4 @@ export function iterableForEachToForOf(root) {
 
   return modified
 }
+iterableForEachToForOf.baselineDate = "2015-07-29"

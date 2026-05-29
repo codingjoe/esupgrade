@@ -76,3 +76,4 @@ export function arrayFilterToFind(root) {
 
   return modified
 }
+arrayFilterToFind.baselineDate = "2016-09-20"

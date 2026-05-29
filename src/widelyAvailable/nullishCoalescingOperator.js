@@ -71,3 +71,4 @@ export function nullishCoalescingOperator(root) {
 
   return modified
 }
+nullishCoalescingOperator.baselineDate = "2020-09-16"

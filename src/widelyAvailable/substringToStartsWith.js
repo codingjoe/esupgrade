@@ -120,3 +120,4 @@ export function substringToStartsWith(root) {
 
   return modified
 }
+substringToStartsWith.baselineDate = "2015-09-30"

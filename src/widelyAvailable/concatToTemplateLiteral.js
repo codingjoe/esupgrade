@@ -127,3 +127,4 @@ ${rawValue}`
 
   return modified
 }
+concatToTemplateLiteral.baselineDate = "2015-09-30"

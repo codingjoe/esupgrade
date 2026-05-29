@@ -86,3 +86,4 @@ export function argumentsToRestParameters(root) {
 
   return modified
 }
+argumentsToRestParameters.baselineDate = "2016-09-20"

@@ -138,3 +138,4 @@ export function lastIndexOfToEndsWith(root) {
 
   return modified
 }
+lastIndexOfToEndsWith.baselineDate = "2015-09-30"

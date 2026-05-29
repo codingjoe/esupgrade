@@ -36,3 +36,4 @@ export function objectAssignToSpread(root) {
 
   return modified
 }
+objectAssignToSpread.baselineDate = "2020-01-15"

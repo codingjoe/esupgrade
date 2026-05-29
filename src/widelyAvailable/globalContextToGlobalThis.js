@@ -115,3 +115,4 @@ export function globalContextToGlobalThis(root) {
 
   return modified
 }
+globalContextToGlobalThis.baselineDate = "2020-01-15"

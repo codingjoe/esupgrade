@@ -49,3 +49,4 @@ export function removeUseStrictFromModules(root) {
 
   return modified
 }
+removeUseStrictFromModules.baselineDate = "2018-05-09"

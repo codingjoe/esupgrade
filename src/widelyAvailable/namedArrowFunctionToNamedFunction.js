@@ -122,3 +122,4 @@ export function namedArrowFunctionToNamedFunction(root) {
 
   return modified
 }
+namedArrowFunctionToNamedFunction.baselineDate = "2016-09-20"

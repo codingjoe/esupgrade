@@ -35,3 +35,4 @@ export function consoleLogToInfo(root) {
 
   return modified
 }
+consoleLogToInfo.baselineDate = "2015-07-29"

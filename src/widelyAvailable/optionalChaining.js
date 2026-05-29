@@ -88,3 +88,4 @@ export function optionalChaining(root) {
 
   return modified
 }
+optionalChaining.baselineDate = "2020-07-28"

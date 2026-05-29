@@ -158,3 +158,4 @@ export function defaultParameterValues(root) {
 
   return modified
 }
+defaultParameterValues.baselineDate = "2016-09-20"

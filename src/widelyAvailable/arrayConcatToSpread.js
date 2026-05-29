@@ -65,3 +65,4 @@ export function arrayConcatToSpread(root) {
 
   return modified
 }
+arrayConcatToSpread.baselineDate = "2015-10-14"

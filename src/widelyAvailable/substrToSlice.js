@@ -70,3 +70,4 @@ export function substrToSlice(root) {
 
   return modified
 }
+substrToSlice.baselineDate = "2015-07-29"

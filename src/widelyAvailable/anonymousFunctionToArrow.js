@@ -75,3 +75,4 @@ export function anonymousFunctionToArrow(root) {
 
   return modified
 }
+anonymousFunctionToArrow.baselineDate = "2016-09-20"

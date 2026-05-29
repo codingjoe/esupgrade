@@ -71,3 +71,4 @@ export function indexOfToStartsWith(root) {
 
   return modified
 }
+indexOfToStartsWith.baselineDate = "2015-09-30"
