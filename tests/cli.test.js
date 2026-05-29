@@ -542,4 +542,42 @@ describe("CLI", () => {
     )
     assert.equal(resultWithJQuery.status, 0, "exits successfully with --jQuery")
   })
+
+  test("show error message without stack trace at default verbosity", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = {{{;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile], {
+      encoding: "utf8",
+    })
+
+    assert.match(result.stderr, /Error:/, "displays error message")
+    assert.doesNotMatch(result.stderr, /at /, "omits stack trace")
+  })
+
+  test("show error message without stack trace at --verbose level 1", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = {{{;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--verbose"], {
+      encoding: "utf8",
+    })
+
+    assert.match(result.stderr, /Error:/, "displays error message")
+    assert.doesNotMatch(result.stderr, /at /, "omits stack trace at verbosity level 1")
+  })
+
+  test("show full error with stack trace at --verbose --verbose level 2", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, `var x = {{{;`)
+
+    const result = spawnSync(
+      process.execPath,
+      [CLI_PATH, testFile, "--verbose", "--verbose"],
+      { encoding: "utf8" },
+    )
+
+    assert.match(result.stderr, /Error:/, "displays error message")
+    assert.match(result.stderr, /at /, "includes stack trace at verbosity level 2")
+  })
 })
