@@ -48,7 +48,10 @@ suite("newly-available", () => {
     })
 
     test("skip non-empty object literal receiver", () => {
-      const result = transform(`({ value: true }).hasOwnProperty.call(obj, prop)`, "newly-available")
+      const result = transform(
+        `({ value: true }).hasOwnProperty.call(obj, prop)`,
+        "newly-available",
+      )
 
       assert(!result.modified, "skip non-empty object literal receiver")
     })
