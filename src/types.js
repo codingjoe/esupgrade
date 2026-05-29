@@ -504,9 +504,9 @@ export class NodeTest {
    */
   hasSideEffects() {
     const paramNames = new Set(
-      this.node.params.flatMap((param) =>
-        Array.from(new NodeTest(param).extractIdentifiersFromPattern()),
-      ),
+      this.node.params.flatMap((param) => [
+        ...new NodeTest(param).extractIdentifiersFromPattern(),
+      ]),
     )
     return this.#hasNodeSideEffects(this.node.body, paramNames)
   }
