@@ -13,7 +13,7 @@ suite("widely-available", () => {
     })
 
     test("transforms multiplication assignment", () => {
-      assert.match(transform(`x = x \* y`).code, /x \*= y/)
+      assert.match(transform(`x = x * y`).code, /x \*= y/)
     })
 
     test("transforms division assignment", () => {
@@ -25,7 +25,7 @@ suite("widely-available", () => {
     })
 
     test("transforms exponentiation assignment", () => {
-      assert.match(transform(`x = x \*\* y`).code, /x \*\*= y/)
+      assert.match(transform(`x = x ** y`).code, /x \*\*= y/)
     })
 
     test("transforms member expression addition", () => {
