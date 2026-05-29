@@ -12,8 +12,7 @@ export function readyToDOMContentLoaded(root) {
     .find(j.CallExpression, {
       callee: { type: "MemberExpression" },
     })
-    .filter((path) => {
-      const node = path.node
+    .filter(({ node }) => {
       const callee = node.callee
       if (!j.Identifier.check(callee.property)) return false
       if (callee.property.name !== "ready") return false

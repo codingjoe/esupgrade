@@ -11,8 +11,7 @@ export function prevToPreviousElementSibling(root) {
   let modified = false
   root
     .find(j.CallExpression)
-    .filter((path) => {
-      const node = path.node
+    .filter(({ node }) => {
       if (!j.MemberExpression.check(node.callee)) return false
       if (!j.Identifier.check(node.callee.property)) return false
       if (node.callee.property.name !== "prev") return false

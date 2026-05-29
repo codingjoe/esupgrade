@@ -14,9 +14,7 @@ export function forLoopToForOf(root) {
 
   root
     .find(j.ForStatement)
-    .filter((path) => {
-      const node = path.node
-
+    .filter(({ node }) => {
       // Check init: must be let/const i = 0
       if (!j.VariableDeclaration.check(node.init)) {
         return false

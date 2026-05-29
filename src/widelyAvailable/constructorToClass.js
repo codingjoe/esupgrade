@@ -61,8 +61,7 @@ export function constructorToClass(root) {
     // Pattern 1: ConstructorName.prototype.methodName = ...
     root
       .find(j.ExpressionStatement)
-      .filter((path) => {
-        const node = path.node
+      .filter(({ node }) => {
         if (!j.AssignmentExpression.check(node.expression)) {
           return false
         }
@@ -105,8 +104,7 @@ export function constructorToClass(root) {
     // Pattern 2: ConstructorName.prototype = { methodName: function() {...}, ... }
     root
       .find(j.ExpressionStatement)
-      .filter((path) => {
-        const node = path.node
+      .filter(({ node }) => {
         if (!j.AssignmentExpression.check(node.expression)) {
           return false
         }

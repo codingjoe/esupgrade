@@ -21,6 +21,7 @@ export { nullishCoalescingOperator } from "./widelyAvailable/nullishCoalescingOp
 export { objectAssignToSpread } from "./widelyAvailable/objectAssignToSpread.js"
 export { objectKeysForEachToEntries } from "./widelyAvailable/objectKeysForEachToEntries.js"
 export { objectKeysMapToValues } from "./widelyAvailable/objectKeysMapToValues.js"
+export { objectPropertyExtractionToDestructuring } from "./widelyAvailable/objectPropertyExtractionToDestructuring.js"
 export { optionalChaining } from "./widelyAvailable/optionalChaining.js"
 export { promiseToAsyncAwait } from "./widelyAvailable/promiseToAsyncAwait.js"
 export { removeUseStrictFromModules } from "./widelyAvailable/removeUseStrictFromModules.js"

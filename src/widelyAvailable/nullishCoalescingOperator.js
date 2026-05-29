@@ -13,9 +13,7 @@ export function nullishCoalescingOperator(root) {
 
   root
     .find(j.ConditionalExpression)
-    .filter((path) => {
-      const node = path.node
-
+    .filter(({ node }) => {
       // Test must be a logical AND expression
       if (!j.LogicalExpression.check(node.test) || node.test.operator !== "&&") {
         return false

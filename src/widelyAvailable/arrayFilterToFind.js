@@ -14,9 +14,7 @@ export function arrayFilterToFind(root) {
 
   root
     .find(j.MemberExpression)
-    .filter((path) => {
-      const node = path.node
-
+    .filter(({ node }) => {
       // Must be computed access: expr[0]
       if (!node.computed) {
         return false

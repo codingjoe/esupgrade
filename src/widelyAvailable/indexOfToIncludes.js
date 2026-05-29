@@ -16,9 +16,7 @@ export function indexOfToIncludes(root) {
 
   root
     .find(j.BinaryExpression)
-    .filter((path) => {
-      const node = path.node
-
+    .filter(({ node }) => {
       // Check for comparison operators: !==, ===, >, >=, <, <=
       if (!["!==", "===", ">", ">=", "<", "<="].includes(node.operator)) {
         return false

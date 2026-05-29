@@ -550,6 +550,37 @@ The transformer handles cases where `Array.from(arguments)` has already been con
 
 Note: The `x = x || defaultValue` pattern is NOT transformed as it has different semantics (triggers on any falsy value, instead of `undefined`).
 
+#### Manual property extraction → [Destructuring parameters][mdn-destructuring]
+
+```diff
+-function fn(obj) {
+-  const x = obj.x;
+-  const y = obj.y;
+-  // use x and y
+-}
++function fn({x, y}) {
++  // use x and y
++}
+```
+
+Transforms functions where the body begins by extracting properties from a parameter into object destructuring in the parameter list. Aliased extractions use longhand syntax:
+
+```diff
+-function fn(obj) {
+-  const myX = obj.x;
+-}
++function fn({x: myX}) {
++}
+```
+
+Transforms when:
+
+- The parameter is a simple identifier (not already destructured or a rest parameter)
+- Leading statements are variable declarations extracting non-computed properties from that parameter
+- The original parameter identifier is not referenced after the extraction zone
+
+TypeScript type annotations on the original parameter are preserved on the resulting destructuring pattern.
+
 #### Promise chains → [async/await][mdn-async-await]
 
 ```diff
@@ -809,6 +840,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
+[mdn-destructuring]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment
 [mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-find]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find

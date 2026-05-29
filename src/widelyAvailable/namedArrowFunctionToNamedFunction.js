@@ -27,9 +27,7 @@ export function namedArrowFunctionToNamedFunction(root) {
 
   root
     .find(j.VariableDeclaration)
-    .filter((path) => {
-      const node = path.node
-
+    .filter(({ node }) => {
       // Must have exactly one declarator
       if (node.declarations.length !== 1) {
         return false

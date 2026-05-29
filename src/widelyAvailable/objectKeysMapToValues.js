@@ -48,9 +48,7 @@ export function objectKeysMapToValues(root) {
 
   root
     .find(j.CallExpression)
-    .filter((path) => {
-      const node = path.node
-
+    .filter(({ node }) => {
       if (
         !j.MemberExpression.check(node.callee) ||
         !j.Identifier.check(node.callee.property) ||

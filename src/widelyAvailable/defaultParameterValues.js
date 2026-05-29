@@ -27,9 +27,7 @@ export function defaultParameterValues(root) {
     ...root.find(j.ArrowFunctionExpression).paths(),
   ]
 
-  functionNodes.forEach((path) => {
-    const func = path.node
-
+  functionNodes.forEach(({ node: func }) => {
     // Skip if function body is not a block statement
     if (!j.BlockStatement.check(func.body)) {
       return
