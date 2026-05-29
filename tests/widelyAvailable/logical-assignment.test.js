@@ -125,7 +125,7 @@ suite("widely-available", () => {
       assert(!transform(`if (x === null || x === undefined) x += y`).modified)
     })
 
-    test("transforms multiple patterns in same code", () => {
+    test("transforms multiple logical assignment patterns in same code", () => {
       const result = transform(`x = x ?? a;\ny = y || b;`)
       assert.match(result.code, /x \?\?= a/)
       assert.match(result.code, /y \|\|= b/)
