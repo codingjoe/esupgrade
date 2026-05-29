@@ -41,4 +41,3 @@ Transformers must only apply to types that are statically verifiable. Use `NodeT
 - `new NodeTest(node).hasIndexOfAndIncludes()` — arrays and strings (includes string literals and array method chains like `.map()`, `.filter()`). Use this when the transformation applies to both arrays and strings.
 
 Never apply a transformation based solely on structural shape (e.g., a `.length` property or bracket access) without first verifying the receiver is a known type. An unknown identifier such as `arr` cannot be assumed to be an array and must not be transformed.
-

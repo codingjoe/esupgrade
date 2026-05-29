@@ -21,10 +21,7 @@ export function negativeIndexToAt(root) {
       }
 
       // Property must be a subtraction binary expression
-      if (
-        !j.BinaryExpression.check(node.property) ||
-        node.property.operator !== "-"
-      ) {
+      if (!j.BinaryExpression.check(node.property) || node.property.operator !== "-") {
         return false
       }
 
@@ -66,10 +63,9 @@ export function negativeIndexToAt(root) {
       const { object, property } = path.node
 
       j(path).replaceWith(
-        j.callExpression(
-          j.memberExpression(object, j.identifier("at"), false),
-          [j.unaryExpression("-", property.right)],
-        ),
+        j.callExpression(j.memberExpression(object, j.identifier("at"), false), [
+          j.unaryExpression("-", property.right),
+        ]),
       )
 
       modified = true
