@@ -284,7 +284,8 @@ process(item);
 }
     `)
 
-      assert(!result.modified, "skip when update is not update expression")
+      // compoundAssignment converts i = i + 1 → i += 1, but forLoopToForOf still skips
+      assert.doesNotMatch(result.code, /for \(const item of items\)/)
     })
 
     test("update argument not index variable", () => {

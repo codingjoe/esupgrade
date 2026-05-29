@@ -251,6 +251,31 @@ Transformations are limited to when the receiver can be verified as an array (ar
 +const area = Math.PI * radius ** 2;
 ```
 
+#### Verbose arithmetic assignments → [Compound assignment operators (+=, -=, …)][mdn-compound-assignment]
+
+```diff
+-x = x + y
++x += y
+-x = x - y
++x -= y
+-x = x * y
++x *= y
+-x = x / y
++x /= y
+-x = x % y
++x %= y
+-x = x ** y
++x **= y
+```
+
+> [!NOTE]
+> When the assignment target is a member expression with potential side effects
+> (e.g., `getObj().prop = getObj().prop + y` or `obj[f()] = obj[f()] + y`), the
+> transformation evaluates the target expression only once instead of twice.
+> If `getObj()` or `f()` have observable side effects or return different values
+> on each call, `getObj().prop += y` may produce different results than the
+> original `getObj().prop = getObj().prop + y`.
+
 #### Named function assignments → [Function declarations][mdn-functions]
 
 ```diff
@@ -403,6 +428,32 @@ ES6 modules are automatically in strict mode, making explicit `'use strict'` dir
 -const result = obj.prop !== null && obj.prop !== undefined ? obj.prop : 0;
 +const result = obj.prop ?? 0;
 ```
+
+#### Logical assignment patterns → [Logical assignment operators (??=, ||=, &&=)][mdn-logical-assignment]
+
+```diff
+-x = x ?? y
++x ??= y
+-x = x || y
++x ||= y
+-x = x && y
++x &&= y
+```
+
+```diff
+-if (x === null || x === undefined) x = y
++x ??= y
+```
+
+> [!NOTE]
+> For member expression targets (e.g., `obj.prop ||= y`), the original
+> unconditional assignment always invokes property setters, while the logical
+> assignment operator skips the setter when the condition is not met. This
+> generally improves performance by avoiding unnecessary setter calls.
+>
+> Similarly, for `if (obj.prop === null || obj.prop === undefined) obj.prop = y`,
+> the transformation to `obj.prop ??= y` reads `obj.prop` once instead of twice
+> before assigning, which improves performance for getter-backed properties.
 
 #### `indexOf()` → [includes()][mdn-includes]
 
@@ -657,6 +708,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-async-await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [mdn-at]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/at
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
+[mdn-compound-assignment]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Addition_assignment
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
@@ -669,6 +721,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [mdn-includes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
+[mdn-logical-assignment]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Logical_OR_assignment
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-object-entries]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
 [mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
