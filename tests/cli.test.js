@@ -552,8 +552,7 @@ describe("CLI", () => {
     })
 
     assert.match(result.stderr, /Error:/, "displays error message")
-    assert.doesNotMatch(result.stderr, /at /, "omits stack trace")
-  })
+    assert.doesNotMatch(result.stderr, /\n\s*at /, "omits stack trace")
 
   test("show error message without stack trace at --verbose level 1", () => {
     const testFile = path.join(tempDir, "test.js")
@@ -564,8 +563,7 @@ describe("CLI", () => {
     })
 
     assert.match(result.stderr, /Error:/, "displays error message")
-    assert.doesNotMatch(result.stderr, /at /, "omits stack trace at verbosity level 1")
-  })
+    assert.doesNotMatch(result.stderr, /\n\s*at /, "omits stack trace at verbosity level 1")
 
   test("show full error with stack trace at --verbose --verbose level 2", () => {
     const testFile = path.join(tempDir, "test.js")
@@ -578,6 +576,5 @@ describe("CLI", () => {
     )
 
     assert.match(result.stderr, /Error:/, "displays error message")
-    assert.match(result.stderr, /at /, "includes stack trace at verbosity level 2")
-  })
+    assert.match(result.stderr, /\n\s*at /, "includes stack trace at verbosity level 2")
 })
