@@ -45,6 +45,11 @@ export function negativeIndexToAt(root) {
         return false
       }
 
+      // Must be a statically verifiable iterable (array literal, new Array, Array.from/of, etc.)
+      if (!new NodeTest(node.object).isIterable()) {
+        return false
+      }
+
       // Right side must not be a negative literal or unary negation
       if (j.UnaryExpression.check(right) && right.operator === "-") {
         return false
