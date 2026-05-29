@@ -73,3 +73,4 @@ export function negativeIndexToAt(root) {
 
   return modified
 }
+negativeIndexToAt.baselineDate = new Date(Date.UTC(2022, 2, 17))
