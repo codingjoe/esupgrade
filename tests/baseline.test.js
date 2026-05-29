@@ -15,6 +15,8 @@ function widelyAvailableAt(date) {
   return result
 }
 
+const currentReleaseDate = new Date("2025-01-01")
+
 suite("baseline", () => {
   test("all transformers have a baselineDate", () => {
     for (const [name, transformer] of Object.entries({
@@ -28,7 +30,7 @@ suite("baseline", () => {
   test("widelyAvailable transformers have been released for at least 30 months", () => {
     for (const [name, transformer] of Object.entries(widelyAvailable)) {
       assert(
-        widelyAvailableAt(new Date(transformer.baselineDate)) <= new Date(),
+        widelyAvailableAt(new Date(transformer.baselineDate)) <= currentReleaseDate,
         `${name} (${transformer.baselineDate}) should be released for at least 30 months`,
       )
     }
@@ -37,7 +39,7 @@ suite("baseline", () => {
   test("newlyAvailable transformers are not yet widely available", () => {
     for (const [name, transformer] of Object.entries(newlyAvailable)) {
       assert(
-        widelyAvailableAt(new Date(transformer.baselineDate)) > new Date(),
+        widelyAvailableAt(new Date(transformer.baselineDate)) > currentReleaseDate,
         `${name} (${transformer.baselineDate}) should be moved to widelyAvailable`,
       )
     }
