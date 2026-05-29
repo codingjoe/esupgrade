@@ -224,7 +224,7 @@ Supports:
 +const maxUsers = 1_000_000n;
 ```
 
-Only decimal integer and bigint literals with at least five digits are transformed.
+esupgrade transforms decimal integer and bigint literals with at least five digits.
 Fractional, exponential, hexadecimal, octal, binary, and already formatted literals are left unchanged.
 
 #### `Array.slice(0)` → [Array spread [...]][mdn-spread]
@@ -283,7 +283,7 @@ Transformations are limited to when the receiver can be verified as an array (ar
 > [!NOTE]
 > When the assignment target is a member expression with potential side effects
 > (e.g., `getObj().prop = getObj().prop + y` or `obj[f()] = obj[f()] + y`), the
-> transformation evaluates the target expression only once instead of twice.
+> transformation evaluates the target expression once instead of twice.
 > If `getObj()` or `f()` have observable side effects or return different values
 > on each call, `getObj().prop += y` may produce different results than the
 > original `getObj().prop = getObj().prop + y`.

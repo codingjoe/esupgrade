@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import { describe, suite, test } from "node:test"
+import jscodeshift from "jscodeshift"
 import { transform } from "../../src/index.js"
+import { numericSeparators } from "../../src/widelyAvailable/numericSeparators.js"
 
 suite("widely-available", () => {
   describe("numeric separators", () => {
@@ -44,6 +46,17 @@ suite("widely-available", () => {
       )
 
       assert(!result.modified)
+    })
+
+    test("skip literals without raw source text", () => {
+      const j = jscodeshift.withParser("tsx")
+      const root = j(`const budget = 1000000;`)
+
+      root.find(j.NumericLiteral).forEach((path) => {
+        path.node.extra = undefined
+      })
+
+      assert(!numericSeparators(root))
     })
   })
 })
