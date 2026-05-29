@@ -23,7 +23,10 @@ suite("baseline", () => {
       ...widelyAvailable,
       ...newlyAvailable,
     })) {
-      assert(transformer.baselineDate instanceof Date, `${name} must have a baselineDate`)
+      assert(
+        transformer.baselineDate instanceof Date,
+        `${name} must have a baselineDate`,
+      )
     }
   })
 
