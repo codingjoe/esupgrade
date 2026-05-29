@@ -27,6 +27,7 @@ export { objectKeysMapToValues } from "./widelyAvailable/objectKeysMapToValues.j
 export { objectPropertyExtractionToDestructuring } from "./widelyAvailable/objectPropertyExtractionToDestructuring.js"
 export { optionalChaining } from "./widelyAvailable/optionalChaining.js"
 export { promiseToAsyncAwait } from "./widelyAvailable/promiseToAsyncAwait.js"
+export { replaceAll } from "./widelyAvailable/replaceAll.js"
 export { removeUseStrictFromModules } from "./widelyAvailable/removeUseStrictFromModules.js"
 export { substringToStartsWith } from "./widelyAvailable/substringToStartsWith.js"
 export { substrToSlice } from "./widelyAvailable/substrToSlice.js"
