@@ -144,15 +144,20 @@ function isCounterIncrement(statement, counterName) {
  * @returns {boolean} Whether the comparison matches the supported shape.
  */
 function isRejectedAllComparison(expression, counterName, promisesName) {
-  const isCounter = (node) =>
-    j.Identifier.check(node) && node.name === counterName
-  const isPromisesLength = (node) =>
-    j.MemberExpression.check(node) &&
-    !node.computed &&
-    j.Identifier.check(node.object) &&
-    node.object.name === promisesName &&
-    j.Identifier.check(node.property) &&
-    node.property.name === "length"
+  function isCounter(node) {
+    return j.Identifier.check(node) && node.name === counterName
+  }
+
+  function isPromisesLength(node) {
+    return (
+      j.MemberExpression.check(node) &&
+      !node.computed &&
+      j.Identifier.check(node.object) &&
+      node.object.name === promisesName &&
+      j.Identifier.check(node.property) &&
+      node.property.name === "length"
+    )
+  }
 
   return (
     j.BinaryExpression.check(expression) &&
@@ -334,24 +339,22 @@ function getPromisesForManualAny(node) {
 export function promiseAny(root) {
   let modified = false
 
-  root
-    .find(j.NewExpression)
-    .forEach((path) => {
-      const promisesIdentifier = getPromisesForManualAny(path.node)
+  root.find(j.NewExpression).forEach((path) => {
+    const promisesIdentifier = getPromisesForManualAny(path.node)
 
-      if (!promisesIdentifier) {
-        return
-      }
+    if (!promisesIdentifier) {
+      return
+    }
 
-      j(path).replaceWith(
-        j.callExpression(
-          j.memberExpression(j.identifier("Promise"), j.identifier("any")),
-          [promisesIdentifier],
-        ),
-      )
+    j(path).replaceWith(
+      j.callExpression(
+        j.memberExpression(j.identifier("Promise"), j.identifier("any")),
+        [promisesIdentifier],
+      ),
+    )
 
-      modified = true
-    })
+    modified = true
+  })
 
   return modified
 }

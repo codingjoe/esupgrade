@@ -42,6 +42,22 @@ suite("newly-available", () => {
       )
     })
 
+    test("transform reversed comparison without block consequent", () => {
+      assert.match(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach((promise) => promise.then(resolve, () => {
+    ++rejectedCount;
+    if (promises.length === rejectedCount) reject(new AggregateError());
+  }));
+});`,
+          "newly-available",
+        ).code,
+        /Promise\.any\(promises\)/,
+      )
+    })
+
     test("not available in widely-available baseline", () => {
       assert.doesNotMatch(
         transform(
@@ -115,6 +131,45 @@ suite("newly-available", () => {
       )
     })
 
+    test("skip non-zero rejection counter", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 1;
+  promises.forEach((promise) => promise.then(resolve, () => {
+    rejectedCount += 1;
+    if (rejectedCount === promises.length) {
+      reject(new AggregateError());
+    }
+  }));
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip callback body without direct then call", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach((promise) => {
+    const currentPromise = promise;
+    currentPromise.then(resolve, () => {
+      rejectedCount += 1;
+      if (rejectedCount === promises.length) {
+        reject(new AggregateError());
+      }
+    });
+  });
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
     test("skip alternate rejection branch", () => {
       assert.equal(
         transform(
@@ -126,6 +181,157 @@ suite("newly-available", () => {
       reject(new AggregateError());
     } else {
       rejectLater();
+    }
+  }));
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip reject handler without block body", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach((promise) =>
+    promise.then(resolve, () => rejectedCount += 1),
+  );
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip non-expression counter increment", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach((promise) => promise.then(resolve, () => {
+    if (failed(promise)) {
+      rejectedCount += 1;
+    }
+    if (rejectedCount === promises.length) {
+      reject(new AggregateError());
+    }
+  }));
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip non-expression forEach statement", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  return promises.forEach((promise) => promise.then(resolve, () => {
+    rejectedCount += 1;
+    if (rejectedCount === promises.length) {
+      reject(new AggregateError());
+    }
+  }));
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip non-function forEach callback", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach(handlePromise);
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip multi-parameter forEach callback", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach((promise, index) => promise.then(resolve, () => {
+    rejectedCount += 1;
+    if (rejectedCount === promises.length) {
+      reject(new AggregateError());
+    }
+  }));
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip non-identifier forEach callback parameter", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach(({ promise }) => promise.then(resolve, () => {
+    rejectedCount += 1;
+    if (rejectedCount === promises.length) {
+      reject(new AggregateError());
+    }
+  }));
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip non-function reject handler", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach((promise) => promise.then(resolve, handleReject));
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip unsupported then receiver", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach((promise) => getPromise(promise).then(resolve, () => {
+    rejectedCount += 1;
+    if (rejectedCount === promises.length) {
+      reject(new AggregateError());
+    }
+  }));
+});`,
+          "newly-available",
+        ).modified,
+        false,
+      )
+    })
+
+    test("skip return reject call", () => {
+      assert.equal(
+        transform(
+          `const first = new Promise((resolve, reject) => {
+  let rejectedCount = 0;
+  promises.forEach((promise) => promise.then(resolve, () => {
+    rejectedCount += 1;
+    if (rejectedCount === promises.length) {
+      return reject(new AggregateError());
     }
   }));
 });`,
