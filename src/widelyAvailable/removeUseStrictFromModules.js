@@ -49,3 +49,4 @@ export function removeUseStrictFromModules(root) {
 
   return modified
 }
+removeUseStrictFromModules.baselineDate = new Date(Date.UTC(2018, 4, 9))

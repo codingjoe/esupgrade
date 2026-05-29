@@ -35,3 +35,4 @@ export function consoleLogToInfo(root) {
 
   return modified
 }
+consoleLogToInfo.baselineDate = new Date(Date.UTC(2015, 6, 29))

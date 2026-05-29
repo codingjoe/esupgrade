@@ -75,3 +75,4 @@ export function anonymousFunctionToArrow(root) {
 
   return modified
 }
+anonymousFunctionToArrow.baselineDate = new Date(Date.UTC(2016, 8, 20))

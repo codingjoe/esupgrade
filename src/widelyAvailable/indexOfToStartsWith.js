@@ -71,3 +71,4 @@ export function indexOfToStartsWith(root) {
 
   return modified
 }
+indexOfToStartsWith.baselineDate = new Date(Date.UTC(2015, 8, 30))

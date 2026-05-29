@@ -117,3 +117,4 @@ export function objectKeysMapToValues(root) {
 
   return modified
 }
+objectKeysMapToValues.baselineDate = new Date(Date.UTC(2017, 2, 27))

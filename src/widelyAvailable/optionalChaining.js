@@ -88,3 +88,4 @@ export function optionalChaining(root) {
 
   return modified
 }
+optionalChaining.baselineDate = new Date(Date.UTC(2020, 6, 28))

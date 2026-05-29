@@ -26,3 +26,4 @@ export function varToLetOrConst(root) {
 
   return modified
 }
+varToLetOrConst.baselineDate = new Date(Date.UTC(2016, 8, 20))

@@ -159,3 +159,4 @@ export function objectKeysForEachToEntries(root) {
 
   return modified
 }
+objectKeysForEachToEntries.baselineDate = new Date(Date.UTC(2017, 2, 27))
