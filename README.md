@@ -682,6 +682,21 @@ These transformations are mainly to harden code for future releases and should b
 +});
 ```
 
+#### `new Promise((resolve, reject) => { ... })` → [Promise.any][mdn-promise-any]
+
+```diff
+-new Promise((resolve, reject) => {
+-  let rejectedCount = 0;
+-  promises.forEach((promise) => promise.then(resolve, () => {
+-    rejectedCount += 1;
+-    if (rejectedCount === promises.length) {
+-      reject(new AggregateError());
+-    }
+-  }));
+-});
++Promise.any(promises);
+```
+
 ## Versioning
 
 esupgrade uses the [calver] `YYYY.MINOR.PATCH` versioning scheme.
@@ -725,6 +740,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-object-entries]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
 [mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
+[mdn-promise-any]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-rest-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
 [mdn-slice]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice
