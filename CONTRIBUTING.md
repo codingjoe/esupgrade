@@ -24,3 +24,8 @@ uvx pre-commit run --all-files
 ## Naming conversions
 
 When writing code, please follow the [naming guidelines](https://raw.githubusercontent.com/codingjoe/naming-things/refs/heads/main/README.md).
+
+## Baselines release dates
+
+The `baselineDate` can be found on
+https://github.com/web-platform-dx/web-features named `baseline_low_date`.

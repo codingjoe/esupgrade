@@ -18,6 +18,7 @@ function widelyAvailableAt(date) {
 const currentReleaseDate = new Date(Date.UTC(2025, 0, 1))
 
 suite("baseline", () => {
+  // Dates can be found on https://github.com/web-platform-dx/web-features named `baseline_low_date`
   test("all transformers have a baselineDate", () => {
     for (const [name, transformer] of Object.entries({
       ...widelyAvailable,
