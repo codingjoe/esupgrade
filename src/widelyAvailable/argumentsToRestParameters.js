@@ -24,8 +24,7 @@ export function argumentsToRestParameters(root) {
     ...root.find(j.FunctionExpression).paths(),
   ]
 
-  functionNodes.forEach((path) => {
-    const func = path.node
+  functionNodes.forEach(({ node: func }) => {
     if (
       (func.params.length > 0 &&
         j.RestElement.check(func.params[func.params.length - 1])) ||

@@ -1066,8 +1066,7 @@ export function processMultipleDeclarators(root, path) {
  * @param {string} name - Name to check for shadowing
  * @returns {boolean} True if the identifier is shadowed
  */
-export function isShadowed(path, name) {
-  let scope = path.scope
+export function isShadowed({ scope }, name) {
   while (scope) {
     if (scope.getBindings()[name]) {
       return true

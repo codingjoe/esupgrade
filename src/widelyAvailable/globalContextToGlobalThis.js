@@ -14,8 +14,7 @@ export function globalContextToGlobalThis(root) {
 
   root
     .find(j.CallExpression)
-    .filter((path) => {
-      const node = path.node
+    .filter(({ node }) => {
       // Check if this is a call to Function constructor
       if (
         !j.Identifier.check(node.callee) ||

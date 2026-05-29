@@ -12,8 +12,7 @@ export function consoleLogToInfo(root) {
 
   root
     .find(j.CallExpression)
-    .filter((path) => {
-      const node = path.node
+    .filter(({ node }) => {
       // Check if this is a console.log() call
       if (
         !j.MemberExpression.check(node.callee) ||
@@ -27,9 +26,7 @@ export function consoleLogToInfo(root) {
 
       return true
     })
-    .forEach((path) => {
-      const node = path.node
-
+    .forEach(({ node }) => {
       // Replace the property name from 'log' to 'info'
       node.callee.property.name = "info"
 

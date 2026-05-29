@@ -26,9 +26,7 @@ export function removeUseStrictFromModules(root) {
   }
 
   // Find and remove 'use strict' directives
-  root.find(j.Program).forEach((programPath) => {
-    const program = programPath.node
-
+  root.find(j.Program).forEach(({ node: program }) => {
     // Check directives array (Babel/TSX parser stores directives here)
     if (program.directives && Array.isArray(program.directives)) {
       let i = 0

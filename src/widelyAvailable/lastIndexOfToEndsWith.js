@@ -15,9 +15,7 @@ export function lastIndexOfToEndsWith(root) {
 
   root
     .find(j.BinaryExpression)
-    .filter((path) => {
-      const node = path.node
-
+    .filter(({ node }) => {
       // Check for === or !== operators
       if (!["===", "!=="].includes(node.operator)) {
         return false

@@ -26,9 +26,7 @@ export function objectPropertyExtractionToDestructuring(root) {
     ...root.find(j.ArrowFunctionExpression).paths(),
   ]
 
-  functionNodes.forEach((path) => {
-    const func = path.node
-
+  functionNodes.forEach(({ node: func }) => {
     if (!j.BlockStatement.check(func.body)) {
       return
     }
@@ -329,7 +327,7 @@ function removeExtractionDeclarators(body, extractions) {
   })
 
   Array.from(statementMap.entries())
-    .sort(([a], [b]) => b - a)
+    .sort((a, b) => b[0] - a[0])
     .forEach(([statementIndex, declaratorIndices]) => {
       const statement = body.body[statementIndex]
 
