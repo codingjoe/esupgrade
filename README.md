@@ -694,6 +694,15 @@ These transformations are mainly to harden code for future releases and should b
 +});
 ```
 
+#### `Object.prototype.hasOwnProperty.call()` → [Object.hasOwn()][mdn-object-has-own]
+
+```diff
+-Object.prototype.hasOwnProperty.call(obj, prop);
+-({}).hasOwnProperty.call(obj, prop);
++Object.hasOwn(obj, prop);
++Object.hasOwn(obj, prop);
+```
+
 ## Versioning
 
 esupgrade uses the [calver] `YYYY.MINOR.PATCH` versioning scheme.
@@ -737,6 +746,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-numeric-separators]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#numeric_separators
 [mdn-object-entries]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
+[mdn-object-has-own]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn
 [mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
 [mdn-rest-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
