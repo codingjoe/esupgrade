@@ -293,5 +293,19 @@ function fn(obj, y = obj.x) {
       assert.match(result.code, /function fn\(obj,/)
       assert.match(result.code, /const x = obj\.x/)
     })
+
+    test("skip when body contains sparse array pattern referencing parameter", () => {
+      const result = transform(`
+function fn(obj) {
+  const x = obj.x;
+  const [, b] = obj.arr;
+  return x + b;
+}
+      `)
+
+      assert(!result.modified, "should not transform when obj is used after extractions")
+      assert.match(result.code, /function fn\(obj\)/)
+      assert.match(result.code, /const x = obj\.x/)
+    })
   })
 })

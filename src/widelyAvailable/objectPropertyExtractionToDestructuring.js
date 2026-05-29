@@ -277,10 +277,7 @@ function deepContainsIdentifier(node, name) {
  * @returns {boolean} True if the node is a string literal
  */
 function isStringLiteralNode(node) {
-  return (
-    j.StringLiteral.check(node) ||
-    (j.Literal.check(node) && typeof node.value === "string")
-  )
+  return j.StringLiteral.check(node)
 }
 
 /**
@@ -326,9 +323,8 @@ function removeExtractionDeclarators(body, extractions) {
     statementMap.get(statementIndex).push(declaratorIndex)
   })
 
-  Array.from(statementMap.entries())
-    .sort((a, b) => b[0] - a[0])
-    .forEach(([statementIndex, declaratorIndices]) => {
+  const sortedEntries = [...statementMap.entries()].sort((a, b) => b[0] - a[0])
+  sortedEntries.forEach(([statementIndex, declaratorIndices]) => {
       const statement = body.body[statementIndex]
 
       declaratorIndices
