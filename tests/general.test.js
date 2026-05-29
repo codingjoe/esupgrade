@@ -52,7 +52,7 @@ suite("widely-available", () => {
         /const first = \[1, 2, 3\]\.find\(\(value\) => value > 1\);/,
         "resolve chained transformations",
       )
-      assert(!result.code.includes(".filter("), "remove filter index pattern")
+      assert(!result.code.includes(".filter("), "transform filter access to find")
     })
   })
 })
