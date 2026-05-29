@@ -88,7 +88,11 @@ function getReplaceAllArguments(node) {
     }
   }
 
-  if (!isReplaceCall(node) || node.arguments.length !== 2 || !isKnownString(node.callee.object)) {
+  if (
+    !isReplaceCall(node) ||
+    node.arguments.length !== 2 ||
+    !isKnownString(node.callee.object)
+  ) {
     return null
   }
 
@@ -115,28 +119,26 @@ function getReplaceAllArguments(node) {
 export function replaceAll(root) {
   let modified = false
 
-  root
-    .find(j.CallExpression)
-    .forEach((path) => {
-      const replaceAllArguments = getReplaceAllArguments(path.node)
+  root.find(j.CallExpression).forEach((path) => {
+    const replaceAllArguments = getReplaceAllArguments(path.node)
 
-      if (!replaceAllArguments) {
-        return
-      }
+    if (!replaceAllArguments) {
+      return
+    }
 
-      j(path).replaceWith(
-        j.callExpression(
-          j.memberExpression(
-            replaceAllArguments.receiver,
-            j.identifier("replaceAll"),
-            false,
-          ),
-          [replaceAllArguments.searchValue, replaceAllArguments.replaceValue],
+    j(path).replaceWith(
+      j.callExpression(
+        j.memberExpression(
+          replaceAllArguments.receiver,
+          j.identifier("replaceAll"),
+          false,
         ),
-      )
+        [replaceAllArguments.searchValue, replaceAllArguments.replaceValue],
+      ),
+    )
 
-      modified = true
-    })
+    modified = true
+  })
 
   return modified
 }
