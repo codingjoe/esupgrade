@@ -7,7 +7,7 @@ function isKnownString(node) {
   return new NodeTest(node).hasIndexOfAndIncludes()
 }
 
-function isStringValue(node) {
+function isStringLiteralNode(node) {
   return (
     (j.StringLiteral.check(node) || j.Literal.check(node)) &&
     typeof node.value === "string"
@@ -15,7 +15,7 @@ function isStringValue(node) {
 }
 
 function isEmptyString(node) {
-  if (isStringValue(node)) {
+  if (isStringLiteralNode(node)) {
     return node.value === ""
   }
 
@@ -27,7 +27,7 @@ function isEmptyString(node) {
   )
 }
 
-function isFunctionValue(node) {
+function isFunctionExpression(node) {
   return j.FunctionExpression.check(node) || j.ArrowFunctionExpression.check(node)
 }
 
@@ -66,7 +66,7 @@ function isLiteralGlobalRegExp(node) {
   )
 }
 
-function getReplaceAllArguments(node) {
+function extractReplaceAllComponents(node) {
   if (isJoinCall(node)) {
     const splitCall = node.callee.object
 
@@ -76,7 +76,7 @@ function getReplaceAllArguments(node) {
       node.arguments.length !== 1 ||
       !isKnownString(splitCall.callee.object) ||
       isEmptyString(splitCall.arguments[0]) ||
-      isFunctionValue(node.arguments[0])
+      isFunctionExpression(node.arguments[0])
     ) {
       return null
     }
@@ -98,7 +98,7 @@ function getReplaceAllArguments(node) {
 
   const searchValue = node.arguments[0]
 
-  if (!isLiteralGlobalRegExp(searchValue) || isFunctionValue(node.arguments[1])) {
+  if (!isLiteralGlobalRegExp(searchValue) || isFunctionExpression(node.arguments[1])) {
     return null
   }
 
@@ -120,20 +120,20 @@ export function replaceAll(root) {
   let modified = false
 
   root.find(j.CallExpression).forEach((path) => {
-    const replaceAllArguments = getReplaceAllArguments(path.node)
+    const replaceAllComponents = extractReplaceAllComponents(path.node)
 
-    if (!replaceAllArguments) {
+    if (!replaceAllComponents) {
       return
     }
 
     j(path).replaceWith(
       j.callExpression(
         j.memberExpression(
-          replaceAllArguments.receiver,
+          replaceAllComponents.receiver,
           j.identifier("replaceAll"),
           false,
         ),
-        [replaceAllArguments.searchValue, replaceAllArguments.replaceValue],
+        [replaceAllComponents.searchValue, replaceAllComponents.replaceValue],
       ),
     )
 

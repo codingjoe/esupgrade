@@ -271,7 +271,7 @@ Transformations are limited to when the receiver can be verified as an array (ar
 > [!NOTE]
 > When the assignment target is a member expression with potential side effects
 > (e.g., `getObj().prop = getObj().prop + y` or `obj[f()] = obj[f()] + y`), the
-> transformation evaluates the target expression only once instead of twice.
+> transformation evaluates the target expression once instead of twice.
 > If `getObj()` or `f()` have observable side effects or return different values
 > on each call, `getObj().prop += y` may produce different results than the
 > original `getObj().prop = getObj().prop + y`.
@@ -506,7 +506,7 @@ Transformations are limited to when the receiver can be verified as a string (st
 
 Transforms simple string replacement patterns to `replaceAll()` when the receiver can be verified as a string (for example, string literals, template literals, or safe string method chains).
 
-For `split().join()`, only the simple one-argument form is transformed. For `replace()`, only global regular expression literals that represent plain string text are transformed.
+For `split().join()`, the transform applies to the simple one-argument form. For `replace()`, the transform applies to global regular expression literals that represent plain string text.
 
 #### `Object.keys().forEach()` → [Object.entries()][mdn-object-entries]
 
