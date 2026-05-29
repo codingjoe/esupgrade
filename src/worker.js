@@ -23,6 +23,6 @@ try {
   parentPort.postMessage({
     success: false,
     filePath,
-    error: error.message,
+    error,
   })
 }

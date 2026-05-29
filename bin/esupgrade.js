@@ -58,6 +58,7 @@ class FileProcessor {
    * @param {string} options.baseline - Baseline level for transformations.
    * @param {boolean} options.check - Whether to only check for changes.
    * @param {boolean} options.write - Whether to write changes to file.
+   * @param {boolean} options.verbose - The verbosity level for logging.
    * @param {boolean} options.jQuery - Whether to include jQuery transformers.
    * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
    */
@@ -82,7 +83,10 @@ class FileProcessor {
       )
 
       if (!workerResult.success) {
-        console.error(`\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error}`)
+        if (options.verbose) console.error(workerResult.error)
+        console.error(
+          `\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error.message}`,
+        )
         return { modified: false, error: true }
       }
 
@@ -266,6 +270,7 @@ program
       .choices(["widely-available", "newly-available"])
       .default("widely-available"),
   )
+  .option("--verbose, -v", "Show more detailed output.", false)
   .option(
     "--check",
     "Report which files need upgrading and exit with code 1 if any do",
