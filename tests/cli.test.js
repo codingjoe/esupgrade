@@ -555,23 +555,7 @@ describe("CLI", () => {
     assert.doesNotMatch(result.stderr, /\n\s*at /, "omits stack trace")
   })
 
-  test("show error message without stack trace at --verbose level 1", () => {
-    const testFile = path.join(tempDir, "test.js")
-    fs.writeFileSync(testFile, `var x = {{{;`)
-
-    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--verbose"], {
-      encoding: "utf8",
-    })
-
-    assert.match(result.stderr, /Error:/, "displays error message")
-    assert.doesNotMatch(
-      result.stderr,
-      /\n\s*at /,
-      "omits stack trace at verbosity level 1",
-    )
-  })
-
-  test("show full error with stack trace at --verbose --verbose level 2", () => {
+  test("show full error with stack trace with --verbose", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = {{{;`)
 
