@@ -268,14 +268,12 @@ Transformations are limited to when the receiver can be verified as an array (ar
 +x **= y
 ```
 
-Increment and decrement shorthand when used as statements:
-
-```diff
--x = x + 1
-+x++
--x = x - 1
-+x--
-```
+> [!NOTE]
+> When the assignment target is a member expression with potential side effects
+> (e.g., `getObj().prop = getObj().prop + y` or `obj[f()] = obj[f()] + y`), the
+> transformation reduces two property accesses to one. While this changes how many
+> times side effects from getters or computed keys are evaluated, it generally
+> improves performance by eliminating redundant calls.
 
 #### Named function assignments → [Function declarations][mdn-functions]
 
@@ -445,6 +443,16 @@ ES6 modules are automatically in strict mode, making explicit `'use strict'` dir
 -if (x === null || x === undefined) x = y
 +x ??= y
 ```
+
+> [!NOTE]
+> For member expression targets (e.g., `obj.prop ||= y`), the original
+> unconditional assignment always invokes property setters, while the logical
+> assignment operator skips the setter when the condition is not met. This
+> generally improves performance by avoiding unnecessary setter calls.
+>
+> Similarly, for `if (obj.prop === null || obj.prop === undefined) obj.prop = y`,
+> the transformation to `obj.prop ??= y` reads `obj.prop` once instead of twice
+> before assigning, which improves performance for getter-backed properties.
 
 #### `indexOf()` → [includes()][mdn-includes]
 

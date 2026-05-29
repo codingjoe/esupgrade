@@ -20,8 +20,6 @@ const BINARY_TO_COMPOUND = new Map([
  * - `x = x / y` → `x /= y`
  * - `x = x % y` → `x %= y`
  * - `x = x ** y` → `x **= y`
- * - `x = x + 1` (statement) → `x++`
- * - `x = x - 1` (statement) → `x--`
  *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
@@ -43,22 +41,9 @@ export function compoundAssignment(root) {
       const op = node.right.operator
       const right = node.right.right
 
-      // Transform x = x + 1 → x++ and x = x - 1 → x-- only in statement context,
-      // since x++ and x-- return the old value (unlike x += 1 and x -= 1).
-      if (
-        (op === "+" || op === "-") &&
-        j.Literal.check(right) &&
-        right.value === 1 &&
-        j.ExpressionStatement.check(path.parent.node)
-      ) {
-        j(path).replaceWith(
-          j.updateExpression(op === "+" ? "++" : "--", node.left, false),
-        )
-      } else {
-        j(path).replaceWith(
-          j.assignmentExpression(BINARY_TO_COMPOUND.get(op), node.left, right),
-        )
-      }
+      j(path).replaceWith(
+        j.assignmentExpression(BINARY_TO_COMPOUND.get(op), node.left, right),
+      )
       modified = true
     })
 

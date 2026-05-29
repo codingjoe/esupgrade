@@ -36,21 +36,21 @@ suite("widely-available", () => {
       assert.match(transform(`obj[key] = obj[key] + y`).code, /obj\[key\] \+= y/)
     })
 
-    test("transforms x = x + 1 statement to x++", () => {
-      assert.match(transform(`x = x + 1`).code, /x\+\+/)
+    test("transforms x = x + 1 to x += 1", () => {
+      assert.match(transform(`x = x + 1`).code, /x \+= 1/)
     })
 
-    test("transforms x = x - 1 statement to x--", () => {
-      assert.match(transform(`x = x - 1`).code, /x--/)
+    test("transforms x = x - 1 to x -= 1", () => {
+      assert.match(transform(`x = x - 1`).code, /x -= 1/)
     })
 
-    test("keeps x += 1 form when x = x + 1 is used as expression", () => {
+    test("transforms x = x + 1 as expression to x += 1", () => {
       const result = transform(`y = (x = x + 1)`)
       assert.match(result.code, /x \+= 1/)
       assert.doesNotMatch(result.code, /x\+\+/)
     })
 
-    test("keeps x -= 1 form when x = x - 1 is used as expression", () => {
+    test("transforms x = x - 1 as expression to x -= 1", () => {
       const result = transform(`y = (x = x - 1)`)
       assert.match(result.code, /x -= 1/)
       assert.doesNotMatch(result.code, /x--/)
