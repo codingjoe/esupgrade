@@ -271,9 +271,10 @@ Transformations are limited to when the receiver can be verified as an array (ar
 > [!NOTE]
 > When the assignment target is a member expression with potential side effects
 > (e.g., `getObj().prop = getObj().prop + y` or `obj[f()] = obj[f()] + y`), the
-> transformation reduces two property accesses to one. While this changes how many
-> times side effects from getters or computed keys are evaluated, it generally
-> improves performance by eliminating redundant calls.
+> transformation evaluates the target expression only once instead of twice.
+> If `getObj()` or `f()` have observable side effects or return different values
+> on each call, `getObj().prop += y` may produce different results than the
+> original `getObj().prop = getObj().prop + y`.
 
 #### Named function assignments → [Function declarations][mdn-functions]
 
