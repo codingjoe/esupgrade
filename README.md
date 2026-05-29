@@ -215,6 +215,18 @@ Supports:
 +const withItem = [...array, item];
 ```
 
+#### `1000000` → [Numeric separators][mdn-numeric-separators]
+
+```diff
+-const budget = 1000000;
+-const maxUsers = 1000000n;
++const budget = 1_000_000;
++const maxUsers = 1_000_000n;
+```
+
+esupgrade transforms decimal integer and bigint literals with at least five digits.
+Fractional, exponential, hexadecimal, octal, binary, and already formatted literals are left unchanged.
+
 #### `Array.slice(0)` → [Array spread [...]][mdn-spread]
 
 ```diff
@@ -271,7 +283,7 @@ Transformations are limited to when the receiver can be verified as an array (ar
 > [!NOTE]
 > When the assignment target is a member expression with potential side effects
 > (e.g., `getObj().prop = getObj().prop + y` or `obj[f()] = obj[f()] + y`), the
-> transformation evaluates the target expression only once instead of twice.
+> transformation evaluates the target expression once instead of twice.
 > If `getObj()` or `f()` have observable side effects or return different values
 > on each call, `getObj().prop += y` may produce different results than the
 > original `getObj().prop = getObj().prop + y`.
@@ -723,6 +735,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [mdn-logical-assignment]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Logical_OR_assignment
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
+[mdn-numeric-separators]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#numeric_separators
 [mdn-object-entries]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
 [mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try

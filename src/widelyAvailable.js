@@ -21,6 +21,7 @@ export { mathPowToExponentiation } from "./widelyAvailable/mathPowToExponentiati
 export { namedArrowFunctionToNamedFunction } from "./widelyAvailable/namedArrowFunctionToNamedFunction.js"
 export { negativeIndexToAt } from "./widelyAvailable/negativeIndexToAt.js"
 export { nullishCoalescingOperator } from "./widelyAvailable/nullishCoalescingOperator.js"
+export { numericSeparators } from "./widelyAvailable/numericSeparators.js"
 export { objectAssignToSpread } from "./widelyAvailable/objectAssignToSpread.js"
 export { objectKeysForEachToEntries } from "./widelyAvailable/objectKeysForEachToEntries.js"
 export { objectKeysMapToValues } from "./widelyAvailable/objectKeysMapToValues.js"
