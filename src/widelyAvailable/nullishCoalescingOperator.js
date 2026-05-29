@@ -71,3 +71,4 @@ export function nullishCoalescingOperator(root) {
 
   return modified
 }
+nullishCoalescingOperator.baselineDate = new Date(Date.UTC(2020, 8, 16))

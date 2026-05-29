@@ -120,3 +120,4 @@ export function substringToStartsWith(root) {
 
   return modified
 }
+substringToStartsWith.baselineDate = new Date(Date.UTC(2015, 8, 30))

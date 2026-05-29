@@ -141,3 +141,4 @@ export function indexOfToIncludes(root) {
 
   return modified
 }
+indexOfToIncludes.baselineDate = new Date(Date.UTC(2016, 8, 20))

@@ -262,3 +262,4 @@ export function constructorToClass(root) {
   findPrototypeMethods(root, constructors)
   return transformConstructorsToClasses(root, constructors)
 }
+constructorToClass.baselineDate = new Date(Date.UTC(2016, 2, 8))

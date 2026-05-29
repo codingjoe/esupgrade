@@ -72,3 +72,4 @@ export function arrayFromForEachToForOf(root) {
 
   return modified
 }
+arrayFromForEachToForOf.baselineDate = new Date(Date.UTC(2016, 8, 20))

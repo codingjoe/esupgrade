@@ -163,3 +163,4 @@ export function iterableForEachToForOf(root) {
 
   return modified
 }
+iterableForEachToForOf.baselineDate = new Date(Date.UTC(2015, 6, 29))

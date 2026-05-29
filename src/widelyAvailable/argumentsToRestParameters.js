@@ -86,3 +86,4 @@ export function argumentsToRestParameters(root) {
 
   return modified
 }
+argumentsToRestParameters.baselineDate = new Date(Date.UTC(2016, 8, 20))
