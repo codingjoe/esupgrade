@@ -293,6 +293,10 @@ export class NodeTest {
    * @returns {boolean} True if predicate returned true for any node
    */
   #traverseForPredicate(astNode, predicate) {
+    if (!astNode) {
+      return false
+    }
+
     if (predicate(astNode)) {
       return true
     }

@@ -116,6 +116,15 @@ suite("widely-available", () => {
       assert.match(result.code, /console\.info\('test'\)/)
     })
 
+    test("arrow function with array destructuring holes in body", () => {
+      const result = transform(
+        `const f = (arr) => { const [a, , b] = arr; return a + b; }`,
+      )
+
+      assert(result.modified, "transform arrow function with array holes in body")
+      assert.match(result.code, /function f\(arr\)/)
+    })
+
     test("skip arrow function using this", () => {
       const result = transform(`const method = () => { return this.value; }`)
 
