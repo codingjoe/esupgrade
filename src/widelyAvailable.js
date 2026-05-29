@@ -22,6 +22,7 @@ export { namedArrowFunctionToNamedFunction } from "./widelyAvailable/namedArrowF
 export { negativeIndexToAt } from "./widelyAvailable/negativeIndexToAt.js"
 export { nullishCoalescingOperator } from "./widelyAvailable/nullishCoalescingOperator.js"
 export { objectAssignToSpread } from "./widelyAvailable/objectAssignToSpread.js"
+export { objectHasOwn } from "./widelyAvailable/objectHasOwn.js"
 export { objectKeysForEachToEntries } from "./widelyAvailable/objectKeysForEachToEntries.js"
 export { objectKeysMapToValues } from "./widelyAvailable/objectKeysMapToValues.js"
 export { objectPropertyExtractionToDestructuring } from "./widelyAvailable/objectPropertyExtractionToDestructuring.js"

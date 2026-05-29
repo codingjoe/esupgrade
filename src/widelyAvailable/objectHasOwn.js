@@ -1,4 +1,5 @@
 import { default as j } from "jscodeshift"
+import { isShadowed } from "../types.js"
 
 /**
  * Check whether a node is `Object.prototype`.
@@ -44,13 +45,15 @@ export function objectHasOwn(root) {
 
   root
     .find(j.CallExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
       return (
         node.arguments.length === 2 &&
         j.MemberExpression.check(node.callee) &&
         j.Identifier.check(node.callee.property) &&
         node.callee.property.name === "call" &&
-        isSupportedHasOwnProperty(node.callee.object)
+        isSupportedHasOwnProperty(node.callee.object) &&
+        !isShadowed(path, "Object")
       )
     })
     .forEach((path) => {
@@ -66,4 +69,4 @@ export function objectHasOwn(root) {
 
   return modified
 }
-objectHasOwn.baselineDate = new Date(Date.UTC(2025, 0, 1))
+objectHasOwn.baselineDate = new Date(Date.UTC(2022, 2, 14))
