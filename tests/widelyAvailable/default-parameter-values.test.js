@@ -13,7 +13,7 @@ function fn(x) {
       `)
 
       assert.doesNotMatch(result.code, /function fn\(x = 42\)/)
-      assert.match(result.code, /x = x \|\| 42/)
+      assert.match(result.code, /x \|\|= 42/)
     })
 
     test("if (x === undefined) x = defaultValue pattern", () => {

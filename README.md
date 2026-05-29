@@ -404,6 +404,22 @@ ES6 modules are automatically in strict mode, making explicit `'use strict'` dir
 +const result = obj.prop ?? 0;
 ```
 
+#### Logical assignment patterns → [Logical assignment operators (??=, ||=, &&=)][mdn-logical-assignment]
+
+```diff
+-x = x ?? y
++x ??= y
+-x = x || y
++x ||= y
+-x = x && y
++x &&= y
+```
+
+```diff
+-if (x === null || x === undefined) x = y
++x ??= y
+```
+
 #### `indexOf()` → [includes()][mdn-includes]
 
 ```diff
@@ -669,6 +685,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-globalthis]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [mdn-includes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [mdn-let]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
+[mdn-logical-assignment]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Logical_OR_assignment
 [mdn-nullish-coalescing]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing
 [mdn-object-entries]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
 [mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values

@@ -12,6 +12,7 @@ export { defaultParameterValues } from "./widelyAvailable/defaultParameterValues
 export { forLoopToForOf } from "./widelyAvailable/forLoopToForOf.js"
 export { globalContextToGlobalThis } from "./widelyAvailable/globalContextToGlobalThis.js"
 export { indexOfToIncludes } from "./widelyAvailable/indexOfToIncludes.js"
+export { logicalAssignment } from "./widelyAvailable/logicalAssignment.js"
 export { indexOfToStartsWith } from "./widelyAvailable/indexOfToStartsWith.js"
 export { iterableForEachToForOf } from "./widelyAvailable/iterableForEachToForOf.js"
 export { lastIndexOfToEndsWith } from "./widelyAvailable/lastIndexOfToEndsWith.js"
