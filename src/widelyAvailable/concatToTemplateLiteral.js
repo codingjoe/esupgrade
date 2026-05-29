@@ -40,7 +40,7 @@ export function concatToTemplateLiteral(root) {
         if (parts.length === 0 || expressions.length >= parts.length) {
           parts.push({ raw: rawValue, cooked: cookedValue })
         } else {
-          const lastPart = parts[parts.length - 1]
+          const lastPart = parts.at(-1)
           if (needsLineContinuation) {
             // Add backslash and newline for line continuation
             // But if the last part already ends with a newline, don't add another backslash+newline
