@@ -239,7 +239,10 @@ function fn(obj) {
 }
       `)
 
-      assert(!result.modified, "should not transform when nested function closes over parameter")
+      assert(
+        !result.modified,
+        "should not transform when nested function closes over parameter",
+      )
       assert.match(result.code, /function fn\(obj\)/)
       assert.match(result.code, /const x = obj\.x/)
     })
@@ -253,7 +256,10 @@ function fn(obj) {
 }
       `)
 
-      assert(!result.modified, "should not transform when removal would promote use strict directive")
+      assert(
+        !result.modified,
+        "should not transform when removal would promote use strict directive",
+      )
       assert.match(result.code, /function fn\(obj\)/)
       assert.match(result.code, /const x = obj\.x/)
     })
@@ -280,7 +286,10 @@ function fn(obj, y = obj.x) {
 }
       `)
 
-      assert(!result.modified, "should not transform when param used in other param default")
+      assert(
+        !result.modified,
+        "should not transform when param used in other param default",
+      )
       assert.match(result.code, /function fn\(obj,/)
       assert.match(result.code, /const x = obj\.x/)
     })
