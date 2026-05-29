@@ -30,12 +30,11 @@ class WorkerRunner {
    * Run a worker thread to process a file.
    * @param {string} filePath - Path to the file to process.
    * @param {string} baseline - Baseline level for transformations.
-   * @param {boolean} jQuery - Whether to include jQuery transformers.
    * @returns {Promise<Object>} Worker message result.
    */
-  async run(filePath, baseline, jQuery) {
+  async run(filePath, baseline) {
     const worker = new Worker(this.workerPath, {
-      workerData: { filePath, baseline, jQuery },
+      workerData: { filePath, baseline },
     })
 
     const [message] = await once(worker, "message")
@@ -59,7 +58,6 @@ class FileProcessor {
    * @param {boolean} options.check - Whether to only check for changes.
    * @param {boolean} options.write - Whether to write changes to file.
    * @param {boolean} options.verbose - The verbosity level for logging.
-   * @param {boolean} options.jQuery - Whether to include jQuery transformers.
    * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
    */
   async processFile(filePath, options) {
@@ -76,11 +74,7 @@ class FileProcessor {
     }
 
     try {
-      const workerResult = await this.workerRunner.run(
-        filePath,
-        options.baseline,
-        options.jQuery,
-      )
+      const workerResult = await this.workerRunner.run(filePath, options.baseline)
 
       if (!workerResult.success) {
         if (options.verbose) console.error(workerResult.error)
@@ -203,7 +197,6 @@ class CLIRunner {
   async run(patterns, options) {
     console.time("Processing")
     // Hand CLI-provided names directly to the worker pool; file validation occurs in processFile.
-    // Pass jQuery to worker pool
     const results = await this.workerPool.processFiles(patterns, options)
     console.timeEnd("Processing")
 
@@ -277,7 +270,6 @@ program
     false,
   )
   .option("--write", "Write changes to files", false)
-  .option("--jquery, --jQuery", "Enable jQuery specific transformers", false)
   .action(async (files, options) => {
     await cliRunner.run(files, options)
   })

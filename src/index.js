@@ -1,7 +1,6 @@
 import jscodeshift from "jscodeshift"
 import * as newlyAvailable from "./newlyAvailable.js"
 import * as widelyAvailable from "./widelyAvailable.js"
-import * as jQueryTransformers from "./jQuery.js"
 
 /**
  * Transformer function type.
@@ -49,20 +48,15 @@ function applyTransformersRecursively(code, j, transformers, globalModified = fa
  *
  * @param {string} code - The source code to transform.
  * @param {string} baseline - Baseline level ('widely-available' or 'newly-available').
- * @param {boolean} jQuery - Whether to include jQuery transformers.
  * @returns {TransformResult} Object with transformed code and modification status.
  */
-export function transform(code, baseline = "widely-available", jQuery) {
+export function transform(code, baseline = "widely-available") {
   const j = jscodeshift.withParser("tsx")
 
   let transformers =
     baseline === "newly-available"
       ? { ...widelyAvailable, ...newlyAvailable }
       : widelyAvailable
-
-  if (jQuery) {
-    transformers = { ...transformers, ...jQueryTransformers }
-  }
 
   return applyTransformersRecursively(code, j, Object.values(transformers))
 }
