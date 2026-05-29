@@ -98,6 +98,24 @@ suite("widely-available", () => {
 
         assert(!result.modified, "skip replace() with function expression")
       })
+
+      test("split() with regexp separator", () => {
+        const result = transform(`const value = "a,b,c".split(/,/).join(".");`)
+
+        assert(!result.modified, "skip split().join() with regexp separator")
+      })
+
+      test("join() with $ in replacement", () => {
+        const result = transform(`const value = "a,b,c".split(",").join("$&");`)
+
+        assert(!result.modified, "skip split().join() with $ in replacement")
+      })
+
+      test("join() with unknown replacement", () => {
+        const result = transform(`const value = "a,b,c".split(",").join(separator);`)
+
+        assert(!result.modified, "skip split().join() with unknown replacement")
+      })
     })
   })
 })

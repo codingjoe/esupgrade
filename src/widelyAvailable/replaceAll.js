@@ -31,6 +31,19 @@ function isFunctionExpression(node) {
   return j.FunctionExpression.check(node) || j.ArrowFunctionExpression.check(node)
 }
 
+function isSafeLiteralReplacement(node) {
+  if (isStringLiteralNode(node)) {
+    return !node.value.includes("$")
+  }
+  if (j.TemplateLiteral.check(node)) {
+    return (
+      node.expressions.length === 0 &&
+      node.quasis.every((q) => q.value.cooked !== null && !q.value.cooked.includes("$"))
+    )
+  }
+  return false
+}
+
 function isSplitCall(node) {
   return (
     j.CallExpression.check(node) &&
@@ -76,7 +89,9 @@ function extractReplaceAllComponents(node) {
       node.arguments.length !== 1 ||
       !isKnownString(splitCall.callee.object) ||
       isEmptyString(splitCall.arguments[0]) ||
-      isFunctionExpression(node.arguments[0])
+      j.RegExpLiteral.check(splitCall.arguments[0]) ||
+      isFunctionExpression(node.arguments[0]) ||
+      !isSafeLiteralReplacement(node.arguments[0])
     ) {
       return null
     }
