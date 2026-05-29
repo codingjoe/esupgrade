@@ -16,7 +16,10 @@ suite("widely-available", () => {
     })
 
     test("transform object literal hasOwnProperty.call", () => {
-      const result = transform(`({}).hasOwnProperty.call(obj, prop)`, "widely-available")
+      const result = transform(
+        `({}).hasOwnProperty.call(obj, prop)`,
+        "widely-available",
+      )
 
       assert(result.modified, "transform empty object literal hasOwnProperty.call")
       assert.match(result.code, /Object\.hasOwn\(obj, prop\)/)
@@ -33,7 +36,10 @@ suite("widely-available", () => {
     })
 
     test("skip unsupported receiver", () => {
-      const result = transform(`dict.hasOwnProperty.call(obj, prop)`, "widely-available")
+      const result = transform(
+        `dict.hasOwnProperty.call(obj, prop)`,
+        "widely-available",
+      )
 
       assert(!result.modified, "skip unknown hasOwnProperty receiver")
     })
