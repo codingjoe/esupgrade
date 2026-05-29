@@ -323,19 +323,20 @@ function removeExtractionDeclarators(body, extractions) {
     statementMap.get(statementIndex).push(declaratorIndex)
   })
 
-  const sortedEntries = [...statementMap.entries()].sort((a, b) => b[0] - a[0])
-  sortedEntries.forEach(([statementIndex, declaratorIndices]) => {
-      const statement = body.body[statementIndex]
+  for (const [statementIndex, declaratorIndices] of [...statementMap.entries()].sort(
+    (a, b) => b[0] - a[0],
+  )) {
+    const statement = body.body[statementIndex]
 
-      declaratorIndices
-        .slice()
-        .sort((a, b) => b - a)
-        .forEach((di) => {
-          statement.declarations.splice(di, 1)
-        })
+    declaratorIndices
+      .slice()
+      .sort((a, b) => b - a)
+      .forEach((di) => {
+        statement.declarations.splice(di, 1)
+      })
 
-      if (statement.declarations.length === 0) {
-        body.body.splice(statementIndex, 1)
-      }
-    })
+    if (statement.declarations.length === 0) {
+      body.body.splice(statementIndex, 1)
+    }
+  }
 }

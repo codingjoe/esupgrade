@@ -303,7 +303,10 @@ function fn(obj) {
 }
       `)
 
-      assert(!result.modified, "should not transform when obj is used after extractions")
+      assert(
+        !result.modified,
+        "should not transform when obj is used after extractions",
+      )
       assert.match(result.code, /function fn\(obj\)/)
       assert.match(result.code, /const x = obj\.x/)
     })
