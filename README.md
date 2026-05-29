@@ -251,6 +251,32 @@ Transformations are limited to when the receiver can be verified as an array (ar
 +const area = Math.PI * radius ** 2;
 ```
 
+#### Verbose arithmetic assignments → [Compound assignment operators (+=, -=, …)][mdn-compound-assignment]
+
+```diff
+-x = x + y
++x += y
+-x = x - y
++x -= y
+-x = x * y
++x *= y
+-x = x / y
++x /= y
+-x = x % y
++x %= y
+-x = x ** y
++x **= y
+```
+
+Increment and decrement shorthand when used as statements:
+
+```diff
+-x = x + 1
++x++
+-x = x - 1
++x--
+```
+
 #### Named function assignments → [Function declarations][mdn-functions]
 
 ```diff
@@ -673,6 +699,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-async-await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [mdn-at]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/at
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
+[mdn-compound-assignment]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Addition_assignment
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
 [mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
