@@ -26,8 +26,7 @@ export function argumentsToRestParameters(root) {
 
   functionNodes.forEach(({ node: func }) => {
     if (
-      (func.params.length > 0 &&
-        j.RestElement.check(func.params[func.params.length - 1])) ||
+      (func.params.length > 0 && j.RestElement.check(func.params.at(-1))) ||
       !j.BlockStatement.check(func.body)
     ) {
       return

@@ -233,6 +233,15 @@ Supports:
 
 Transformations are limited to when the receiver can be verified as an array (array literals, `new Array()`, or known array method chains) and `filter()` is called with one argument.
 
+#### `arr[arr.length - n]` → [`Array.at()`][mdn-at]
+
+```diff
+-const last = arr[arr.length - 1];
+-const item = arr[arr.length - n];
++const last = arr.at(-1);
++const item = arr.at(-n);
+```
+
 #### `Math.pow()` → [Exponentiation operator \*\*][mdn-exponentiation]
 
 ```diff
@@ -646,6 +655,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
 [mdn-async-await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+[mdn-at]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/at
 [mdn-classes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [mdn-console]: https://developer.mozilla.org/en-US/docs/Web/API/console
 [mdn-const]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const

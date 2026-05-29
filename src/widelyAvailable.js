@@ -17,6 +17,7 @@ export { iterableForEachToForOf } from "./widelyAvailable/iterableForEachToForOf
 export { lastIndexOfToEndsWith } from "./widelyAvailable/lastIndexOfToEndsWith.js"
 export { mathPowToExponentiation } from "./widelyAvailable/mathPowToExponentiation.js"
 export { namedArrowFunctionToNamedFunction } from "./widelyAvailable/namedArrowFunctionToNamedFunction.js"
+export { negativeIndexToAt } from "./widelyAvailable/negativeIndexToAt.js"
 export { nullishCoalescingOperator } from "./widelyAvailable/nullishCoalescingOperator.js"
 export { objectAssignToSpread } from "./widelyAvailable/objectAssignToSpread.js"
 export { objectKeysForEachToEntries } from "./widelyAvailable/objectKeysForEachToEntries.js"
