@@ -340,4 +340,4 @@ function removeExtractionDeclarators(body, extractions) {
     }
   }
 }
-objectPropertyExtractionToDestructuring.baselineDate = "2020-01-15"
+objectPropertyExtractionToDestructuring.baselineDate = new Date(Date.UTC(2020, 0, 15))

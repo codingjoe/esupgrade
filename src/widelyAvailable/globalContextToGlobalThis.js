@@ -115,4 +115,4 @@ export function globalContextToGlobalThis(root) {
 
   return modified
 }
-globalContextToGlobalThis.baselineDate = "2020-01-15"
+globalContextToGlobalThis.baselineDate = new Date(Date.UTC(2020, 0, 15))

@@ -138,4 +138,4 @@ export function lastIndexOfToEndsWith(root) {
 
   return modified
 }
-lastIndexOfToEndsWith.baselineDate = "2015-09-30"
+lastIndexOfToEndsWith.baselineDate = new Date(Date.UTC(2015, 8, 30))

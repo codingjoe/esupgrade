@@ -158,4 +158,4 @@ export function defaultParameterValues(root) {
 
   return modified
 }
-defaultParameterValues.baselineDate = "2016-09-20"
+defaultParameterValues.baselineDate = new Date(Date.UTC(2016, 8, 20))

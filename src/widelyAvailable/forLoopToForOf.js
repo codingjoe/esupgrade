@@ -137,4 +137,4 @@ export function forLoopToForOf(root) {
 
   return modified
 }
-forLoopToForOf.baselineDate = "2015-07-29"
+forLoopToForOf.baselineDate = new Date(Date.UTC(2015, 6, 29))

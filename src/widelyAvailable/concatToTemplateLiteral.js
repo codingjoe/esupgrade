@@ -127,4 +127,4 @@ ${rawValue}`
 
   return modified
 }
-concatToTemplateLiteral.baselineDate = "2015-09-30"
+concatToTemplateLiteral.baselineDate = new Date(Date.UTC(2015, 8, 30))

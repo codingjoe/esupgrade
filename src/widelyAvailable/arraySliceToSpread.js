@@ -54,4 +54,4 @@ export function arraySliceToSpread(root) {
 
   return modified
 }
-arraySliceToSpread.baselineDate = "2015-10-14"
+arraySliceToSpread.baselineDate = new Date(Date.UTC(2015, 9, 14))

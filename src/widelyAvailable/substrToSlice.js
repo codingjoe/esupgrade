@@ -70,4 +70,4 @@ export function substrToSlice(root) {
 
   return modified
 }
-substrToSlice.baselineDate = "2015-07-29"
+substrToSlice.baselineDate = new Date(Date.UTC(2015, 6, 29))

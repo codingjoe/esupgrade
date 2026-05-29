@@ -122,4 +122,4 @@ export function namedArrowFunctionToNamedFunction(root) {
 
   return modified
 }
-namedArrowFunctionToNamedFunction.baselineDate = "2016-09-20"
+namedArrowFunctionToNamedFunction.baselineDate = new Date(Date.UTC(2016, 8, 20))

@@ -76,4 +76,4 @@ export function arrayFilterToFind(root) {
 
   return modified
 }
-arrayFilterToFind.baselineDate = "2016-09-20"
+arrayFilterToFind.baselineDate = new Date(Date.UTC(2016, 8, 20))

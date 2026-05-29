@@ -65,4 +65,4 @@ export function arrayConcatToSpread(root) {
 
   return modified
 }
-arrayConcatToSpread.baselineDate = "2015-10-14"
+arrayConcatToSpread.baselineDate = new Date(Date.UTC(2015, 9, 14))

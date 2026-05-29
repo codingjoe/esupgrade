@@ -197,4 +197,4 @@ export function promiseToAsyncAwait(root) {
 
   return modified
 }
-promiseToAsyncAwait.baselineDate = "2017-04-05"
+promiseToAsyncAwait.baselineDate = new Date(Date.UTC(2017, 3, 5))

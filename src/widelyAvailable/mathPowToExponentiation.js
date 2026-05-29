@@ -64,4 +64,4 @@ export function mathPowToExponentiation(root) {
 
   return modified
 }
-mathPowToExponentiation.baselineDate = "2017-03-27"
+mathPowToExponentiation.baselineDate = new Date(Date.UTC(2017, 2, 27))
