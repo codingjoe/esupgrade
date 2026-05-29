@@ -42,18 +42,17 @@ suite("widely-available", () => {
 
     test("multiple passes until stable", () => {
       const result = transform(
-        `$('#test').val(forms.length);`,
+        `var first = [1, 2, 3].filter((value) => value > 1)[0];`,
         "widely-available",
-        true,
       )
 
-      assert(result.modified, "should transform jQuery code")
+      assert(result.modified, "transform code requiring recursive passes")
       assert.match(
         result.code,
-        /document\.getElementById\("test"\)\.value/,
-        "should fully resolve nested transformations in one run",
+        /const first = \[1, 2, 3\]\.find\(\(value\) => value > 1\);/,
+        "resolve chained transformations",
       )
-      assert(!result.code.includes("$"), "should not have any jQuery left")
+      assert(!result.code.includes(".filter("), "remove filter index pattern")
     })
   })
 })
