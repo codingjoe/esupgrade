@@ -114,7 +114,10 @@ suite("widely-available", () => {
       test("join() with $ in template literal replacement", () => {
         const result = transform('const value = "a,b,c".split(",").join(`$&`);')
 
-        assert(!result.modified, "skip split().join() with $ in template literal replacement")
+        assert(
+          !result.modified,
+          "skip split().join() with $ in template literal replacement",
+        )
       })
 
       test("join() with unknown replacement", () => {
