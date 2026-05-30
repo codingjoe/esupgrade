@@ -507,6 +507,15 @@ Transforms the deprecated `substr()` method to `slice()`:
 
 Transformations are limited to when the receiver can be verified as a string (string literals, template literals, or string method chains).
 
+#### `split().join()` / `replace(/literal/g)` → [String.replaceAll()][mdn-replaceall]
+
+```diff
+-const value = "a,b,c".split(",").join(".");
+-const label = "foo".replace(/o/g, "a");
++const value = "a,b,c".replaceAll(",", ".");
++const label = "foo".replaceAll("o", "a");
+```
+
 #### `Object.keys().forEach()` → [Object.entries()][mdn-object-entries]
 
 ```diff
@@ -749,6 +758,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-object-has-own]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn
 [mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
+[mdn-replaceall]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replaceAll
 [mdn-rest-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
 [mdn-slice]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice
 [mdn-spread]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax

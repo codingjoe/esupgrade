@@ -30,6 +30,7 @@ export { objectPropertyExtractionToDestructuring } from "./widelyAvailable/objec
 export { optionalChaining } from "./widelyAvailable/optionalChaining.js"
 export { promiseToAsyncAwait } from "./widelyAvailable/promiseToAsyncAwait.js"
 export { removeUseStrictFromModules } from "./widelyAvailable/removeUseStrictFromModules.js"
+export { replaceAll } from "./widelyAvailable/replaceAll.js"
 export { substringToStartsWith } from "./widelyAvailable/substringToStartsWith.js"
 export { substrToSlice } from "./widelyAvailable/substrToSlice.js"
 export { varToLetOrConst } from "./widelyAvailable/varToLetOrConst.js"
