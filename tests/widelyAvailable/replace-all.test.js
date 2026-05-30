@@ -106,7 +106,9 @@ suite("widely-available", () => {
       })
 
       test("split() with unknown separator", () => {
-        const result = transform(`const value = "undefined".split(separator).join("-");`)
+        const result = transform(
+          `const value = "undefined".split(separator).join("-");`,
+        )
 
         assert(!result.modified, "skip split().join() with unknown separator")
       })
