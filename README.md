@@ -504,10 +504,6 @@ Transformations are limited to when the receiver can be verified as a string (st
 +const label = "foo".replaceAll("o", "a");
 ```
 
-Transforms simple string replacement patterns to `replaceAll()` when the receiver can be verified as a string (for example, string literals, template literals, or safe string method chains).
-
-For `split().join()`, the transform applies to the simple one-argument form. For `replace()`, the transform applies to global regular expression literals that represent plain string text.
-
 #### `Object.keys().forEach()` → [Object.entries()][mdn-object-entries]
 
 ```diff
