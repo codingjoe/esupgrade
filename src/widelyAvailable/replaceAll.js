@@ -48,6 +48,7 @@ function isSplitCall(node) {
   return (
     j.CallExpression.check(node) &&
     j.MemberExpression.check(node.callee) &&
+    node.callee.computed === false &&
     j.Identifier.check(node.callee.property) &&
     node.callee.property.name === "split"
   )
@@ -57,6 +58,7 @@ function isJoinCall(node) {
   return (
     j.CallExpression.check(node) &&
     j.MemberExpression.check(node.callee) &&
+    node.callee.computed === false &&
     j.Identifier.check(node.callee.property) &&
     node.callee.property.name === "join"
   )
@@ -66,8 +68,16 @@ function isReplaceCall(node) {
   return (
     j.CallExpression.check(node) &&
     j.MemberExpression.check(node.callee) &&
+    node.callee.computed === false &&
     j.Identifier.check(node.callee.property) &&
     node.callee.property.name === "replace"
+  )
+}
+
+function isStaticString(node) {
+  return (
+    isStringLiteralNode(node) ||
+    (j.TemplateLiteral.check(node) && node.expressions.length === 0)
   )
 }
 
@@ -88,6 +98,7 @@ function extractReplaceAllComponents(node) {
       splitCall.arguments.length !== 1 ||
       node.arguments.length !== 1 ||
       !isKnownString(splitCall.callee.object) ||
+      !isStaticString(splitCall.arguments[0]) ||
       isEmptyString(splitCall.arguments[0]) ||
       j.RegExpLiteral.check(splitCall.arguments[0]) ||
       isFunctionExpression(node.arguments[0]) ||

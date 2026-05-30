@@ -105,6 +105,12 @@ suite("widely-available", () => {
         assert(!result.modified, "skip split().join() with regexp separator")
       })
 
+      test("split() with unknown separator", () => {
+        const result = transform(`const value = "undefined".split(separator).join("-");`)
+
+        assert(!result.modified, "skip split().join() with unknown separator")
+      })
+
       test("join() with $ in replacement", () => {
         const result = transform(`const value = "a,b,c".split(",").join("$&");`)
 
@@ -124,6 +130,24 @@ suite("widely-available", () => {
         const result = transform(`const value = "a,b,c".split(",").join(separator);`)
 
         assert(!result.modified, "skip split().join() with unknown replacement")
+      })
+
+      test("split() with computed property access", () => {
+        const result = transform('const value = "a,b,c"[split](",").join(".");')
+
+        assert(!result.modified, "skip computed split() property access")
+      })
+
+      test("join() with computed property access", () => {
+        const result = transform('const value = "a,b,c".split(",")[join](".");')
+
+        assert(!result.modified, "skip computed join() property access")
+      })
+
+      test("replace() with computed property access", () => {
+        const result = transform('const value = "foo"[replace](/o/g, "a");')
+
+        assert(!result.modified, "skip computed replace() property access")
       })
     })
   })
