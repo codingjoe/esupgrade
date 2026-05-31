@@ -1,3 +1,8 @@
+---
+name: esupgrade-write
+description: Use `npx esupgrade --write` to apply focused in-place syntax upgrades to existing JavaScript files while keeping diffs intentional.
+---
+
 # Skill: esupgrade-write
 
 ## Description
@@ -23,9 +28,9 @@ Use this skill when a task asks for codemod-style syntax upgrades with
 
 1. Run:
 
-   ```console
-   npx esupgrade --write <files-or-directories>
-   ```
+    ```console
+    npx esupgrade --write <files-or-directories>
+    ```
 
 1. Inspect the diff with `git diff`.
 
