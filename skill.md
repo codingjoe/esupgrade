@@ -1,28 +1,48 @@
-# esupgrade Write Mode
+# Skill: esupgrade-write
 
-Use this skill to upgrade JavaScript syntax in place.
+## Description
+
+Apply `esupgrade` write mode to modernize JavaScript syntax in existing files.
+Use this skill when a task asks for codemod-style syntax upgrades with
+`npx esupgrade --write`.
 
 ## When to use
 
-- A task asks to modernize JavaScript syntax.
-- A task asks to apply supported syntax upgrades to source files.
-- A task asks for codemod-style updates without manual rewrites.
+- Modernize JavaScript syntax in existing files.
+- Apply `esupgrade` transforms across selected paths.
+- Upgrade syntax while preserving behavior.
+
+## Inputs
+
+- Target paths: `<files-or-directories>`
+- Optional flags: `--baseline`, `--check`
 
 ## Steps
 
-1. Start from a clean git state so you can inspect and revert changes.
+1. Confirm the repository is in a clean git state.
 
-1. Run esupgrade in write mode on the target files.
+1. Run:
 
    ```console
    npx esupgrade --write <files-or-directories>
    ```
 
-1. Review the diff with `git diff` and verify each transform matches the task.
+1. Inspect the diff with `git diff`.
 
-1. Revert unwanted edits and run tests and project hooks before committing.
+1. Keep changes that match the task and revert unrelated edits.
 
-## Notes
+1. Run project checks before committing.
 
-- Use narrower file paths first to reduce unrelated edits.
-- Use `npx esupgrade --help` to inspect available options such as `--baseline` and `--check`.
+## Output format
+
+Return a short summary with:
+
+- Command executed
+- Files changed
+- Check commands and results
+- Reverted files and reason
+
+## Best practices
+
+- Start with narrow path scopes to keep diffs focused.
+- Use `npx esupgrade --help` to inspect command options.
