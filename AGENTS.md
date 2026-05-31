@@ -16,6 +16,7 @@ For a full list of transformations, see [README.md](./README.md).
 - [tests/](./tests/): Test suite.
 
 For contributing guidelines, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+For code-writing skill guidance, see [skill.md](./skill.md).
 
 ## Instructions
 
