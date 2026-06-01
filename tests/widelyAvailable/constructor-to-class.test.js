@@ -970,6 +970,44 @@ BaseClass.prototype.outer = function() {
       )
     })
 
+    test("do not leak duplicate-scope prototype object assignment to parent constructors", () => {
+      const result = transform(`
+function BaseClass() {}
+
+function wrapper() {
+  function BaseClass() {}
+  function BaseClass() {}
+
+  BaseClass.prototype = {
+    inner: function() {
+      return 'inner';
+    }
+  };
+}
+
+BaseClass.prototype = {
+  outer: function() {
+    return 'outer';
+  }
+};
+      `)
+
+      assert(result.modified, "transform unambiguous outer constructor")
+      const [wrapperCode, outerCode] = result.code.split("function wrapper()")
+      assert.match(wrapperCode, /class BaseClass/)
+      assert.match(wrapperCode, /outer\(\) \{/, "keep outer method on outer class")
+      assert.match(
+        outerCode,
+        /BaseClass\.prototype = \{/,
+        "keep ambiguous inner scope assignment untouched",
+      )
+      assert.doesNotMatch(
+        wrapperCode,
+        /inner\(\) \{/,
+        "avoid leaking duplicate-scope object assignment into parent constructor",
+      )
+    })
+
     test("transform multi-declarator constructors after safe splitting", () => {
       const result = transform(`
 var First = function() {}, Second = function() {};
