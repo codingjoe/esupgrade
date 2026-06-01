@@ -936,6 +936,40 @@ function wrapper() {
       assert.doesNotMatch(result.code, /class BaseClass/)
     })
 
+    test("do not leak duplicate-scope prototype methods to parent constructors", () => {
+      const result = transform(`
+function BaseClass() {}
+
+function wrapper() {
+  function BaseClass() {}
+  function BaseClass() {}
+
+  BaseClass.prototype.inner = function() {
+    return 'inner';
+  };
+}
+
+BaseClass.prototype.outer = function() {
+  return 'outer';
+};
+      `)
+
+      assert(result.modified, "transform unambiguous outer constructor")
+      const [wrapperCode, outerCode] = result.code.split("function wrapper()")
+      assert.match(wrapperCode, /class BaseClass/)
+      assert.match(wrapperCode, /outer\(\) \{/, "keep outer method on outer class")
+      assert.match(
+        outerCode,
+        /BaseClass\.prototype\.inner/,
+        "keep ambiguous inner scope assignment untouched",
+      )
+      assert.doesNotMatch(
+        wrapperCode,
+        /inner\(\) \{/,
+        "avoid leaking duplicate-scope method into parent constructor",
+      )
+    })
+
     test("transform multi-declarator constructors after safe splitting", () => {
       const result = transform(`
 var First = function() {}, Second = function() {};

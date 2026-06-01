@@ -32,10 +32,10 @@ function getConstructor(constructorsByScope, path, constructorName) {
 
   while (activeScope) {
     const constructorsInScope = constructorsByScope.get(activeScope.path.node)
-    const constructorInfo = constructorsInScope?.get(constructorName)
+    const hasConstructorInScope = constructorsInScope?.has(constructorName)
 
-    if (constructorInfo) {
-      return constructorInfo
+    if (hasConstructorInScope) {
+      return constructorsInScope.get(constructorName)
     }
 
     activeScope = activeScope.parent
