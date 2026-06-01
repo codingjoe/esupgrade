@@ -741,5 +741,305 @@ return this.value;
       assert.match(result.code, /constructor\s*\(/)
       assert.match(result.code, /important/)
     })
+
+    test("keep function declaration prototype methods in matching sibling scope", () => {
+      const result = transform(`
+function firstSuite() {
+  function BaseClass() {}
+
+  BaseClass.prototype.first = function() {
+    return 'first';
+  };
+}
+
+function secondSuite() {
+  function BaseClass() {}
+
+  BaseClass.prototype.second = function() {
+    return 'second';
+  };
+}
+      `)
+
+      assert(result.modified, "transform both constructors")
+      assert.equal(result.code.split("first() {").length - 1, 1)
+      assert.equal(result.code.split("second() {").length - 1, 1)
+      const [firstSuiteCode, secondSuiteCode] = result.code.split(
+        "function secondSuite()",
+      )
+
+      assert.match(firstSuiteCode, /first\(\) \{/, "keep first method in first scope")
+      assert.doesNotMatch(
+        firstSuiteCode,
+        /second\(\) \{/,
+        "avoid leaking second method into first scope",
+      )
+      assert.match(
+        secondSuiteCode,
+        /second\(\) \{/,
+        "keep second method in second scope",
+      )
+      assert.doesNotMatch(
+        secondSuiteCode,
+        /first\(\) \{/,
+        "avoid leaking first method into second scope",
+      )
+    })
+
+    test("keep variable declaration prototype methods in matching sibling scope", () => {
+      const result = transform(`
+function firstSuite() {
+  var BaseClass = function() {};
+
+  BaseClass.prototype.first = function() {
+    return 'first';
+  };
+}
+
+function secondSuite() {
+  var BaseClass = function() {};
+
+  BaseClass.prototype.second = function() {
+    return 'second';
+  };
+}
+      `)
+
+      assert(result.modified, "transform both constructors")
+      assert.equal(result.code.split("first() {").length - 1, 1)
+      assert.equal(result.code.split("second() {").length - 1, 1)
+      const [firstSuiteCode, secondSuiteCode] = result.code.split(
+        "function secondSuite()",
+      )
+
+      assert.match(firstSuiteCode, /first\(\) \{/, "keep first method in first scope")
+      assert.doesNotMatch(
+        firstSuiteCode,
+        /second\(\) \{/,
+        "avoid leaking second method into first scope",
+      )
+      assert.match(
+        secondSuiteCode,
+        /second\(\) \{/,
+        "keep second method in second scope",
+      )
+      assert.doesNotMatch(
+        secondSuiteCode,
+        /first\(\) \{/,
+        "avoid leaking first method into second scope",
+      )
+    })
+
+    test("keep prototype object assignments in matching sibling scope", () => {
+      const result = transform(`
+QUnit.test('one', function(assert) {
+  function BaseClass() {}
+
+  BaseClass.prototype = {
+    hello: function() {
+      return 'A';
+    }
+  };
+});
+
+QUnit.test('two', function(assert) {
+  function BaseClass() {}
+
+  BaseClass.prototype = {
+    goodbye: function() {
+      return 'B';
+    }
+  };
+});
+      `)
+
+      assert(result.modified, "transform both QUnit constructors")
+      assert.equal(result.code.split("hello() {").length - 1, 1)
+      assert.equal(result.code.split("goodbye() {").length - 1, 1)
+      const [firstTestCode, secondTestCode] = result.code.split("QUnit.test('two'")
+
+      assert.match(firstTestCode, /hello\(\) \{/, "keep hello in first test scope")
+      assert.doesNotMatch(
+        firstTestCode,
+        /goodbye\(\) \{/,
+        "avoid leaking goodbye into first test scope",
+      )
+      assert.match(
+        secondTestCode,
+        /goodbye\(\) \{/,
+        "keep goodbye in second test scope",
+      )
+      assert.doesNotMatch(
+        secondTestCode,
+        /hello\(\) \{/,
+        "avoid leaking hello into second test scope",
+      )
+    })
+
+    test("match prototype methods to the nearest constructor scope", () => {
+      const result = transform(`
+function outerSuite() {
+  function BaseClass() {}
+
+  function addOuterMethod() {
+    BaseClass.prototype.outer = function() {
+      return 'outer';
+    };
+  }
+
+  addOuterMethod();
+
+  function innerSuite() {
+    function BaseClass() {}
+
+    BaseClass.prototype.inner = function() {
+      return 'inner';
+    };
+  }
+}
+      `)
+
+      assert(result.modified, "transform constructors across nested scopes")
+      assert.equal(result.code.split("outer() {").length - 1, 1)
+      assert.equal(result.code.split("inner() {").length - 1, 1)
+      const [outerSuiteCode, innerSuiteCode] = result.code.split(
+        "function innerSuite()",
+      )
+
+      assert.match(outerSuiteCode, /outer\(\) \{/, "keep outer method on outer class")
+      assert.doesNotMatch(
+        outerSuiteCode,
+        /inner\(\) \{/,
+        "avoid leaking inner method into outer scope",
+      )
+      assert.match(innerSuiteCode, /inner\(\) \{/, "keep inner method on inner class")
+      assert.doesNotMatch(
+        innerSuiteCode,
+        /outer\(\) \{/,
+        "avoid leaking outer method into inner scope",
+      )
+    })
+
+    test("skip duplicate constructor declarations in the same scope", () => {
+      const result = transform(`
+function wrapper() {
+  function BaseClass() {}
+  function BaseClass() {}
+
+  BaseClass.prototype.run = function() {
+    return 'run';
+  };
+}
+      `)
+
+      assert.match(result.code, /function BaseClass\(\) \{\}/)
+      assert.doesNotMatch(result.code, /class BaseClass/)
+    })
+
+    test("do not leak duplicate-scope prototype methods to parent constructors", () => {
+      const result = transform(`
+function BaseClass() {}
+
+function wrapper() {
+  function BaseClass() {}
+  function BaseClass() {}
+
+  BaseClass.prototype.inner = function() {
+    return 'inner';
+  };
+}
+
+BaseClass.prototype.outer = function() {
+  return 'outer';
+};
+      `)
+
+      assert(result.modified, "transform unambiguous outer constructor")
+      const [wrapperCode, outerCode] = result.code.split("function wrapper()")
+      assert.match(wrapperCode, /class BaseClass/)
+      assert.match(wrapperCode, /outer\(\) \{/, "keep outer method on outer class")
+      assert.match(
+        outerCode,
+        /BaseClass\.prototype\.inner/,
+        "keep ambiguous inner scope assignment untouched",
+      )
+      assert.doesNotMatch(
+        wrapperCode,
+        /inner\(\) \{/,
+        "avoid leaking duplicate-scope method into parent constructor",
+      )
+    })
+
+    test("do not leak duplicate-scope prototype object assignment to parent constructors", () => {
+      const result = transform(`
+function BaseClass() {}
+
+function wrapper() {
+  function BaseClass() {}
+  function BaseClass() {}
+
+  BaseClass.prototype = {
+    inner: function() {
+      return 'inner';
+    }
+  };
+}
+
+BaseClass.prototype = {
+  outer: function() {
+    return 'outer';
+  }
+};
+      `)
+
+      assert(result.modified, "transform unambiguous outer constructor")
+      const [wrapperCode, outerCode] = result.code.split("function wrapper()")
+      assert.match(wrapperCode, /class BaseClass/)
+      assert.match(wrapperCode, /outer\(\) \{/, "keep outer method on outer class")
+      assert.match(
+        outerCode,
+        /BaseClass\.prototype = \{/,
+        "keep ambiguous inner scope assignment untouched",
+      )
+      assert.doesNotMatch(
+        wrapperCode,
+        /inner\(\) \{/,
+        "avoid leaking duplicate-scope object assignment into parent constructor",
+      )
+    })
+
+    test("transform multi-declarator constructors after safe splitting", () => {
+      const result = transform(`
+var First = function() {}, Second = function() {};
+
+First.prototype.run = function() {
+  return 'first';
+};
+Second.prototype.stop = function() {
+  return 'second';
+};
+      `)
+
+      assert(result.modified, "transform after safe split")
+      assert.match(result.code, /class First/)
+      assert.match(result.code, /class Second/)
+    })
+
+    test("do not match constructors declared in child lexical scopes", () => {
+      const result = transform(`
+function wrapper() {
+  BaseClass.prototype.run = function() {
+    return 'run';
+  };
+
+  function setup() {
+    function BaseClass() {}
+  }
+}
+      `)
+
+      assert.match(result.code, /function BaseClass\(\) \{\}/)
+      assert.doesNotMatch(result.code, /class BaseClass/)
+    })
   })
 })
