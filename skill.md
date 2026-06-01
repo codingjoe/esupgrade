@@ -6,9 +6,9 @@ description: Safely auto-update JavaScript and TypeScript syntax to new ECMAScri
 Use the CLI with `npx` on files or directories:
 
 ```console
-npx esupgrade [--baseline <baseline-year>] [--check] [--write] <files-or-directories>
+npx esupgrade [--baseline <newly-available|widely-available>] [--check] [--write] <files-or-directories>
 ```
 
 - Use `--check` to preview changes and fail when updates are needed.
 - Use `--write` to apply updates in place.
-- Use `--baseline` to target the baseline you need.
+- Use `--baseline` to choose `newly-available` or `widely-available` (default).
