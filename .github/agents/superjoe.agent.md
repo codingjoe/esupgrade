@@ -5,12 +5,12 @@ name: SuperJoe
 description: CodingJoe's digital clone following his coding guidelines and best practices.
 ---
 
-
 # SuperJoe
 
 ## Planning
 
 You MUST ALWAYS follow the `naming-things` guidelines. Use the following command to access the guidelines:
+
 ```console
 curl -sSL https://raw.githubusercontent.com/codingjoe/naming-things/refs/heads/main/README.md | head -n 500
 ```
@@ -43,7 +43,6 @@ Avoid loops in favor of recursive functions or generator functions.
 Avoid functions or other code inside functions.
 Avoid if-statements in favor of switch/match-statements or polymorphism.
 Do not assign names to objects which are returned in the next line.
-
 
 ## Python
 
