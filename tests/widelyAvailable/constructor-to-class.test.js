@@ -710,5 +710,91 @@ return this.value;
       assert(result.modified, "transform function declaration with empty body")
       assert.match(result.code, /class Empty/)
     })
+
+    test("keep prototype methods in matching scope", () => {
+      const result = transform(`
+function firstSuite() {
+  function BaseClass() {}
+
+  BaseClass.prototype.first = function() {
+    return 'first';
+  };
+}
+
+function secondSuite() {
+  function BaseClass() {}
+
+  BaseClass.prototype.second = function() {
+    return 'second';
+  };
+}
+      `)
+
+      assert(result.modified, "transform both constructors")
+      assert.equal(result.code.split("first() {").length - 1, 1)
+      assert.equal(result.code.split("second() {").length - 1, 1)
+      const [firstSuiteCode, secondSuiteCode] = result.code.split(
+        "function secondSuite()",
+      )
+
+      assert.match(firstSuiteCode, /first\(\) \{/, "keep first method in first scope")
+      assert.doesNotMatch(
+        firstSuiteCode,
+        /second\(\) \{/,
+        "avoid leaking second method into first scope",
+      )
+      assert.match(
+        secondSuiteCode,
+        /second\(\) \{/,
+        "keep second method in second scope",
+      )
+      assert.doesNotMatch(
+        secondSuiteCode,
+        /first\(\) \{/,
+        "avoid leaking first method into second scope",
+      )
+    })
+
+    test("keep repeated constructor names isolated in qunit tests", () => {
+      const result = transform(`
+QUnit.test('one', function (assert) {
+  function BaseClass() {}
+
+  BaseClass.prototype.hello = function () {
+    return 'A';
+  };
+});
+
+QUnit.test('two', function (assert) {
+  function BaseClass() {}
+
+  BaseClass.prototype.goodbye = function () {
+    return 'B';
+  };
+});
+      `)
+
+      assert(result.modified, "transform both QUnit constructors")
+      assert.equal(result.code.split("hello() {").length - 1, 1)
+      assert.equal(result.code.split("goodbye() {").length - 1, 1)
+      const [firstTestCode, secondTestCode] = result.code.split("QUnit.test('two'")
+
+      assert.match(firstTestCode, /hello\(\) \{/, "keep hello in first test scope")
+      assert.doesNotMatch(
+        firstTestCode,
+        /goodbye\(\) \{/,
+        "avoid leaking goodbye into first test scope",
+      )
+      assert.match(
+        secondTestCode,
+        /goodbye\(\) \{/,
+        "keep goodbye in second test scope",
+      )
+      assert.doesNotMatch(
+        secondTestCode,
+        /hello\(\) \{/,
+        "avoid leaking hello into second test scope",
+      )
+    })
   })
 })

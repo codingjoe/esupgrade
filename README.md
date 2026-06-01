@@ -389,6 +389,7 @@ Transforms constructor functions (both function declarations and variable declar
 
 - Function name starts with an uppercase letter
 - At least one prototype method is defined
+- Prototype methods are matched within the same lexical scope as the constructor declaration
 - Prototype methods using `this` in arrow functions are skipped
 - Prototype object literals with getters, setters, or computed properties are skipped
 
