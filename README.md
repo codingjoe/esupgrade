@@ -13,7 +13,7 @@ Keeping your JavaScript and TypeScript code up to date with full browser compati
 ## Usage
 
 esupgrade is safe and meant to be used automatically on your codebase.
-We recommend integrating it into your development workflow using [pre-commit].
+We recommend integrating it into your development workflow using [pre-commit] or [husky].
 
 To try it out on a repository without writing changes, run:
 
@@ -38,6 +38,15 @@ repos:
 
 ```bash
 pre-commit run esupgrade --all-files
+```
+
+### Husky
+
+Assuming Husky is already initialized and `.husky/pre-commit` already contains `set -e`, append:
+
+```bash
+echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' | xargs -0 sh -c 'test \"\$#\" -eq 0 && exit 0; npx esupgrade -- \"\$@\"' sh" >> .husky/pre-commit
+echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' | xargs -0 sh -c 'test \"\$#\" -eq 0 && exit 0; git add -- \"\$@\"' sh" >> .husky/pre-commit
 ```
 
 ### CLI
@@ -734,6 +743,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [baseline]: https://web.dev/baseline/
 [calver]: https://calver.org/
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
+[husky]: https://typicode.github.io/husky/
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
 [mdn-async-await]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [mdn-at]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/at
