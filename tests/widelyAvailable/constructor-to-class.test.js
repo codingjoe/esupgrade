@@ -720,7 +720,26 @@ return this.value;
 };
     `)
 
-      assert.doesNotMatch(result.code, /constructor/)
+      assert(result.modified, "transform function declaration with empty body")
+      assert.match(result.code, /class Empty/)
+      assert.doesNotMatch(result.code, /constructor\s*\(/)
+    })
+
+    test("keep constructor when empty body contains comments", () => {
+      const result = transform(`
+function Empty() {
+/* important */
+}
+
+Empty.prototype.run = function() {
+return this.value;
+};
+    `)
+
+      assert(result.modified, "transform function declaration with comment-only body")
+      assert.match(result.code, /class Empty/)
+      assert.match(result.code, /constructor\s*\(/)
+      assert.match(result.code, /important/)
     })
   })
 })

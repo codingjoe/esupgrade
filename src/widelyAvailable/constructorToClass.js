@@ -197,8 +197,14 @@ export function constructorToClass(root) {
         constructorNode = declarator.init
       }
 
+      const hasNodeOrBodyComments =
+        (constructorNode.comments && constructorNode.comments.length > 0) ||
+        (constructorNode.body.comments && constructorNode.body.comments.length > 0)
+
       const classBody =
-        constructorNode.params.length > 0 || constructorNode.body.body.length > 0
+        constructorNode.params.length > 0 ||
+        constructorNode.body.body.length > 0 ||
+        hasNodeOrBodyComments
           ? [
               j.methodDefinition(
                 "constructor",
