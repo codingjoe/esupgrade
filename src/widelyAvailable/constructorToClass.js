@@ -62,18 +62,18 @@ function findConstructors(root) {
     .find(j.VariableDeclaration)
     .filter((path) => path.node.declarations.length === 1)
     .forEach((path) => {
-    path.node.declarations.forEach((declarator) => {
-      if (
-        !new NodeTest(declarator.id).isConstructorName() ||
-        !j.FunctionExpression.check(declarator.init) ||
-        !new NodeTest(declarator.init.body).hasSimpleConstructorBody()
-      ) {
-        return
-      }
+      path.node.declarations.forEach((declarator) => {
+        if (
+          !new NodeTest(declarator.id).isConstructorName() ||
+          !j.FunctionExpression.check(declarator.init) ||
+          !new NodeTest(declarator.init.body).hasSimpleConstructorBody()
+        ) {
+          return
+        }
 
-      addConstructor(constructorsByScope, declarator.id.name, path)
+        addConstructor(constructorsByScope, declarator.id.name, path)
+      })
     })
-  })
 
   return constructorsByScope
 }
@@ -97,113 +97,109 @@ function findConstructors(root) {
  */
 function findPrototypeMethods(root, constructorsByScope) {
   // Pattern 1: ConstructorName.prototype.methodName = ...
-  root
-    .find(j.ExpressionStatement)
-    .forEach((path) => {
-      const { node } = path
+  root.find(j.ExpressionStatement).forEach((path) => {
+    const { node } = path
 
-      if (!j.AssignmentExpression.check(node.expression)) {
+    if (!j.AssignmentExpression.check(node.expression)) {
+      return
+    }
+
+    const assignment = node.expression
+    const left = assignment.left
+
+    if (
+      !j.MemberExpression.check(left) ||
+      !j.MemberExpression.check(left.object) ||
+      !j.Identifier.check(left.object.object) ||
+      !j.Identifier.check(left.object.property) ||
+      left.object.property.name !== "prototype" ||
+      !j.Identifier.check(left.property)
+    ) {
+      return
+    }
+
+    const constructorName = left.object.object.name
+    const constructorInfo = getConstructor(constructorsByScope, path, constructorName)
+
+    if (!constructorInfo) {
+      return
+    }
+
+    const methodName = left.property.name
+    const methodValue = assignment.right
+
+    if (!new NodeTest(methodValue).canBeClassMethod()) {
+      return
+    }
+
+    constructorInfo.prototypeMethods.push({
+      path,
+      methodName,
+      methodValue,
+    })
+  })
+
+  // Pattern 2: ConstructorName.prototype = { methodName: function() {...}, ... }
+  root.find(j.ExpressionStatement).forEach((path) => {
+    const { node } = path
+
+    if (!j.AssignmentExpression.check(node.expression)) {
+      return
+    }
+
+    const assignment = node.expression
+    const left = assignment.left
+
+    if (
+      !j.MemberExpression.check(left) ||
+      !j.Identifier.check(left.object) ||
+      !j.Identifier.check(left.property) ||
+      left.property.name !== "prototype"
+    ) {
+      return
+    }
+
+    const constructorName = left.object.name
+    const constructorInfo = getConstructor(constructorsByScope, path, constructorName)
+
+    if (!constructorInfo) {
+      return
+    }
+
+    const methodValue = assignment.right
+
+    if (!j.ObjectExpression.check(methodValue)) {
+      return
+    }
+
+    methodValue.properties.forEach((prop) => {
+      if (!j.Property.check(prop) && !j.ObjectProperty.check(prop)) {
         return
       }
 
-      const assignment = node.expression
-      const left = assignment.left
-
-      if (
-        !j.MemberExpression.check(left) ||
-        !j.MemberExpression.check(left.object) ||
-        !j.Identifier.check(left.object.object) ||
-        !j.Identifier.check(left.object.property) ||
-        left.object.property.name !== "prototype" ||
-        !j.Identifier.check(left.property)
-      ) {
+      if (prop.computed) {
         return
       }
 
-      const constructorName = left.object.object.name
-      const constructorInfo = getConstructor(constructorsByScope, path, constructorName)
-
-      if (!constructorInfo) {
+      let methodName
+      if (j.Identifier.check(prop.key)) {
+        methodName = prop.key.name
+      } else {
         return
       }
 
-      const methodName = left.property.name
-      const methodValue = assignment.right
-
-      if (!new NodeTest(methodValue).canBeClassMethod()) {
+      if (!new NodeTest(prop.value).canBeClassMethod()) {
         return
       }
 
       constructorInfo.prototypeMethods.push({
         path,
         methodName,
-        methodValue,
+        methodValue: prop.value,
+        isObjectLiteral: true,
       })
     })
-
-  // Pattern 2: ConstructorName.prototype = { methodName: function() {...}, ... }
-  root
-    .find(j.ExpressionStatement)
-    .forEach((path) => {
-      const { node } = path
-
-      if (!j.AssignmentExpression.check(node.expression)) {
-        return
-      }
-
-      const assignment = node.expression
-      const left = assignment.left
-
-      if (
-        !j.MemberExpression.check(left) ||
-        !j.Identifier.check(left.object) ||
-        !j.Identifier.check(left.property) ||
-        left.property.name !== "prototype"
-      ) {
-        return
-      }
-
-      const constructorName = left.object.name
-      const constructorInfo = getConstructor(constructorsByScope, path, constructorName)
-
-      if (!constructorInfo) {
-        return
-      }
-
-      const methodValue = assignment.right
-
-      if (!j.ObjectExpression.check(methodValue)) {
-        return
-      }
-
-      methodValue.properties.forEach((prop) => {
-        if (!j.Property.check(prop) && !j.ObjectProperty.check(prop)) {
-          return
-        }
-
-        if (prop.computed) {
-          return
-        }
-
-        let methodName
-        if (j.Identifier.check(prop.key)) {
-          methodName = prop.key.name
-        } else {
-          return
-        }
-
-        if (!new NodeTest(prop.value).canBeClassMethod()) {
-          return
-        }
-
-        constructorInfo.prototypeMethods.push({
-          path,
-          methodName,
-          methodValue: prop.value,
-          isObjectLiteral: true,
-        })
-      })
-    })
+  })
 }
 
 /**
