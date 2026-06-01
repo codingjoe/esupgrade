@@ -197,24 +197,23 @@ export function constructorToClass(root) {
         constructorNode = declarator.init
       }
 
-      const classBody = []
-
-      if (constructorNode.params.length > 0 || constructorNode.body.body.length > 0) {
-        classBody.push(
-          j.methodDefinition(
-            "constructor",
-            j.identifier("constructor"),
-            j.functionExpression(
-              null,
-              constructorNode.params,
-              constructorNode.body,
-              constructorNode.generator,
-              constructorNode.async,
-            ),
-            false,
-          ),
-        )
-      }
+      const classBody =
+        constructorNode.params.length > 0 || constructorNode.body.body.length > 0
+          ? [
+              j.methodDefinition(
+                "constructor",
+                j.identifier("constructor"),
+                j.functionExpression(
+                  null,
+                  constructorNode.params,
+                  constructorNode.body,
+                  constructorNode.generator,
+                  constructorNode.async,
+                ),
+                false,
+              ),
+            ]
+          : []
 
       info.prototypeMethods.forEach(({ methodName, methodValue }) => {
         const functionExpr = j.functionExpression(

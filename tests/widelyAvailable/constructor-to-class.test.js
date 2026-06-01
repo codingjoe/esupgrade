@@ -709,6 +709,17 @@ return this.value;
 
       assert(result.modified, "transform function declaration with empty body")
       assert.match(result.code, /class Empty/)
+    })
+
+    test("omit empty constructor from generated class", () => {
+      const result = transform(`
+function Empty() {}
+
+Empty.prototype.run = function() {
+return this.value;
+};
+    `)
+
       assert.doesNotMatch(result.code, /constructor/)
     })
   })
