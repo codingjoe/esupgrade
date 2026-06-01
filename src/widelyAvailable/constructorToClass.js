@@ -243,20 +243,29 @@ function transformConstructorsToClasses(root, constructorsByScope) {
         constructorNode = declarator.init
       }
 
-      const classBody = [
-        j.methodDefinition(
-          "constructor",
-          j.identifier("constructor"),
-          j.functionExpression(
-            null,
-            constructorNode.params,
-            constructorNode.body,
-            constructorNode.generator,
-            constructorNode.async,
-          ),
-          false,
-        ),
-      ]
+      const hasNodeOrBodyComments =
+        (constructorNode.comments && constructorNode.comments.length > 0) ||
+        (constructorNode.body.comments && constructorNode.body.comments.length > 0)
+
+      const classBody =
+        constructorNode.params.length > 0 ||
+        constructorNode.body.body.length > 0 ||
+        hasNodeOrBodyComments
+          ? [
+              j.methodDefinition(
+                "constructor",
+                j.identifier("constructor"),
+                j.functionExpression(
+                  null,
+                  constructorNode.params,
+                  constructorNode.body,
+                  constructorNode.generator,
+                  constructorNode.async,
+                ),
+                false,
+              ),
+            ]
+          : []
 
       info.prototypeMethods.forEach(({ methodName, methodValue }) => {
         const functionExpr = j.functionExpression(
