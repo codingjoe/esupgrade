@@ -1,6 +1,6 @@
 ---
 name: esupgrade
-description: Safely auto-update JavaScript and TypeScript syntax to new ECMAScript features based on browser support.
+description: Auto-update JavaScript and TypeScript syntax to new ECMAScript features based on browser support.
 ---
 
 Use the CLI with `npx` on files or directories:
