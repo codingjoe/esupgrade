@@ -42,22 +42,11 @@ pre-commit run esupgrade --all-files
 
 ### Husky
 
+Assuming Husky is already initialized and `.husky/pre-commit` already contains `set -e`, append:
+
 ```bash
-npm install --save-dev husky
-npx husky init
-```
-
-```sh
-# .husky/pre-commit
-set -e
-
-git diff --cached --numstat --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' \
-  | cut -z -f3- \
-  | xargs -0r npx esupgrade
-
-git diff --cached --numstat --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' \
-  | cut -z -f3- \
-  | xargs -0r git add
+echo "git diff --cached --numstat --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' | cut -z -f3- | xargs -0r npx esupgrade" >> .husky/pre-commit
+echo "git diff --cached --numstat --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' | cut -z -f3- | xargs -0r git add" >> .husky/pre-commit
 ```
 
 ### CLI
