@@ -709,6 +709,7 @@ return this.value;
 
       assert(result.modified, "transform function declaration with empty body")
       assert.match(result.code, /class Empty/)
+      assert.doesNotMatch(result.code, /constructor/)
     })
   })
 })
