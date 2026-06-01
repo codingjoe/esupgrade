@@ -8,14 +8,20 @@ function getDeclarationScope(path) {
 }
 
 function addConstructor(constructorsByScope, constructorName, declarationPath) {
+  const scopeNode = getDeclarationScope(declarationPath).path.node
+  const constructorsInScope = constructorsByScope.get(scopeNode) ?? new Map()
+
+  if (constructorsInScope.has(constructorName)) {
+    constructorsInScope.set(constructorName, null)
+    constructorsByScope.set(scopeNode, constructorsInScope)
+    return
+  }
+
   const constructorInfo = {
     constructorName,
     declaration: declarationPath,
     prototypeMethods: [],
   }
-
-  const scopeNode = getDeclarationScope(declarationPath).path.node
-  const constructorsInScope = constructorsByScope.get(scopeNode) ?? new Map()
 
   constructorsInScope.set(constructorName, constructorInfo)
   constructorsByScope.set(scopeNode, constructorsInScope)
@@ -52,7 +58,10 @@ function findConstructors(root) {
     addConstructor(constructorsByScope, path.node.id.name, path)
   })
 
-  root.find(j.VariableDeclaration).forEach((path) => {
+  root
+    .find(j.VariableDeclaration)
+    .filter((path) => path.node.declarations.length === 1)
+    .forEach((path) => {
     path.node.declarations.forEach((declarator) => {
       if (
         !new NodeTest(declarator.id).isConstructorName() ||
@@ -90,11 +99,11 @@ function findPrototypeMethods(root, constructorsByScope) {
   // Pattern 1: ConstructorName.prototype.methodName = ...
   root
     .find(j.ExpressionStatement)
-    .filter((path) => {
+    .forEach((path) => {
       const { node } = path
 
       if (!j.AssignmentExpression.check(node.expression)) {
-        return false
+        return
       }
 
       const assignment = node.expression
@@ -108,24 +117,22 @@ function findPrototypeMethods(root, constructorsByScope) {
         left.object.property.name !== "prototype" ||
         !j.Identifier.check(left.property)
       ) {
-        return false
+        return
       }
 
       const constructorName = left.object.object.name
-      return !!getConstructor(constructorsByScope, path, constructorName)
-    })
-    .forEach((path) => {
-      const assignment = path.node.expression
-      const left = assignment.left
-      const constructorName = left.object.object.name
+      const constructorInfo = getConstructor(constructorsByScope, path, constructorName)
+
+      if (!constructorInfo) {
+        return
+      }
+
       const methodName = left.property.name
       const methodValue = assignment.right
 
       if (!new NodeTest(methodValue).canBeClassMethod()) {
         return
       }
-
-      const constructorInfo = getConstructor(constructorsByScope, path, constructorName)
 
       constructorInfo.prototypeMethods.push({
         path,
@@ -137,11 +144,11 @@ function findPrototypeMethods(root, constructorsByScope) {
   // Pattern 2: ConstructorName.prototype = { methodName: function() {...}, ... }
   root
     .find(j.ExpressionStatement)
-    .filter((path) => {
+    .forEach((path) => {
       const { node } = path
 
       if (!j.AssignmentExpression.check(node.expression)) {
-        return false
+        return
       }
 
       const assignment = node.expression
@@ -153,23 +160,21 @@ function findPrototypeMethods(root, constructorsByScope) {
         !j.Identifier.check(left.property) ||
         left.property.name !== "prototype"
       ) {
-        return false
+        return
       }
 
       const constructorName = left.object.name
-      return !!getConstructor(constructorsByScope, path, constructorName)
-    })
-    .forEach((path) => {
-      const assignment = path.node.expression
-      const left = assignment.left
-      const constructorName = left.object.name
+      const constructorInfo = getConstructor(constructorsByScope, path, constructorName)
+
+      if (!constructorInfo) {
+        return
+      }
+
       const methodValue = assignment.right
 
       if (!j.ObjectExpression.check(methodValue)) {
         return
       }
-
-      const constructorInfo = getConstructor(constructorsByScope, path, constructorName)
 
       methodValue.properties.forEach((prop) => {
         if (!j.Property.check(prop) && !j.ObjectProperty.check(prop)) {
@@ -225,7 +230,7 @@ function transformConstructorsToClasses(root, constructorsByScope) {
 
   constructorsByScope.forEach((constructors) => {
     constructors.forEach((info) => {
-      if (info.prototypeMethods.length === 0) {
+      if (!info || info.prototypeMethods.length === 0) {
         return
       }
 

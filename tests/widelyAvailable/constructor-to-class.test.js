@@ -919,5 +919,55 @@ function outerSuite() {
         "avoid leaking outer method into inner scope",
       )
     })
+
+    test("skip duplicate constructor declarations in the same scope", () => {
+      const result = transform(`
+function wrapper() {
+  function BaseClass() {}
+  function BaseClass() {}
+
+  BaseClass.prototype.run = function() {
+    return 'run';
+  };
+}
+      `)
+
+      assert.match(result.code, /function BaseClass\(\) \{\}/)
+      assert.doesNotMatch(result.code, /class BaseClass/)
+    })
+
+    test("transform multi-declarator constructors after safe splitting", () => {
+      const result = transform(`
+var First = function() {}, Second = function() {};
+
+First.prototype.run = function() {
+  return 'first';
+};
+Second.prototype.stop = function() {
+  return 'second';
+};
+      `)
+
+      assert(result.modified, "transform after safe split")
+      assert.match(result.code, /class First/)
+      assert.match(result.code, /class Second/)
+    })
+
+    test("do not match constructors declared in child lexical scopes", () => {
+      const result = transform(`
+function wrapper() {
+  BaseClass.prototype.run = function() {
+    return 'run';
+  };
+
+  function setup() {
+    function BaseClass() {}
+  }
+}
+      `)
+
+      assert.match(result.code, /function BaseClass\(\) \{\}/)
+      assert.doesNotMatch(result.code, /class BaseClass/)
+    })
   })
 })
