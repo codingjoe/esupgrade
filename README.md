@@ -10,6 +10,10 @@
 
 Keeping your JavaScript and TypeScript code up to date with full browser compatibility.
 
+## Sponsors
+
+[![Sponsors](https://django.the-box.sh/sponsors/codingjoe/esupgrade.svg)](https://github.com/sponsors/codingjoe)
+
 ## Usage
 
 esupgrade is safe and meant to be used automatically on your codebase.
