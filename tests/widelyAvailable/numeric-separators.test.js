@@ -60,6 +60,13 @@ suite("widely-available", () => {
       assert(result.modified)
     })
 
+    test("transform float literals without decimal digits", () => {
+      const result = transform(`const ratio = 10000.;`)
+
+      assert.match(result.code, /10_000\./)
+      assert(result.modified)
+    })
+
     test("skip float literals with short integer part", () => {
       const result = transform(`const ratio = 1000.5;`)
 
@@ -94,6 +101,20 @@ suite("widely-available", () => {
       assert(result.modified)
     })
 
+    test("transform exponential literals with leading-dot mantissa", () => {
+      const result = transform(`const n = .5e100000;`)
+
+      assert.match(result.code, /\.5e100_000/)
+      assert(result.modified)
+    })
+
+    test("transform exponential literals with trailing-dot mantissa", () => {
+      const result = transform(`const n = 10000.e100000;`)
+
+      assert.match(result.code, /10_000\.e100_000/)
+      assert(result.modified)
+    })
+
     test("transform exponential literals with signed exponent", () => {
       const result = transform(`const n = 1e+100000;`)
 
@@ -120,6 +141,39 @@ suite("widely-available", () => {
 
       assert.match(result.code, /0xab_cd_ef/)
       assert(result.modified)
+    })
+
+    test("transform octal literals", () => {
+      const result = transform(`const permission = 0o1234567;`)
+
+      assert.match(result.code, /0o1_234_567/)
+      assert(result.modified)
+    })
+
+    test("transform uppercase octal literals", () => {
+      const result = transform(`const permission = 0O1234567;`)
+
+      assert.match(result.code, /0O1_234_567/)
+      assert(result.modified)
+    })
+
+    test("transform octal bigint literals", () => {
+      const result = transform(`const permission = 0o1234567n;`)
+
+      assert.match(result.code, /0o1_234_567n/)
+      assert(result.modified)
+    })
+
+    test("skip short octal literals", () => {
+      const result = transform(`const permission = 0o777;`)
+
+      assert(!result.modified)
+    })
+
+    test("skip already formatted octal literals", () => {
+      const result = transform(`const permission = 0o1_234_567;`)
+
+      assert(!result.modified)
     })
 
     test("transform uppercase hex literals", () => {
@@ -202,6 +256,12 @@ suite("widely-available", () => {
 
     test("skip decimal literals with non-thousand grouping", () => {
       const result = transform(`const n = 1_0000_000;`)
+
+      assert(!result.modified)
+    })
+
+    test("skip octal literals with non-triplet grouping", () => {
+      const result = transform(`const permission = 0o12_34567;`)
 
       assert(!result.modified)
     })

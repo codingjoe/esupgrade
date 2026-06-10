@@ -1,11 +1,12 @@
 import { default as j } from "jscodeshift"
 
 const DECIMAL_LITERAL = /^(?<digits>[1-9]\d{4,})(?<suffix>n)?$/
+const OCTAL_LITERAL = /^(?<prefix>0[oO])(?<digits>[0-7]{4,})(?<suffix>n)?$/
 const HEX_LITERAL = /^(?<prefix>0[xX])(?<digits>[0-9a-fA-F]{3,})(?<suffix>n)?$/
 const BINARY_LITERAL = /^(?<prefix>0[bB])(?<digits>[01]{9,})(?<suffix>n)?$/
-const FLOAT_LITERAL = /^(?<integer>\d+)\.(?<decimal>\d+)$/
+const FLOAT_LITERAL = /^(?<integer>\d+)\.(?<decimal>\d*)$/
 const EXPONENTIAL_LITERAL =
-  /^(?<mantissaInt>\d+)(?:\.(?<mantissaDec>\d+))?(?<expMarker>[eE])(?<sign>[+-]?)(?<exponent>\d+)$/
+  /^(?:(?<mantissaInt>\d+)(?:\.(?<mantissaDec>\d*))?|\.(?<mantissaLeadingDec>\d+))(?<expMarker>[eE])(?<sign>[+-]?)(?<exponent>\d+)$/
 
 /**
  * Apply thousands separators to a string of digits.
@@ -33,6 +34,24 @@ function formatDecimalLiteral(rawLiteral) {
   const { digits, suffix = "" } = match.groups
 
   return `${applyThousandsSep(digits)}${suffix}`
+}
+
+/**
+ * Return an octal literal with triplet numeric separators when applicable.
+ *
+ * @param {string} rawLiteral - Raw literal source text.
+ * @returns {string | null} Formatted literal or null when no change applies.
+ */
+function formatOctalLiteral(rawLiteral) {
+  const match = rawLiteral.match(OCTAL_LITERAL)
+
+  if (!match?.groups) {
+    return null
+  }
+
+  const { prefix, digits, suffix = "" } = match.groups
+
+  return `${prefix}${digits.replace(/\B(?=([0-7]{3})+(?![0-7]))/g, "_")}${suffix}`
 }
 
 /**
@@ -108,7 +127,14 @@ function formatExponentialLiteral(rawLiteral) {
     return null
   }
 
-  const { mantissaInt, mantissaDec, expMarker, sign, exponent } = match.groups
+  const {
+    mantissaInt = "",
+    mantissaDec,
+    mantissaLeadingDec,
+    expMarker,
+    sign,
+    exponent,
+  } = match.groups
 
   const formattedMantissaInt =
     mantissaInt.length >= 5 ? applyThousandsSep(mantissaInt) : mantissaInt
@@ -119,9 +145,12 @@ function formatExponentialLiteral(rawLiteral) {
     return null
   }
 
-  const mantissa = mantissaDec
-    ? `${formattedMantissaInt}.${mantissaDec}`
-    : formattedMantissaInt
+  const mantissa =
+    typeof mantissaLeadingDec === "string"
+      ? `.${mantissaLeadingDec}`
+      : typeof mantissaDec === "string"
+        ? `${formattedMantissaInt}.${mantissaDec}`
+        : formattedMantissaInt
 
   return `${mantissa}${expMarker}${sign}${formattedExponent}`
 }
@@ -135,6 +164,7 @@ function formatExponentialLiteral(rawLiteral) {
 function formatLiteral(rawLiteral) {
   return (
     formatDecimalLiteral(rawLiteral) ??
+    formatOctalLiteral(rawLiteral) ??
     formatHexLiteral(rawLiteral) ??
     formatBinaryLiteral(rawLiteral) ??
     formatFloatLiteral(rawLiteral) ??

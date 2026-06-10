@@ -233,19 +233,21 @@ Supports:
 ```diff
 -const budget = 1000000;
 -const maxUsers = 1000000n;
+-const permission = 0o1234567;
 -const mask = 0xabcdef;
 -const flags = 0b1010000111000011;
 -const ratio = 100000.25;
 -const large = 1e100000;
 +const budget = 1_000_000;
 +const maxUsers = 1_000_000n;
++const permission = 0o1_234_567;
 +const mask = 0xab_cd_ef;
 +const flags = 0b10100001_11000011;
 +const ratio = 100_000.25;
 +const large = 1e100_000;
 ```
 
-Decimal numerals are grouped by thousands; hex and binary by byte.
+Decimal and octal numerals are grouped by triplets; hex and binary by byte.
 
 #### `Array.slice(0)` → [Array spread [...]][mdn-spread]
 
