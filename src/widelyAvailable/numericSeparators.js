@@ -3,6 +3,19 @@ import { default as j } from "jscodeshift"
 const DECIMAL_LITERAL = /^(?<digits>[1-9]\d{4,})(?<suffix>n)?$/
 const HEX_LITERAL = /^(?<prefix>0[xX])(?<digits>[0-9a-fA-F]{3,})(?<suffix>n)?$/
 const BINARY_LITERAL = /^(?<prefix>0[bB])(?<digits>[01]{9,})(?<suffix>n)?$/
+const FLOAT_LITERAL = /^(?<integer>\d+)\.(?<decimal>\d+)$/
+const EXPONENTIAL_LITERAL =
+  /^(?<mantissaInt>\d+)(?:\.(?<mantissaDec>\d+))?(?<expMarker>[eE])(?<sign>[+-]?)(?<exponent>\d+)$/
+
+/**
+ * Apply thousands separators to a string of digits.
+ *
+ * @param {string} digits - Digit string without separators.
+ * @returns {string} Digits with `_` inserted every three digits from the right.
+ */
+function applyThousandsSep(digits) {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, "_")
+}
 
 /**
  * Return a decimal integer literal with numeric separators when applicable.
@@ -19,7 +32,7 @@ function formatDecimalLiteral(rawLiteral) {
 
   const { digits, suffix = "" } = match.groups
 
-  return `${digits.replace(/\B(?=(\d{3})+(?!\d))/g, "_")}${suffix}`
+  return `${applyThousandsSep(digits)}${suffix}`
 }
 
 /**
@@ -61,6 +74,59 @@ function formatBinaryLiteral(rawLiteral) {
 }
 
 /**
+ * Return a float literal with thousands separators on the integer part when applicable.
+ *
+ * @param {string} rawLiteral - Raw literal source text.
+ * @returns {string | null} Formatted literal or null when no change applies.
+ */
+function formatFloatLiteral(rawLiteral) {
+  const match = rawLiteral.match(FLOAT_LITERAL)
+
+  if (!match?.groups) {
+    return null
+  }
+
+  const { integer, decimal } = match.groups
+
+  if (integer.length < 5) {
+    return null
+  }
+
+  return `${applyThousandsSep(integer)}.${decimal}`
+}
+
+/**
+ * Return an exponential literal with thousands separators on large parts when applicable.
+ *
+ * @param {string} rawLiteral - Raw literal source text.
+ * @returns {string | null} Formatted literal or null when no change applies.
+ */
+function formatExponentialLiteral(rawLiteral) {
+  const match = rawLiteral.match(EXPONENTIAL_LITERAL)
+
+  if (!match?.groups) {
+    return null
+  }
+
+  const { mantissaInt, mantissaDec, expMarker, sign, exponent } = match.groups
+
+  const formattedMantissaInt =
+    mantissaInt.length >= 5 ? applyThousandsSep(mantissaInt) : mantissaInt
+  const formattedExponent =
+    exponent.length >= 5 ? applyThousandsSep(exponent) : exponent
+
+  if (formattedMantissaInt === mantissaInt && formattedExponent === exponent) {
+    return null
+  }
+
+  const mantissa = mantissaDec
+    ? `${formattedMantissaInt}.${mantissaDec}`
+    : formattedMantissaInt
+
+  return `${mantissa}${expMarker}${sign}${formattedExponent}`
+}
+
+/**
  * Return a numeric literal with separators when applicable.
  *
  * @param {string} rawLiteral - Raw literal source text.
@@ -70,7 +136,9 @@ function formatLiteral(rawLiteral) {
   return (
     formatDecimalLiteral(rawLiteral) ??
     formatHexLiteral(rawLiteral) ??
-    formatBinaryLiteral(rawLiteral)
+    formatBinaryLiteral(rawLiteral) ??
+    formatFloatLiteral(rawLiteral) ??
+    formatExponentialLiteral(rawLiteral)
   )
 }
 

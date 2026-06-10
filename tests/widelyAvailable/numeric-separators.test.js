@@ -40,12 +40,81 @@ suite("widely-available", () => {
       assert(!result.modified)
     })
 
-    test("skip non-integer literals", () => {
+    test("skip small float and short exponent literals", () => {
       const result = transform(
-        `const exponent = 1e12; const ratio = 10000.25;`,
+        `const ratio = 1000.25; const exponent = 1e12;`,
       )
 
       assert(!result.modified)
+    })
+
+    test("transform float literals", () => {
+      const result = transform(`const ratio = 100000.25;`)
+
+      assert.match(result.code, /100_000\.25/)
+      assert(result.modified)
+    })
+
+    test("transform float literals with exact five-digit integer part", () => {
+      const result = transform(`const ratio = 10000.5;`)
+
+      assert.match(result.code, /10_000\.5/)
+      assert(result.modified)
+    })
+
+    test("skip float literals with short integer part", () => {
+      const result = transform(`const ratio = 1000.5;`)
+
+      assert(!result.modified)
+    })
+
+    test("transform exponential literals with large exponent", () => {
+      const result = transform(`const n = 1e100000;`)
+
+      assert.match(result.code, /1e100_000/)
+      assert(result.modified)
+    })
+
+    test("transform exponential literals with large mantissa", () => {
+      const result = transform(`const n = 10000e12;`)
+
+      assert.match(result.code, /10_000e12/)
+      assert(result.modified)
+    })
+
+    test("transform exponential literals with large mantissa and exponent", () => {
+      const result = transform(`const n = 10000e100000;`)
+
+      assert.match(result.code, /10_000e100_000/)
+      assert(result.modified)
+    })
+
+    test("transform exponential literals with float mantissa and large exponent", () => {
+      const result = transform(`const n = 1.5e100000;`)
+
+      assert.match(result.code, /1\.5e100_000/)
+      assert(result.modified)
+    })
+
+    test("transform exponential literals with signed exponent", () => {
+      const result = transform(`const n = 1e+100000;`)
+
+      assert.match(result.code, /1e\+100_000/)
+      assert(result.modified)
+    })
+
+    test("transform exponential literals with negative exponent", () => {
+      const result = transform(`const n = 1e-100000;`)
+
+      assert.match(result.code, /1e-100_000/)
+      assert(result.modified)
+    })
+
+    test("transform float literals with leading-zero decimal part", () => {
+      const result = transform(`const ratio = 10000.05;`)
+
+      assert.match(result.code, /10_000\.05/)
+      assert(result.modified)
     })
 
     test("transform hex literals", () => {
@@ -117,6 +186,36 @@ suite("widely-available", () => {
 
     test("skip already formatted binary literals", () => {
       const result = transform(`const flags = 0b10100001_11000011;`)
+
+      assert(!result.modified)
+    })
+
+    test("skip hex literals with non-byte grouping", () => {
+      const result = transform(`const mask = 0xabc_def;`)
+
+      assert(!result.modified)
+    })
+
+    test("skip binary literals with non-byte grouping", () => {
+      const result = transform(`const flags = 0b1010_0001_1100_0011;`)
+
+      assert(!result.modified)
+    })
+
+    test("skip decimal literals with non-thousand grouping", () => {
+      const result = transform(`const n = 1_0000_000;`)
+
+      assert(!result.modified)
+    })
+
+    test("skip float literals with non-standard existing separators", () => {
+      const result = transform(`const ratio = 100_00.25;`)
+
+      assert(!result.modified)
+    })
+
+    test("skip exponential literals with non-standard existing separators", () => {
+      const result = transform(`const n = 1_0000e12;`)
 
       assert(!result.modified)
     })
