@@ -41,9 +41,7 @@ suite("widely-available", () => {
     })
 
     test("skip small float and short exponent literals", () => {
-      const result = transform(
-        `const ratio = 1000.25; const exponent = 1e12;`,
-      )
+      const result = transform(`const ratio = 1000.25; const exponent = 1e12;`)
 
       assert(!result.modified)
     })
