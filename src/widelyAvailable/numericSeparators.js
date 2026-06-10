@@ -1,9 +1,12 @@
 import { default as j } from "jscodeshift"
 
-const DECIMAL_LITERAL = /^(?<digits>[1-9]\d{4,})(?<suffix>n)?$/
-const OCTAL_LITERAL = /^(?<prefix>0[oO])(?<digits>[0-7]{4,})(?<suffix>n)?$/
-const HEX_LITERAL = /^(?<prefix>0[xX])(?<digits>[0-9a-fA-F]{3,})(?<suffix>n)?$/
-const BINARY_LITERAL = /^(?<prefix>0[bB])(?<digits>[01]{9,})(?<suffix>n)?$/
+const TRANSFORMABLE_DECIMAL_INTEGER_LITERAL = /^(?<digits>[1-9]\d{4,})(?<suffix>n)?$/
+const TRANSFORMABLE_OCTAL_LITERAL =
+  /^(?<prefix>0[oO])(?<digits>[0-7]{4,})(?<suffix>n)?$/
+const TRANSFORMABLE_HEX_LITERAL =
+  /^(?<prefix>0[xX])(?<digits>[0-9a-fA-F]{3,})(?<suffix>n)?$/
+const TRANSFORMABLE_BINARY_LITERAL =
+  /^(?<prefix>0[bB])(?<digits>[01]{9,})(?<suffix>n)?$/
 const FLOAT_LITERAL = /^(?<integer>\d+)\.(?<decimal>\d*)$/
 const EXPONENTIAL_LITERAL =
   /^(?:(?<mantissaInt>\d+)(?:\.(?<mantissaDec>\d*))?|\.(?<mantissaLeadingDec>\d+))(?<expMarker>[eE])(?<sign>[+-]?)(?<exponent>\d+)$/
@@ -24,8 +27,8 @@ function applyThousandsSep(digits) {
  * @param {string} rawLiteral - Raw literal source text.
  * @returns {string | null} Formatted literal or null when no change applies.
  */
-function formatDecimalLiteral(rawLiteral) {
-  const match = rawLiteral.match(DECIMAL_LITERAL)
+function formatDecimalIntegerLiteral(rawLiteral) {
+  const match = rawLiteral.match(TRANSFORMABLE_DECIMAL_INTEGER_LITERAL)
 
   if (!match?.groups) {
     return null
@@ -43,7 +46,7 @@ function formatDecimalLiteral(rawLiteral) {
  * @returns {string | null} Formatted literal or null when no change applies.
  */
 function formatOctalLiteral(rawLiteral) {
-  const match = rawLiteral.match(OCTAL_LITERAL)
+  const match = rawLiteral.match(TRANSFORMABLE_OCTAL_LITERAL)
 
   if (!match?.groups) {
     return null
@@ -61,7 +64,7 @@ function formatOctalLiteral(rawLiteral) {
  * @returns {string | null} Formatted literal or null when no change applies.
  */
 function formatHexLiteral(rawLiteral) {
-  const match = rawLiteral.match(HEX_LITERAL)
+  const match = rawLiteral.match(TRANSFORMABLE_HEX_LITERAL)
 
   if (!match?.groups) {
     return null
@@ -80,7 +83,7 @@ function formatHexLiteral(rawLiteral) {
  * @returns {string | null} Formatted literal or null when no change applies.
  */
 function formatBinaryLiteral(rawLiteral) {
-  const match = rawLiteral.match(BINARY_LITERAL)
+  const match = rawLiteral.match(TRANSFORMABLE_BINARY_LITERAL)
 
   if (!match?.groups) {
     return null
@@ -163,7 +166,7 @@ function formatExponentialLiteral(rawLiteral) {
  */
 function formatLiteral(rawLiteral) {
   return (
-    formatDecimalLiteral(rawLiteral) ??
+    formatDecimalIntegerLiteral(rawLiteral) ??
     formatOctalLiteral(rawLiteral) ??
     formatHexLiteral(rawLiteral) ??
     formatBinaryLiteral(rawLiteral) ??
