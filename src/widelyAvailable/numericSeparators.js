@@ -1,6 +1,9 @@
 import { default as j } from "jscodeshift"
 
-const TRANSFORMABLE_DECIMAL_INTEGER_LITERAL = /^(?<digits>[1-9]\d{4,})(?<suffix>n)?$/
+const MIN_DIGITS_FOR_GROUPING = 5
+const TRANSFORMABLE_DECIMAL_INTEGER_LITERAL = new RegExp(
+  `^(?<digits>[1-9]\\d{${MIN_DIGITS_FOR_GROUPING - 1},})(?<suffix>n)?$`,
+)
 const TRANSFORMABLE_OCTAL_LITERAL =
   /^(?<prefix>0[oO])(?<digits>[0-7]{4,})(?<suffix>n)?$/
 const TRANSFORMABLE_HEX_LITERAL =
@@ -19,15 +22,11 @@ const EXPONENTIAL_LITERAL =
  * @returns {string} Digits with `_` inserted between right-aligned groups.
  */
 function applyDigitGroupSep(digits, groupSize) {
-  switch (digits.length > groupSize) {
-    case true: {
-      const firstGroupLength = digits.length % groupSize || groupSize
+  const firstGroupLength = digits.length % groupSize || groupSize
 
-      return `${digits.slice(0, firstGroupLength)}_${applyDigitGroupSep(digits.slice(firstGroupLength), groupSize)}`
-    }
-    default:
-      return digits
-  }
+  return digits.length > groupSize
+    ? `${digits.slice(0, firstGroupLength)}_${applyDigitGroupSep(digits.slice(firstGroupLength), groupSize)}`
+    : digits
 }
 
 /**
@@ -119,7 +118,7 @@ function formatFloatLiteral(rawLiteral) {
 
   const { integer, decimal } = match.groups
 
-  if (integer.length < 5) {
+  if (integer.length < MIN_DIGITS_FOR_GROUPING) {
     return null
   }
 
@@ -149,9 +148,13 @@ function formatExponentialLiteral(rawLiteral) {
   } = match.groups
 
   const formattedMantissaInt =
-    mantissaInt.length >= 5 ? applyDigitGroupSep(mantissaInt, 3) : mantissaInt
+    mantissaInt.length >= MIN_DIGITS_FOR_GROUPING
+      ? applyDigitGroupSep(mantissaInt, 3)
+      : mantissaInt
   const formattedExponent =
-    exponent.length >= 5 ? applyDigitGroupSep(exponent, 3) : exponent
+    exponent.length >= MIN_DIGITS_FOR_GROUPING
+      ? applyDigitGroupSep(exponent, 3)
+      : exponent
 
   if (formattedMantissaInt === mantissaInt && formattedExponent === exponent) {
     return null
