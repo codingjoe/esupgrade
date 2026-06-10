@@ -233,12 +233,18 @@ Supports:
 ```diff
 -const budget = 1000000;
 -const maxUsers = 1000000n;
+-const mask = 0xabcdef;
+-const flags = 0b1010000111000011;
 +const budget = 1_000_000;
 +const maxUsers = 1_000_000n;
++const mask = 0xab_cd_ef;
++const flags = 0b10100001_11000011;
 ```
 
-esupgrade transforms decimal integer and bigint literals with at least five digits.
-Fractional, exponential, hexadecimal, octal, binary, and already formatted literals are left unchanged.
+esupgrade transforms decimal integer and bigint literals with at least five digits using groups of three.
+Hexadecimal literals with at least three digits are grouped by byte (two hex digits).
+Binary literals with at least nine bits are grouped by byte (eight bits).
+Fractional, exponential, octal, and already formatted literals are left unchanged.
 
 #### `Array.slice(0)` → [Array spread [...]][mdn-spread]
 
