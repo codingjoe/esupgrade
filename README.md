@@ -245,7 +245,7 @@ Supports:
 +const large = 1e100_000;
 ```
 
-Decimal integers and float integer parts are grouped by thousands; hex and binary by byte.
+Decimal numericals are grouped by thousands; hex and binary by byte.
 
 #### `Array.slice(0)` → [Array spread [...]][mdn-spread]
 
