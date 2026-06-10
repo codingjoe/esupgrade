@@ -12,13 +12,22 @@ const EXPONENTIAL_LITERAL =
   /^(?:(?<mantissaInt>\d+)(?:\.(?<mantissaDec>\d*))?|\.(?<mantissaLeadingDec>\d+))(?<expMarker>[eE])(?<sign>[+-]?)(?<exponent>\d+)$/
 
 /**
- * Apply thousands separators to a string of digits.
+ * Apply numeric separators to digit groups counted from the right.
  *
  * @param {string} digits - Digit string without separators.
- * @returns {string} Digits with `_` inserted every three digits from the right.
+ * @param {number} groupSize - Number of characters per group.
+ * @returns {string} Digits with `_` inserted between right-aligned groups.
  */
-function applyThousandsSep(digits) {
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, "_")
+function applyDigitGroupSep(digits, groupSize) {
+  switch (digits.length > groupSize) {
+    case true: {
+      const firstGroupLength = digits.length % groupSize || groupSize
+
+      return `${digits.slice(0, firstGroupLength)}_${applyDigitGroupSep(digits.slice(firstGroupLength), groupSize)}`
+    }
+    default:
+      return digits
+  }
 }
 
 /**
@@ -36,7 +45,7 @@ function formatDecimalIntegerLiteral(rawLiteral) {
 
   const { digits, suffix = "" } = match.groups
 
-  return `${applyThousandsSep(digits)}${suffix}`
+  return `${applyDigitGroupSep(digits, 3)}${suffix}`
 }
 
 /**
@@ -54,7 +63,7 @@ function formatOctalLiteral(rawLiteral) {
 
   const { prefix, digits, suffix = "" } = match.groups
 
-  return `${prefix}${digits.replace(/\B(?=([0-7]{3})+(?![0-7]))/g, "_")}${suffix}`
+  return `${prefix}${applyDigitGroupSep(digits, 3)}${suffix}`
 }
 
 /**
@@ -73,7 +82,7 @@ function formatHexLiteral(rawLiteral) {
   const { prefix, digits, suffix = "" } = match.groups
 
   // Insert `_` before each group of 2 hex chars counted from the right.
-  return `${prefix}${digits.replace(/\B(?=([0-9a-fA-F]{2})+(?![0-9a-fA-F]))/g, "_")}${suffix}`
+  return `${prefix}${applyDigitGroupSep(digits, 2)}${suffix}`
 }
 
 /**
@@ -92,7 +101,7 @@ function formatBinaryLiteral(rawLiteral) {
   const { prefix, digits, suffix = "" } = match.groups
 
   // Insert `_` before each group of 8 bits counted from the right.
-  return `${prefix}${digits.replace(/\B(?=([01]{8})+(?![01]))/g, "_")}${suffix}`
+  return `${prefix}${applyDigitGroupSep(digits, 8)}${suffix}`
 }
 
 /**
@@ -114,7 +123,7 @@ function formatFloatLiteral(rawLiteral) {
     return null
   }
 
-  return `${applyThousandsSep(integer)}.${decimal}`
+  return `${applyDigitGroupSep(integer, 3)}.${decimal}`
 }
 
 /**
@@ -140,9 +149,9 @@ function formatExponentialLiteral(rawLiteral) {
   } = match.groups
 
   const formattedMantissaInt =
-    mantissaInt.length >= 5 ? applyThousandsSep(mantissaInt) : mantissaInt
+    mantissaInt.length >= 5 ? applyDigitGroupSep(mantissaInt, 3) : mantissaInt
   const formattedExponent =
-    exponent.length >= 5 ? applyThousandsSep(exponent) : exponent
+    exponent.length >= 5 ? applyDigitGroupSep(exponent, 3) : exponent
 
   if (formattedMantissaInt === mantissaInt && formattedExponent === exponent) {
     return null
