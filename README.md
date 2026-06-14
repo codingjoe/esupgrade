@@ -38,7 +38,7 @@ npx esupgrade --help
 esupgrade is available as a skill in [Claude Code]. To use it:
 
 1. Run `/plugin marketplace add codingjoe/esupgrade`
-2. Run `/plugin install esupgrade@esupgrade`
+1. Run `/plugin install esupgrade@esupgrade`
 
 The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
