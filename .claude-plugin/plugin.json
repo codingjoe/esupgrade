@@ -1,0 +1,22 @@
+{
+  "name": "esupgrade",
+  "displayName": "ESUpgrade",
+  "description": "Auto-upgrade JavaScript and TypeScript syntax to new ECMAScript features based on browser support.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Johannes Maron",
+    "email": "security@codingjoe.dev"
+  },
+  "homepage": "https://github.com/codingjoe/esupgrade",
+  "repository": "https://github.com/codingjoe/esupgrade",
+  "license": "BSD-2-Clause",
+  "keywords": [
+    "javascript",
+    "ecmascript",
+    "modernize",
+    "upgrade",
+    "codemod",
+    "ast",
+    "transform"
+  ]
+}
