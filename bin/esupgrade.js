@@ -10,6 +10,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 import { Worker } from "worker_threads"
 import pkg from "../package.json" with { type: "json" }
+import { transform } from "../src/index.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -180,6 +181,62 @@ class WorkerPool {
 }
 
 /**
+ * Processes stdin and handles output.
+ */
+class StdinProcessor {
+  /**
+   * Process stdin using the configured transformation options.
+   * @param {Object} options - Processing options.
+   * @param {string} options.baseline - Baseline level for transformations.
+   * @param {boolean} options.check - Whether to only check for changes.
+   * @param {boolean} options.write - Whether to write changes to file.
+   * @param {boolean} options.verbose - The verbosity level for logging.
+   * @returns {Promise<void>} Complete when stdin processing finishes.
+   */
+  async processStdin(options) {
+    if (options.write) {
+      console.error("Error: '--write' cannot be used with stdin")
+      process.exit(1)
+    }
+
+    try {
+      const code = await this.#readStdin()
+      const result = transform(code, options.baseline)
+
+      if (options.check) {
+        if (result.modified) {
+          process.exit(1)
+        }
+        return
+      }
+
+      process.stdout.write(result.code)
+    } catch (error) {
+      if (options.verbose) console.error(error)
+      console.error(`\x1b[31m✗\x1b[0m Error: stdin: ${error.message}`)
+      process.exit(128)
+    }
+  }
+
+  /**
+   * Read source code from stdin.
+   * @returns {Promise<string>} Source code from stdin.
+   */
+  async #readStdin() {
+    process.stdin.setEncoding("utf8")
+    let code = ""
+
+    function handleChunk(chunk) {
+      code += chunk
+    }
+
+    process.stdin.on("data", handleChunk)
+    await once(process.stdin, "end")
+    return code
+  }
+}
+
+/**
  * Orchestrates the CLI application.
  */
 class CLIRunner {
@@ -187,6 +244,7 @@ class CLIRunner {
     const workerRunner = new WorkerRunner(workerPath)
     const fileProcessor = new FileProcessor(workerRunner)
     this.workerPool = new WorkerPool(fileProcessor)
+    this.stdinProcessor = new StdinProcessor()
   }
 
   /**
@@ -195,12 +253,41 @@ class CLIRunner {
    * @param {Object} options - Processing options.
    */
   async run(patterns, options) {
+    switch (this.#getInputMode(patterns)) {
+      case "stdin":
+        await this.stdinProcessor.processStdin(options)
+        return
+      case "mixed":
+        console.error("Error: '-' cannot be combined with file paths")
+        process.exit(1)
+      default:
+        break
+    }
+
     console.time("Processing")
     // Hand CLI-provided names directly to the worker pool; file validation occurs in processFile.
     const results = await this.workerPool.processFiles(patterns, options)
     console.timeEnd("Processing")
 
     this.#reportSummary(results, options)
+  }
+
+  /**
+   * Classify the input mode selected by CLI arguments.
+   * @param {string[]} patterns - File paths to process.
+   * @returns {"files" | "stdin" | "mixed"} Selected input mode.
+   */
+  #getInputMode(patterns) {
+    const stdinCount = patterns.filter((pattern) => pattern === "-").length
+
+    switch (stdinCount) {
+      case 0:
+        return "files"
+      case 1:
+        return patterns.length === 1 ? "stdin" : "mixed"
+      default:
+        return "mixed"
+    }
   }
 
   #reportSummary(results, options) {
@@ -257,7 +344,7 @@ program
   .name("esupgrade")
   .description("Auto-upgrade your JavaScript syntax")
   .version(pkg.version)
-  .argument("<files...>", "Files or directories to process")
+  .argument("<files...>", "Files or directories to process, or '-' to read from stdin")
   .addOption(
     new Option("--baseline <level>", "Set baseline level for transformations")
       .choices(["widely-available", "newly-available"])

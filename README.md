@@ -59,6 +59,12 @@ echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.t
 npx esupgrade --help
 ```
 
+To transform code from standard input, pass `-` as the input path:
+
+```bash
+echo 'var x = 1;' | npx esupgrade -
+```
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-wordmark-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-wordmark.svg">
