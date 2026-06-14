@@ -107,9 +107,12 @@ describe("CLI", () => {
   })
 
   test("transform stdin and write code to stdout", () => {
+    fs.writeFileSync(path.join(tempDir, "-"), "const fromFile = true;")
+
     const result = spawnSync(process.execPath, [CLI_PATH, "-"], {
       encoding: "utf8",
       input: "var x = 1;",
+      cwd: tempDir,
     })
 
     assert.match(result.stdout, /const x = 1;/, "writes transformed code to stdout")
@@ -173,7 +176,7 @@ describe("CLI", () => {
     assert.equal(result.status, 1, "exits with 1")
   })
 
-  test("error when repeating stdin marker", () => {
+  test("error when stdin marker appears multiple times", () => {
     const result = spawnSync(process.execPath, [CLI_PATH, "-", "-"], {
       encoding: "utf8",
       input: "var x = 1;",
