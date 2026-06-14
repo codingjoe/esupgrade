@@ -259,7 +259,7 @@ class CLIRunner {
         return
       case "mixed":
         console.error("Error: '-' cannot be combined with file paths")
-        process.exit(1)
+        return process.exit(1)
       default:
         break
     }

@@ -165,7 +165,11 @@ describe("CLI", () => {
       input: "var x = 1;",
     })
 
-    assert.match(result.stderr, /cannot be used with stdin/, "displays stdin write error")
+    assert.match(
+      result.stderr,
+      /cannot be used with stdin/,
+      "displays stdin write error",
+    )
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -175,7 +179,11 @@ describe("CLI", () => {
       input: "var x = 1;",
     })
 
-    assert.match(result.stderr, /cannot be combined with file paths/, "displays input error")
+    assert.match(
+      result.stderr,
+      /cannot be combined with file paths/,
+      "displays input error",
+    )
     assert.equal(result.status, 1, "exits with 1")
   })
 
@@ -188,7 +196,11 @@ describe("CLI", () => {
       input: "var y = 2;",
     })
 
-    assert.match(result.stderr, /cannot be combined with file paths/, "displays input error")
+    assert.match(
+      result.stderr,
+      /cannot be combined with file paths/,
+      "displays input error",
+    )
     assert.equal(result.status, 1, "exits with 1")
   })
 
