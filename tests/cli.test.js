@@ -106,6 +106,118 @@ describe("CLI", () => {
     assert.equal(result.status, 0, "exits successfully")
   })
 
+  test("transform stdin and write code to stdout", () => {
+    fs.writeFileSync(path.join(tempDir, "-"), "const fromFile = true;")
+
+    const result = spawnSync(process.execPath, [CLI_PATH, "-"], {
+      encoding: "utf8",
+      input: "var x = 1;",
+      cwd: tempDir,
+    })
+
+    assert.match(result.stdout, /const x = 1;/, "writes transformed code to stdout")
+    assert.doesNotMatch(
+      result.stdout,
+      /would be upgraded|All files are up to date|Processing:/,
+      "omits file-processing summary output",
+    )
+    assert.equal(result.status, 0, "exits successfully")
+  })
+
+  test("transform stdin with newly-available baseline", () => {
+    const result = spawnSync(
+      process.execPath,
+      [CLI_PATH, "-", "--baseline", "newly-available"],
+      {
+        encoding: "utf8",
+        input: "const p = new Promise((resolve) => resolve(getData()));",
+      },
+    )
+
+    assert.match(
+      result.stdout,
+      /Promise\.try/,
+      "writes transformations from the selected baseline",
+    )
+    assert.equal(result.status, 0, "exits successfully")
+  })
+
+  test("exit with 1 when --check finds stdin changes", () => {
+    const result = spawnSync(process.execPath, [CLI_PATH, "-", "--check"], {
+      encoding: "utf8",
+      input: "var x = 1;",
+    })
+
+    assert.equal(result.stdout, "", "omits transformed output in check mode")
+    assert.equal(result.status, 1, "exits with 1 when stdin needs upgrading")
+  })
+
+  test("exit with 0 when --check finds no stdin changes", () => {
+    const result = spawnSync(process.execPath, [CLI_PATH, "-", "--check"], {
+      encoding: "utf8",
+      input: "const x = 1;",
+    })
+
+    assert.equal(result.stdout, "", "omits transformed output in check mode")
+    assert.equal(result.status, 0, "exits with 0 when stdin is up to date")
+  })
+
+  test("error when combining stdin with --write", () => {
+    const result = spawnSync(process.execPath, [CLI_PATH, "-", "--write"], {
+      encoding: "utf8",
+      input: "var x = 1;",
+    })
+
+    assert.match(
+      result.stderr,
+      /cannot be used with stdin/,
+      "displays stdin write error",
+    )
+    assert.equal(result.status, 1, "exits with 1")
+  })
+
+  test("error when stdin marker appears multiple times", () => {
+    const result = spawnSync(process.execPath, [CLI_PATH, "-", "-"], {
+      encoding: "utf8",
+      input: "var x = 1;",
+    })
+
+    assert.match(
+      result.stderr,
+      /cannot be combined with file paths/,
+      "displays input error",
+    )
+    assert.equal(result.status, 1, "exits with 1")
+  })
+
+  test("error when combining stdin with file arguments", () => {
+    const testFile = path.join(tempDir, "test.js")
+    fs.writeFileSync(testFile, "var x = 1;")
+
+    const result = spawnSync(process.execPath, [CLI_PATH, "-", testFile], {
+      encoding: "utf8",
+      input: "var y = 2;",
+    })
+
+    assert.match(
+      result.stderr,
+      /cannot be combined with file paths/,
+      "displays input error",
+    )
+    assert.equal(result.status, 1, "exits with 1")
+  })
+
+  test("show stdin parse error with --verbose", () => {
+    const result = spawnSync(process.execPath, [CLI_PATH, "-", "--verbose"], {
+      encoding: "utf8",
+      input: "var x = {{{;",
+    })
+
+    assert.match(result.stderr, /Error:/, "displays error message")
+    assert.match(result.stderr, /\n\s*at /, "includes stack trace at verbosity level 1")
+    assert.equal(result.status, 128, "exits with 128 on stdin errors")
+  })
+
   test("check files without writing with --check", () => {
     const testFile = path.join(tempDir, "test.js")
     const originalCode = `var x = 1;`

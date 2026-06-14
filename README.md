@@ -27,20 +27,17 @@ To try it out on a repository without writing changes, run:
 npx -y esupgrade $(git ls-files | grep -E -i -w '.*\.(t|j)sx?')
 ```
 
+To transform code from standard input, pass `-` as the input path:
+
+```bash
+echo 'var x = 1;' | npx esupgrade -
+```
+
 For help with available options:
 
 ```bash
 npx esupgrade --help
 ```
-
-### Agent Skill
-
-esupgrade is available as a skill in [Claude Code]. To use it:
-
-1. Run `/plugin marketplace add codingjoe/esupgrade`
-1. Run `/plugin install esupgrade@esupgrade`
-
-The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
 ### pre-commit
 
@@ -69,6 +66,15 @@ Assuming Husky is already initialized and `.husky/pre-commit` already contains `
 echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' | xargs -0 sh -c 'test \"\$#\" -eq 0 && exit 0; npx -y esupgrade -- \"\$@\"' sh" >> .husky/pre-commit
 echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' | xargs -0 sh -c 'test \"\$#\" -eq 0 && exit 0; git add -- \"\$@\"' sh" >> .husky/pre-commit
 ```
+
+### Agent Skill
+
+esupgrade is available as a skill in [Claude Code]. To use it:
+
+1. Run `/plugin marketplace add codingjoe/esupgrade`
+1. Run `/plugin install esupgrade@esupgrade`
+
+The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-wordmark-dark.svg">
