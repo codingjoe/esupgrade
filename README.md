@@ -17,13 +17,30 @@ Keeping your JavaScript and TypeScript code up to date with full browser compati
 ## Usage
 
 esupgrade is safe and meant to be used automatically on your codebase.
-We recommend integrating it into your development workflow using [pre-commit] or [husky].
+We recommend integrating it into your development workflow using [pre-commit], [husky], or as an agent skill.
+
+### CLI
 
 To try it out on a repository without writing changes, run:
 
 ```bash
-npx esupgrade $(git ls-files | grep -E -i -w '.*\.(t|j)sx?')
+npx -y esupgrade $(git ls-files | grep -E -i -w '.*\.(t|j)sx?')
 ```
+
+For help with available options:
+
+```bash
+npx esupgrade --help
+```
+
+### Agent Skill
+
+esupgrade is available as a skill in [Claude Code]. To use it:
+
+1. Run `/plugin marketplace add codingjoe/esupgrade`
+1. Run `/plugin install esupgrade@esupgrade`
+
+The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
 ### pre-commit
 
@@ -49,14 +66,8 @@ pre-commit run esupgrade --all-files
 Assuming Husky is already initialized and `.husky/pre-commit` already contains `set -e`, append:
 
 ```bash
-echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' | xargs -0 sh -c 'test \"\$#\" -eq 0 && exit 0; npx esupgrade -- \"\$@\"' sh" >> .husky/pre-commit
+echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' | xargs -0 sh -c 'test \"\$#\" -eq 0 && exit 0; npx -y esupgrade -- \"\$@\"' sh" >> .husky/pre-commit
 echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' | xargs -0 sh -c 'test \"\$#\" -eq 0 && exit 0; git add -- \"\$@\"' sh" >> .husky/pre-commit
-```
-
-### CLI
-
-```bash
-npx esupgrade --help
 ```
 
 <picture>
@@ -402,7 +413,7 @@ Transforms constructor functions (both function declarations and variable declar
 
 - Function name starts with an uppercase letter
 - At least one prototype method is defined
-- Prototype methods are matched only to constructors declared in the current or an ancestor lexical scope (never sibling or child scopes)
+- Prototype methods are matched to constructors declared in the current or an ancestor lexical scope (never sibling or child scopes)
 - Prototype methods using `this` in arrow functions are skipped
 - Prototype object literals with getters, setters, or computed properties are skipped
 
@@ -756,6 +767,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 
 [baseline]: https://web.dev/baseline/
 [calver]: https://calver.org/
+[claude code]: https://code.claude.com
 [django-upgrade]: https://github.com/adamchainz/django-upgrade
 [husky]: https://typicode.github.io/husky/
 [mdn-arrow-functions]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions
