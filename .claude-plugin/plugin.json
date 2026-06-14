@@ -1,6 +1,6 @@
 {
   "name": "esupgrade",
-  "displayName": "esupgrade",
+  "displayName": "ESUpgrade",
   "description": "Auto-upgrade JavaScript and TypeScript syntax to new ECMAScript features based on browser support.",
   "version": "0.1.0",
   "author": {
@@ -18,6 +18,5 @@
     "codemod",
     "ast",
     "transform"
-  ],
-  "skills": ["."]
+  ]
 }
