@@ -1,10 +1,10 @@
 ---
 name: esupgrade
 description: Auto-update JavaScript and TypeScript syntax to new ECMAScript features based on browser support.
-license: BSD-2-Clause. Read LICENSE file for details.
+license: BSD-2-Clause
 metadata:
   author: codingjoe <security@codingjoe.dev>
-allowed-tools: Bash(npx -y esupgrade *) Bash(npm i -g npx) READ
+allowed-tools: Bash(npx -y esupgrade *) READ
 compatibility: Requires Node.js 24 or later and npx.
 ---
 

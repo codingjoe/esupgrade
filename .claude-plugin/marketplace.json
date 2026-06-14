@@ -8,10 +8,7 @@
   "plugins": [
     {
       "name": "esupgrade",
-      "source": {
-        "source": "github",
-        "repo": "codingjoe/esupgrade"
-      },
+      "source": "./",
       "description": "Auto-upgrade JavaScript and TypeScript syntax to new ECMAScript features based on browser support.",
       "displayName": "esupgrade",
       "author": {

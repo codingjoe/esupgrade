@@ -24,7 +24,7 @@ We recommend integrating it into your development workflow using [pre-commit], [
 To try it out on a repository without writing changes, run:
 
 ```bash
-npx esupgrade $(git ls-files | grep -E -i -w '.*\.(t|j)sx?')
+npx -y esupgrade $(git ls-files | grep -E -i -w '.*\.(t|j)sx?')
 ```
 
 For help with available options:
@@ -37,8 +37,8 @@ npx esupgrade --help
 
 esupgrade is available as a skill in [Claude Code]. To use it:
 
-2. Run `/plugin marketplace add codingjoe/esupgrade`
-1. Run `/plugin install esupgrade@esupgrade`
+1. Run `/plugin marketplace add codingjoe/esupgrade`
+2. Run `/plugin install esupgrade@esupgrade`
 
 The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
