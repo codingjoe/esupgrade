@@ -7,23 +7,25 @@ import { processMultipleDeclarators, processSingleDeclarator } from "../types.js
  * @param {import("ast-types").NodePath} path - The path to check.
  * @returns {boolean} True when the path is inside a declared TypeScript module.
  */
-function isInDeclaredTypeScriptModule(path) {
-  if (!path.parentPath) {
-    return false
+function isInDeclaredTypeScriptModule({ parentPath: currentPath }) {
+  while (currentPath) {
+    const currentNode = currentPath.node
+
+    if (j.TSModuleDeclaration.check(currentNode) && currentNode.declare === true) {
+      return true
+    }
+
+    currentPath = currentPath.parentPath
   }
 
-  const parentNode = path.parentPath.node
-  const isDeclaredTypeScriptModule =
-    j.TSModuleDeclaration.check(parentNode) && parentNode.declare === true
-
-  return isDeclaredTypeScriptModule || isInDeclaredTypeScriptModule(path.parentPath)
+  return false
 }
 
 /**
  * Detect whether a variable declaration is ambient in TypeScript.
  *
  * @param {import("ast-types").NodePath} path - The variable declaration path.
- * @returns {boolean} True when the declaration must remain `var`.
+ * @returns {boolean} True when TypeScript ambient syntax requires keeping `var`.
  */
 function isAmbientTypeScriptVar(path) {
   return path.node.declare === true || isInDeclaredTypeScriptModule(path)
