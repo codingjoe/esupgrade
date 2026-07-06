@@ -126,6 +126,8 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 +y = 3;
 ```
 
+TypeScript ambient declarations (for example `declare var` and `declare global { var ... }`) keep `var`.
+
 #### String concatenation → [Template literals][mdn-template-literals]
 
 ```diff

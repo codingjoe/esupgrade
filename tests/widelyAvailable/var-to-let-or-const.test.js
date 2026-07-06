@@ -505,5 +505,29 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /var prop/)
       assert.doesNotMatch(result.code, /let prop/)
     })
+
+    test("preserve var in declare global", () => {
+      const result = transform(`
+  declare global {
+    var csrftoken: string;
+  }
+`)
+
+      assert(!result.modified, "skip ambient declare global var")
+      assert.match(result.code, /var csrftoken: string;/)
+      assert.doesNotMatch(result.code, /const csrftoken: string;/)
+      assert.doesNotMatch(result.code, /let csrftoken: string;/)
+    })
+
+    test("preserve top-level declare var", () => {
+      const result = transform(`
+  declare var csrftoken: string;
+`)
+
+      assert(!result.modified, "skip top-level ambient declare var")
+      assert.match(result.code, /declare var csrftoken: string;/)
+      assert.doesNotMatch(result.code, /declare const csrftoken: string;/)
+      assert.doesNotMatch(result.code, /declare let csrftoken: string;/)
+    })
   })
 })
