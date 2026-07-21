@@ -220,5 +220,25 @@ suite("widely-available", () => {
 
       assert(!result.modified, "skip named function expression")
     })
+
+    test("generic type parameters are preserved", () => {
+      const result = transform(`
+  globalThis.Promise.withResolvers = function<T>() {
+    return { promise: new Promise<T>(), resolve: null };
+  };
+`)
+
+      assert(result.modified, "transform generic function expression")
+      assert.match(result.code, /<T>\(\) =>/)
+    })
+
+    test("generic type parameters with return type are preserved", () => {
+      const result = transform(`
+  arr.map(function<T>(x: T): T { return x; });
+`)
+
+      assert(result.modified, "transform generic callback function")
+      assert.match(result.code, /<T>\(x: T\): T =>/)
+    })
   })
 })

@@ -68,6 +68,16 @@ export function anonymousFunctionToArrow(root) {
         arrowFunction.async = true
       }
 
+      // Preserve TypeScript generic type parameters
+      if (node.typeParameters) {
+        arrowFunction.typeParameters = node.typeParameters
+      }
+
+      // Preserve TypeScript return type annotation
+      if (node.returnType) {
+        arrowFunction.returnType = node.returnType
+      }
+
       j(path).replaceWith(arrowFunction)
 
       modified = true
