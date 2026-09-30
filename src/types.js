@@ -1104,13 +1104,43 @@ export function processSingleDeclarator(reassignments, path) {
 }
 
 /**
- * Process a multiple declarator variable declaration by splitting into separate
- * declarations
+ * Check whether a declaration can split into several declarations.
+ *
+ * Only a declaration in a slot holding a list of statements can split. The
+ * initializer of a `for` loop and an exported declaration hold a single node.
+ *
+ * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {boolean} True when the declaration can split into several declarations
+ */
+function canSplitDeclaration(path) {
+  return Array.isArray(path.parentPath.value)
+}
+
+/**
+ * Calculate the kind shared by all declarators of a declaration.
+ *
+ * The declarators keep a single kind, which is `let` as soon as one declarator
+ * requires it.
+ *
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
+ * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {"const" | "let"} The kind for the whole declaration
+ */
+function calculateMergedKind(reassignments, path) {
+  const hasLetDeclarator = path.node.declarations.some((declarator) => {
+    return determineDeclaratorKind(reassignments, declarator, path) === "let"
+  })
+
+  return hasLetDeclarator ? "let" : "const"
+}
+
+/**
+ * Split a variable declaration into one declaration per declarator.
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  */
-export function processMultipleDeclarators(reassignments, path) {
+function splitDeclarators(reassignments, path) {
   const declarations = path.node.declarations.map((declarator) => {
     return j.variableDeclaration(
       determineDeclaratorKind(reassignments, declarator, path),
@@ -1119,6 +1149,22 @@ export function processMultipleDeclarators(reassignments, path) {
   })
 
   j(path).replaceWith(declarations)
+}
+
+/**
+ * Process a multiple declarator variable declaration by splitting into separate
+ * declarations, or by merging the declarator kinds when the declaration cannot
+ * split.
+ *
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
+ * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ */
+export function processMultipleDeclarators(reassignments, path) {
+  if (canSplitDeclaration(path)) {
+    splitDeclarators(reassignments, path)
+  } else {
+    path.node.kind = calculateMergedKind(reassignments, path)
+  }
 }
 
 /**
