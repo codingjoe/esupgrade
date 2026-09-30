@@ -643,6 +643,163 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /let prop/)
     })
 
+    test("single-statement if body", () => {
+      const result = transform(`
+  if (x) var a = 1;
+`)
+
+      assert(result.modified, "wrap the declaration in a block")
+      assert.match(result.code, /if \(x\) \{\s*const a = 1;\s*\}/)
+    })
+
+    test("single-statement else body", () => {
+      const result = transform(`
+  if (x) y(); else var a = 1;
+`)
+
+      assert(result.modified, "wrap the declaration in a block")
+      assert.match(result.code, /else \{\s*const a = 1;\s*\}/)
+    })
+
+    test("single-statement while body", () => {
+      const result = transform(`
+  while (x) var a = 1;
+`)
+
+      assert(result.modified, "wrap the declaration in a block")
+      assert.match(result.code, /while \(x\) \{\s*const a = 1;\s*\}/)
+    })
+
+    test("single-statement do-while body", () => {
+      const result = transform(`
+  do var a = 1; while (x);
+`)
+
+      assert(result.modified, "wrap the declaration in a block")
+      assert.match(result.code, /do \{\s*const a = 1;\s*\} while \(x\);/)
+    })
+
+    test("single-statement for body", () => {
+      const result = transform(`
+  for (;;) var a = 1;
+`)
+
+      assert(result.modified, "wrap the declaration in a block")
+      assert.match(result.code, /for \(; ; \) \{\s*const a = 1;\s*\}/)
+    })
+
+    test("single-statement for-in body", () => {
+      const result = transform(`
+  for (const key in obj) var a = 1;
+`)
+
+      assert(result.modified, "wrap the declaration in a block")
+      assert.match(result.code, /for \(const key in obj\) \{\s*const a = 1;\s*\}/)
+    })
+
+    test("single-statement labelled body", () => {
+      const result = transform(`
+  label: var a = 1;
+`)
+
+      assert(result.modified, "wrap the declaration in a block")
+      assert.match(result.code, /label:\s*\{\s*const a = 1;\s*\}/)
+    })
+
+    test("single-statement body with multiple declarators", () => {
+      const result = transform(`
+  if (x) var a = 1, b = 2;
+`)
+
+      assert(result.modified, "split multiple declarators inside the block")
+      assert.match(result.code, /if \(x\) \{\s*const a = 1;\s*const b = 2;\s*\}/)
+    })
+
+    test("single-statement body without initializers", () => {
+      const result = transform(`
+  if (x) var a, b;
+`)
+
+      assert(result.modified, "declare uninitialized names with let")
+      assert.match(result.code, /if \(x\) \{\s*let a;\s*let b;\s*\}/)
+    })
+
+    test("single-statement body with destructuring pattern", () => {
+      const result = transform(`
+  if (x) var { a, b } = obj;
+`)
+
+      assert(result.modified, "keep property keys inside the pattern")
+      assert.match(result.code, /if \(x\) \{\s*const \{ a, b \} = obj;\s*\}/)
+    })
+
+    test("single-statement body beside a property of the same name", () => {
+      const result = transform(`
+  if (x) var a = 1;
+  obj.a = 2;
+`)
+
+      assert(result.modified, "read a member property as no reference")
+      assert.match(result.code, /if \(x\) \{\s*const a = 1;\s*\}/)
+      assert.match(result.code, /obj\.a = 2/)
+    })
+
+    test("single-statement body with a reference outside", () => {
+      const result = transform(`
+  if (x) var a = 1;
+  use(a);
+`)
+
+      assert(!result.modified, "keep var when a reference lives outside the body")
+      assert.match(result.code, /if \(x\) var a = 1;/)
+    })
+
+    test("single-statement body with multiple declarators and a reference outside", () => {
+      const result = transform(`
+  if (x) var a = 1, b = 2;
+  use(a);
+`)
+
+      assert(!result.modified, "keep var when a reference lives outside the body")
+      assert.match(result.code, /if \(x\) var a = 1, b = 2;/)
+    })
+
+    test("single-statement body with a repeated name", () => {
+      const result = transform(`
+  if (x) var a = 1, a = 2;
+`)
+
+      assert(!result.modified, "keep var when a name repeats")
+      assert.match(result.code, /if \(x\) var a = 1, a = 2;/)
+    })
+
+    test("single-statement body with a self reference", () => {
+      const result = transform(`
+  if (x) var a = a || 1;
+`)
+
+      assert(!result.modified, "keep var when the initializer reads the name")
+      assert.match(result.code, /if \(x\) var a = a \|\| 1;/)
+    })
+
+    test("single-statement body with a computed member", () => {
+      const result = transform(`
+  if (x) var a = obj[a];
+`)
+
+      assert(!result.modified, "keep var when a computed member reads the name")
+      assert.match(result.code, /if \(x\) var a = obj\[a\];/)
+    })
+
+    test("single-statement body with a computed key", () => {
+      const result = transform(`
+  if (x) var a = { [a]: 1 };
+`)
+
+      assert(!result.modified, "keep var when a computed key reads the name")
+      assert.match(result.code, /if \(x\) var a = \{ \[a\]: 1 \};/)
+    })
+
     test("preserve var in declare global", () => {
       const result = transform(`
   declare global {
