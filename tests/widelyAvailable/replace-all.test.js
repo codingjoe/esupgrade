@@ -151,6 +151,14 @@ suite("widely-available", () => {
 
         assert(!result.modified, "skip computed replace() property access")
       })
+
+      test("shadowed Array local", () => {
+        const result = transform(
+          `function fn() { const Array = []\nreturn Array.of(1, 2).replace(1, 2); }`,
+        )
+
+        assert(!result.modified, "skip replace() on a shadowed Array local")
+      })
     })
   })
 })

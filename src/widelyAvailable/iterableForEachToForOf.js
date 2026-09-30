@@ -31,10 +31,13 @@ export function iterableForEachToForOf(root) {
 
   root
     .find(j.CallExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Check if this is a forEach call
       if (
         !j.MemberExpression.check(node.callee) ||
+        node.callee.computed ||
         !j.Identifier.check(node.callee.property) ||
         node.callee.property.name !== "forEach"
       ) {

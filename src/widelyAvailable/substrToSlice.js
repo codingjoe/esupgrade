@@ -17,10 +17,13 @@ export function substrToSlice(root) {
 
   root
     .find(j.CallExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Check if this is a .substr() call
       if (
         !j.MemberExpression.check(node.callee) ||
+        node.callee.computed ||
         !j.Identifier.check(node.callee.property) ||
         node.callee.property.name !== "substr"
       ) {
@@ -28,7 +31,7 @@ export function substrToSlice(root) {
       }
 
       // Only transform if we can verify the object is a string or returns a string
-      return new NodeTest(node.callee.object).hasIndexOfAndIncludes()
+      return new NodeTest(node.callee.object, path).hasIndexOfAndIncludes()
     })
     .forEach((path) => {
       const node = path.node

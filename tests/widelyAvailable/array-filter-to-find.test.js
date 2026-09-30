@@ -169,5 +169,21 @@ suite("widely-available", () => {
 
       assert(!result.modified, "skip filter()[0] with two filter arguments")
     })
+
+    test("computed filter member name", () => {
+      const result = transform(
+        `const filter = "map"\nconst first = Array.of(1, 2)[filter](x => x > 1)[0];`,
+      )
+
+      assert(!result.modified, "skip computed filter member name")
+    })
+
+    test("shadowed Array local", () => {
+      const result = transform(
+        `function fn() { const Array = []\nreturn Array.of(1, 2).filter(x => x > 1)[0]; }`,
+      )
+
+      assert(!result.modified, "skip filter on a shadowed Array local")
+    })
   })
 })

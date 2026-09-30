@@ -16,7 +16,9 @@ export function indexOfToIncludes(root) {
 
   root
     .find(j.BinaryExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Check for comparison operators: !==, ===, >, >=, <, <=
       if (!["!==", "===", ">", ">=", "<", "<="].includes(node.operator)) {
         return false
@@ -39,7 +41,7 @@ export function indexOfToIncludes(root) {
       // Only transform if we can verify the object type is an array or string
       // This ensures both indexOf and includes are available
       const objectNode = indexOfCall.callee.object
-      if (!new NodeTest(objectNode).hasIndexOfAndIncludes()) {
+      if (!new NodeTest(objectNode, path).hasIndexOfAndIncludes()) {
         return false
       }
 

@@ -403,6 +403,24 @@ return args;
         )
         assert.doesNotMatch(result.code, /const args/)
       })
+
+      describe("Array shadowing", () => {
+        test("computed substr member name", () => {
+          const result = transform(
+            `const substr = "repeat"\nconst s = "abc"[substr](0, 1);`,
+          )
+
+          assert(!result.modified, "skip computed substr member name")
+        })
+
+        test("shadowed Array local", () => {
+          const result = transform(
+            `function fn() { const Array = []\nreturn Array.of(1, 2).substr(0, 1); }`,
+          )
+
+          assert(!result.modified, "skip substr on a shadowed Array local")
+        })
+      })
     })
   })
 })

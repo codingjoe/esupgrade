@@ -107,6 +107,11 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 ## Transformations
 
+> [!NOTE]
+> A transformation applies to code with a statically verifiable type. Code that shadows a
+> global such as `Array`, or that accesses a method through a computed member such as
+> `array[method]()`, stays unchanged.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-widely-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-widely-word.svg">

@@ -149,5 +149,15 @@ class Trimmer {
         assert.doesNotMatch(result.code, /trimLeft/)
       })
     })
+
+    describe("Array shadowing", () => {
+      test("shadowed Array parameter", () => {
+        const result = transform(
+          `function fn(Array) { return Array.of(1, 2).trimLeft(); }`,
+        )
+
+        assert(!result.modified, "skip trimLeft on a shadowed Array parameter")
+      })
+    })
   })
 })

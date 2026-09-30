@@ -15,7 +15,9 @@ export function substringToStartsWith(root) {
 
   root
     .find(j.BinaryExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Check for === or !== operators
       if (!["===", "!=="].includes(node.operator)) {
         return false
@@ -29,6 +31,7 @@ export function substringToStartsWith(root) {
       if (
         j.CallExpression.check(node.left) &&
         j.MemberExpression.check(node.left.callee) &&
+        !node.left.callee.computed &&
         j.Identifier.check(node.left.callee.property) &&
         node.left.callee.property.name === "substring"
       ) {
@@ -39,6 +42,7 @@ export function substringToStartsWith(root) {
       else if (
         j.CallExpression.check(node.right) &&
         j.MemberExpression.check(node.right.callee) &&
+        !node.right.callee.computed &&
         j.Identifier.check(node.right.callee.property) &&
         node.right.callee.property.name === "substring"
       ) {
@@ -65,6 +69,7 @@ export function substringToStartsWith(root) {
       const secondArg = substringCall.arguments[1]
       if (
         !j.MemberExpression.check(secondArg) ||
+        secondArg.computed ||
         !j.Identifier.check(secondArg.property) ||
         secondArg.property.name !== "length"
       ) {
@@ -77,7 +82,7 @@ export function substringToStartsWith(root) {
       }
 
       // Only transform if we can verify the substring object is a string
-      return new NodeTest(substringCall.callee.object).hasIndexOfAndIncludes()
+      return new NodeTest(substringCall.callee.object, path).hasIndexOfAndIncludes()
     })
     .forEach((path) => {
       const node = path.node

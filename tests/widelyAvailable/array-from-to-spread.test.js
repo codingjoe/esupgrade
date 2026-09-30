@@ -108,5 +108,19 @@ suite("widely-available", () => {
       assert(result.modified, "transform Array.from() with complex iterable")
       assert.match(result.code, /\[\.\.\.document\.querySelectorAll\('\.item'\)\]/)
     })
+
+    test("Array[from](items) - computed member name", () => {
+      const result = transform(`const from = "of"\nconst arr = Array[from](items);`)
+
+      assert(!result.modified, "skip computed from member name")
+    })
+
+    test("imported Array binding", () => {
+      const result = transform(
+        `import Array from "./array.js"\nconst arr = Array.from(items);`,
+      )
+
+      assert(!result.modified, "skip Array.from() on an imported Array binding")
+    })
   })
 })

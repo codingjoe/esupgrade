@@ -24,7 +24,9 @@ export function argumentsToRestParameters(root) {
     ...root.find(j.FunctionExpression).paths(),
   ]
 
-  functionNodes.forEach(({ node: func }) => {
+  functionNodes.forEach((functionPath) => {
+    const func = functionPath.node
+
     if (
       (func.params.length > 0 && j.RestElement.check(func.params.at(-1))) ||
       !j.BlockStatement.check(func.body)
@@ -43,7 +45,7 @@ export function argumentsToRestParameters(root) {
         if (!j.Identifier.check(declarator.id)) return
 
         const varName = declarator.id.name
-        const initTest = new NodeTest(declarator.init)
+        const initTest = new NodeTest(declarator.init, functionPath)
 
         if (initTest.isArrayFromArguments() || initTest.isArraySliceCallArguments()) {
           accountedUsages++

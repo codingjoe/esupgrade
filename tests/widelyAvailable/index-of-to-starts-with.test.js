@@ -68,6 +68,22 @@ suite("widely-available", () => {
 
         assert(!result.modified, "skip indexOf === 1")
       })
+
+      test("computed indexOf member name", () => {
+        const result = transform(
+          `const indexOf = "lastIndexOf"\nconst found = "abc"[indexOf]("a") === 0;`,
+        )
+
+        assert(!result.modified, "skip computed indexOf member name")
+      })
+
+      test("imported Array binding", () => {
+        const result = transform(
+          `import Array from "./array.js"\nconst found = Array.of(1, 2).indexOf(2) === 0;`,
+        )
+
+        assert(!result.modified, "skip indexOf on an imported Array binding")
+      })
     })
   })
 })

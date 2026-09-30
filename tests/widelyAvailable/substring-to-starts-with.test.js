@@ -92,6 +92,30 @@ suite("widely-available", () => {
 
         assert(!result.modified, "skip substring with mismatched length")
       })
+
+      test("computed substring member name", () => {
+        const result = transform(
+          `const substring = "indexOf"\nconst prefix = "ab"\nconst matches = "abc"[substring](0, prefix.length) === prefix;`,
+        )
+
+        assert(!result.modified, "skip computed substring member name")
+      })
+
+      test("computed length member name", () => {
+        const result = transform(
+          `const length = "size"\nconst prefix = "ab"\nconst matches = "abc".substring(0, prefix[length]) === prefix;`,
+        )
+
+        assert(!result.modified, "skip computed length member name")
+      })
+
+      test("shadowed Array parameter", () => {
+        const result = transform(
+          `function fn(Array) { const prefix = "ab"\nreturn Array.of(1, 2).substring(0, prefix.length) === prefix; }`,
+        )
+
+        assert(!result.modified, "skip substring on a shadowed Array parameter")
+      })
     })
   })
 })

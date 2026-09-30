@@ -14,7 +14,9 @@ export function arrayFilterToFind(root) {
 
   root
     .find(j.MemberExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Must be computed access: expr[0]
       if (!node.computed) {
         return false
@@ -34,6 +36,8 @@ export function arrayFilterToFind(root) {
 
       if (
         !j.MemberExpression.check(filterCall.callee) ||
+        filterCall.callee.computed ||
+        !j.Identifier.check(filterCall.callee.property) ||
         filterCall.callee.property.name !== "filter"
       ) {
         return false
@@ -59,7 +63,7 @@ export function arrayFilterToFind(root) {
       }
 
       // Object being filtered must be a known array
-      return new NodeTest(filterCall.callee.object).hasIndexOfAndIncludes()
+      return new NodeTest(filterCall.callee.object, path).hasIndexOfAndIncludes()
     })
     .forEach((path) => {
       const filterCall = path.node.object

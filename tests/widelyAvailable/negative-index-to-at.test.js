@@ -90,6 +90,14 @@ suite("widely-available", () => {
         const result = transform(`const x = arr[0];`)
         assert(!result.modified)
       })
+
+      test("skip shadowed Array parameter", () => {
+        const result = transform(
+          `function fn(Array) { return Array.of(1, 2)[Array.of(1, 2).length - 1]; }`,
+        )
+
+        assert(!result.modified, "skip at() on a shadowed Array parameter")
+      })
     })
   })
 })

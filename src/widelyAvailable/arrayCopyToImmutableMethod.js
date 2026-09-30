@@ -29,14 +29,16 @@ function copyingMethodName(callee) {
  * Extract the copied array from a `[...array]` expression.
  *
  * @param {import("ast-types").ASTNode} node - The candidate copy expression
+ * @param {import("ast-types").NodePath} path - Path of the candidate copy
+ *   expression, or of a node inside the same scope
  * @returns {import("ast-types").ASTNode | null} The spread argument or null
  */
-function spreadCopySource(node) {
+function spreadCopySource(node, path) {
   if (
     !j.ArrayExpression.check(node) ||
     node.elements.length !== 1 ||
     !j.SpreadElement.check(node.elements[0]) ||
-    !new NodeTest(node.elements[0].argument).isArray()
+    !new NodeTest(node.elements[0].argument, path).isArray()
   ) {
     return null
   }
@@ -48,9 +50,11 @@ function spreadCopySource(node) {
  * Extract the copied array from an `array.slice()` or `array.slice(0)` expression.
  *
  * @param {import("ast-types").ASTNode} node - The candidate copy expression
+ * @param {import("ast-types").NodePath} path - Path of the candidate copy
+ *   expression, or of a node inside the same scope
  * @returns {import("ast-types").ASTNode | null} The slice receiver or null
  */
-function sliceCopySource(node) {
+function sliceCopySource(node, path) {
   if (
     !j.CallExpression.check(node) ||
     !j.MemberExpression.check(node.callee) ||
@@ -67,17 +71,19 @@ function sliceCopySource(node) {
     return null
   }
 
-  return new NodeTest(node.callee.object).isArray() ? node.callee.object : null
+  return new NodeTest(node.callee.object, path).isArray() ? node.callee.object : null
 }
 
 /**
  * Extract the copied array from an array copy expression.
  *
  * @param {import("ast-types").ASTNode} node - The candidate copy expression
+ * @param {import("ast-types").NodePath} path - Path of the candidate copy
+ *   expression, or of a node inside the same scope
  * @returns {import("ast-types").ASTNode | null} The copied array or null
  */
-function arrayCopySource(node) {
-  return spreadCopySource(node) ?? sliceCopySource(node)
+function arrayCopySource(node, path) {
+  return spreadCopySource(node, path) ?? sliceCopySource(node, path)
 }
 
 /**
@@ -116,7 +122,7 @@ export function arrayCopyToImmutableMethod(root) {
       return
     }
 
-    const source = arrayCopySource(node.callee.object)
+    const source = arrayCopySource(node.callee.object, path)
     if (!source) {
       return
     }
@@ -167,7 +173,7 @@ export function arrayCopyToImmutableMethod(root) {
       return
     }
 
-    const source = arrayCopySource(declarator.init)
+    const source = arrayCopySource(declarator.init, path)
     if (!source) {
       return
     }

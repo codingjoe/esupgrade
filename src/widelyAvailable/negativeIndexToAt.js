@@ -14,7 +14,9 @@ export function negativeIndexToAt(root) {
 
   root
     .find(j.MemberExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Must be computed access: expr[...]
       if (!node.computed) {
         return false
@@ -43,7 +45,7 @@ export function negativeIndexToAt(root) {
       }
 
       // Must be a statically verifiable iterable (array literal, new Array, Array.from/of, etc.)
-      if (!new NodeTest(node.object).isIterable()) {
+      if (!new NodeTest(node.object, path).isIterable()) {
         return false
       }
 

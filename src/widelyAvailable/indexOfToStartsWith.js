@@ -14,7 +14,9 @@ export function indexOfToStartsWith(root) {
 
   root
     .find(j.BinaryExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Check for === or !== operators
       if (!["===", "!=="].includes(node.operator)) {
         return false
@@ -35,7 +37,7 @@ export function indexOfToStartsWith(root) {
 
       // Only transform if we can verify the object is a string
       const objectNode = indexOfCall.callee.object
-      if (!new NodeTest(objectNode).hasIndexOfAndIncludes()) {
+      if (!new NodeTest(objectNode, path).hasIndexOfAndIncludes()) {
         return false
       }
 

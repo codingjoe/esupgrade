@@ -15,7 +15,9 @@ export function lastIndexOfToEndsWith(root) {
 
   root
     .find(j.BinaryExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Check for === or !== operators
       if (!["===", "!=="].includes(node.operator)) {
         return false
@@ -29,6 +31,7 @@ export function lastIndexOfToEndsWith(root) {
       if (
         j.CallExpression.check(node.left) &&
         j.MemberExpression.check(node.left.callee) &&
+        !node.left.callee.computed &&
         j.Identifier.check(node.left.callee.property) &&
         node.left.callee.property.name === "lastIndexOf"
       ) {
@@ -39,6 +42,7 @@ export function lastIndexOfToEndsWith(root) {
       else if (
         j.CallExpression.check(node.right) &&
         j.MemberExpression.check(node.right.callee) &&
+        !node.right.callee.computed &&
         j.Identifier.check(node.right.callee.property) &&
         node.right.callee.property.name === "lastIndexOf"
       ) {
@@ -69,6 +73,7 @@ export function lastIndexOfToEndsWith(root) {
       // Left side of subtraction must be str.length
       if (
         !j.MemberExpression.check(comparisonValue.left) ||
+        comparisonValue.left.computed ||
         !j.Identifier.check(comparisonValue.left.property) ||
         comparisonValue.left.property.name !== "length"
       ) {
@@ -99,7 +104,7 @@ export function lastIndexOfToEndsWith(root) {
       }
 
       // Only transform if we can verify the object is a string
-      return new NodeTest(lastIndexOfCall.callee.object).hasIndexOfAndIncludes()
+      return new NodeTest(lastIndexOfCall.callee.object, path).hasIndexOfAndIncludes()
     })
     .forEach((path) => {
       const node = path.node
