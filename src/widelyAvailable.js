@@ -33,4 +33,5 @@ export { removeUseStrictFromModules } from "./widelyAvailable/removeUseStrictFro
 export { replaceAll } from "./widelyAvailable/replaceAll.js"
 export { substringToStartsWith } from "./widelyAvailable/substringToStartsWith.js"
 export { substrToSlice } from "./widelyAvailable/substrToSlice.js"
+export { unicodePointEscapes } from "./widelyAvailable/unicodePointEscapes.js"
 export { varToLetOrConst } from "./widelyAvailable/varToLetOrConst.js"
