@@ -72,7 +72,7 @@ echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.t
 esupgrade is available as a skill in [Claude Code]. The plugin is distributed via the [codingjoe/claude-plugins](https://github.com/codingjoe/claude-plugins) marketplace. To use it:
 
 1. Run `/plugin marketplace add codingjoe/claude-plugins`
-1. Run `/plugin install esupgrade@codingjoe`
+2. Run `/plugin install esupgrade@codingjoe`
 
 The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
