@@ -44,3 +44,16 @@ Never apply a transformation based solely on structural shape (e.g., a `.length`
 
 Every transformer also declares a pre-filter in `src/prefilters.js`, so files that
 cannot contain the pattern skip the syntax tree walk. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## Writing Docs
+
+### README.md
+
+We add one new section per transformation:
+
+1. Headline + MDN link
+2. One diff-based example.
+3. Notable exception, which are not transformed.
+
+We MUST NOT add any comments about "what it does".
+The functionality documentation is fully covered by the diff-based example.

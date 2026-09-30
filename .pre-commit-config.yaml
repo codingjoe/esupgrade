@@ -18,10 +18,12 @@ repos:
     hooks:
       - id: mdformat
         additional_dependencies:
-          - mdformat-front-matters
+          - mdformat-config
           - mdformat-footnote
           - mdformat-gfm
           - mdformat-gfm-alerts
+          - mdformat-frontmatter
+        args: [--number]
   - repo: https://github.com/google/yamlfmt
     rev: v0.21.0
     hooks:

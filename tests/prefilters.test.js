@@ -30,6 +30,10 @@ const samples = new Map([
   ],
   ["defaultParameterValues", `function f(a) { if (a === undefined) a = 1; return a; }`],
   [
+    "errorCauseAssignment",
+    `const error = new Error("msg");\nerror.cause = cause;\nthrow error;`,
+  ],
+  [
     "forLoopToForOf",
     `const arr = [1];\nfor (let i = 0; i < arr.length; i++) { const item = arr[i]; console.debug(item); }`,
   ],
@@ -76,6 +80,7 @@ const samples = new Map([
   ["replaceAll", `const s = "abc".replace(/b/g, "c");`],
   ["substrToSlice", `const s = "abc".substr(1);`],
   ["substringToStartsWith", `const ok = "abc".substring(0, prefix.length) === prefix;`],
+  ["trimLeftRightToTrimStartEnd", `const t = "  a  ".trimLeft();`],
   ["varToLetOrConst", `var a = 1;`],
   ["promiseTry", `const p = new Promise((resolve) => resolve(1));`],
 ])

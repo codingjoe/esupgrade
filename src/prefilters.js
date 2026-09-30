@@ -49,6 +49,8 @@ export const prefilters = new Map([
   ["constructorToClass", [identifierPattern("prototype")]],
   // `if (x === undefined) x = value` needs a check for `undefined`.
   ["defaultParameterValues", [identifierPattern("undefined"), /\bif\b/]],
+  // `<binding>.cause = value` names a binding and an error constructor.
+  ["errorCauseAssignment", [identifierPattern("Error"), identifierPattern("cause")]],
   // `for (let i = 0; i < arr.length; i++)` needs all three tokens.
   ["forLoopToForOf", [/\bfor\b/, identifierPattern("length"), /\+\+/]],
   // Global objects are read through `window`, `self`, or `Function`.
@@ -86,6 +88,8 @@ export const prefilters = new Map([
   ["replaceAll", [identifierPattern("replace|split")]],
   ["substrToSlice", [identifierPattern("substr")]],
   ["substringToStartsWith", [identifierPattern("substring")]],
+  // `str.trimLeft()` and `str.trimRight()` name the renamed methods.
+  ["trimLeftRightToTrimStartEnd", [identifierPattern("trimLeft|trimRight")]],
   ["varToLetOrConst", [/\bvar\b/]],
   ["promiseTry", [identifierPattern("Promise")]],
 ])
