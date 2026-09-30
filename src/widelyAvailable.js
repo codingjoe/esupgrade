@@ -10,6 +10,7 @@ export { concatToTemplateLiteral } from "./widelyAvailable/concatToTemplateLiter
 export { consoleLogToInfo } from "./widelyAvailable/consoleLogToInfo.js"
 export { constructorToClass } from "./widelyAvailable/constructorToClass.js"
 export { defaultParameterValues } from "./widelyAvailable/defaultParameterValues.js"
+export { errorCauseAssignment } from "./widelyAvailable/errorCauseAssignment.js"
 export { forLoopToForOf } from "./widelyAvailable/forLoopToForOf.js"
 export { globalContextToGlobalThis } from "./widelyAvailable/globalContextToGlobalThis.js"
 export { indexOfToIncludes } from "./widelyAvailable/indexOfToIncludes.js"
