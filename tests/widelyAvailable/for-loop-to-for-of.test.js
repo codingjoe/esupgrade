@@ -400,5 +400,39 @@ process(item);
 
       assert(result.modified, "tracks line numbers")
     })
+
+    test("skip a loop bound to another property", () => {
+      const result = transform(`
+for (let i = 0; i < items.length; i++) {
+  const item = items[i];
+  use(item);
+}
+for (let i = 0; i < queue.size; i++) {
+  const entry = queue[i];
+  use(entry);
+}
+      `)
+
+      assert(result.modified, "transform the loop over length")
+      assert.match(result.code, /for \(const item of items\)/)
+      assert.match(result.code, /for \(let i = 0; i < queue\.size; i\+\+\)/)
+    })
+
+    test("skip a loop whose update is not an increment", () => {
+      const result = transform(`
+for (let i = 0; i < items.length; i++) {
+  const item = items[i];
+  use(item);
+}
+for (let j = 0; j < queue.length; j += 2) {
+  const entry = queue[j];
+  use(entry);
+}
+      `)
+
+      assert(result.modified, "transform the incrementing loop")
+      assert.match(result.code, /for \(const item of items\)/)
+      assert.match(result.code, /for \(let j = 0; j < queue\.length; j \+= 2\)/)
+    })
   })
 })

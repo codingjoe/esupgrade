@@ -55,7 +55,7 @@ export function optionalChaining(root) {
       accesses.push(parts[i])
     }
 
-    return accesses.length > 0 ? { base, accesses } : null
+    return { base, accesses }
   }
 
   // Transform logical && expressions to optional chaining

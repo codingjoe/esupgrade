@@ -524,6 +524,15 @@ copy.join();`,
 
         assert(!result.modified, "skip sort on a computed array member")
       })
+
+      test("mutating call outside a statement list", () => {
+        const result = transform(
+          `const copy = [...Array.of(1, 2)];
+if (condition) copy.sort();`,
+        )
+
+        assert(!result.modified, "skip a mutating call without a statement list")
+      })
     })
   })
 })

@@ -703,5 +703,51 @@ async function handler() {
       assert.match(result.code, /try \{/)
       assert.match(result.code, /const result = await fetch/)
     })
+
+    test("skip catch without a then call", () => {
+      const result = transform(`fetch('/api').catch(handleError);`)
+
+      assert(!result.modified, "skip a catch chain without then")
+    })
+
+    test("skip catch when then takes two callbacks", () => {
+      const result = transform(
+        `fetch('/api').then(onSuccess, onError).catch(onFailure);`,
+      )
+
+      assert(!result.modified, "skip a then call with a rejection handler")
+    })
+
+    test("skip then callbacks referenced by name", () => {
+      const result = transform(`fetch('/api').then(onSuccess).catch(onFailure);`)
+
+      assert(!result.modified, "skip callbacks that are not inline functions")
+    })
+
+    test("skip then callbacks with multiple parameters", () => {
+      const result = transform(`
+fetch('/api')
+  .then((response, metadata) => {
+    use(response);
+  })
+  .catch((error) => {
+    handle(error);
+  });
+`)
+
+      assert(!result.modified, "skip a then callback with two parameters")
+    })
+
+    test("skip catch chains on an unknown promise", () => {
+      const result = transform(`
+fetchUserData().then((user) => {
+  use(user);
+}).catch((error) => {
+  handle(error);
+});
+`)
+
+      assert(!result.modified, "skip a chain that does not start at a promise")
+    })
   })
 })

@@ -140,6 +140,12 @@ suite("widely-available", () => {
       assert(!result.modified, "skip [0] access on plain function call result")
     })
 
+    test("non-filter method call with [0]", () => {
+      const result = transform(`const first = items.filter(isEven).map(double)[0];`)
+
+      assert(!result.modified, "skip [0] access on a call to another method")
+    })
+
     test("unknown identifier - should not transform", () => {
       const result = transform(`const first = arr.filter(fn)[0];`)
 
