@@ -204,5 +204,17 @@ function fn() {
       )
       assert.doesNotMatch(result.code, /const args/)
     })
+
+    test("keep using declaration", () => {
+      const result = transform(`
+function fn() {
+  using args = Array.from(arguments);
+  return args;
+}
+    `)
+
+      assert.doesNotMatch(result.code, /function fn\(\.\.\.args\)/)
+      assert.match(result.code, /using args = /)
+    })
   })
 })

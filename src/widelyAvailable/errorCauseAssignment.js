@@ -1,5 +1,5 @@
 import { default as j } from "jscodeshift"
-import { findEnclosingFunction, isShadowed } from "../types.js"
+import { NodeTest, findEnclosingFunction, isShadowed } from "../types.js"
 
 const ERROR_CONSTRUCTOR_TO_OPTIONS_INDEX = new Map([
   ["AggregateError", 2],
@@ -115,6 +115,10 @@ export function errorCauseAssignment(root) {
   let modified = false
 
   root.find(j.VariableDeclaration).forEach((declarationPath) => {
+    if (!new NodeTest(declarationPath.node).isVarLetOrConstDeclaration()) {
+      return
+    }
+
     const construction = getErrorConstruction(declarationPath)
     if (!construction) return
     const { name, newExpression } = construction

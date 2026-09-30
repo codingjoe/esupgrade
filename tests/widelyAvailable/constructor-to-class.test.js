@@ -1041,5 +1041,21 @@ function wrapper() {
       assert.match(result.code, /function BaseClass\(\) \{\}/)
       assert.doesNotMatch(result.code, /class BaseClass/)
     })
+
+    test("keep using declaration constructor", () => {
+      const result = transform(`
+using Person = function() {
+  this.name = name;
+};
+
+Person.prototype.greet = function() {
+  return this.name;
+};
+      `)
+
+      assert(!result.modified, "keep resource cleanup of a using declaration")
+      assert.match(result.code, /using Person = function/)
+      assert.doesNotMatch(result.code, /class Person/)
+    })
   })
 })

@@ -75,7 +75,7 @@ export const prefilters = new Map([
   ["logicalAssignment", [/\|\||&&|\?\?/]],
   ["mathPowToExponentiation", [createIdentifierPattern("pow")]],
   // A variable holding a function needs a declaration and a function.
-  ["namedArrowFunctionToNamedFunction", [/=>|function/, /\b(var|let|const|using)\b/]],
+  ["namedArrowFunctionToNamedFunction", [/=>|function/, /\b(var|let|const)\b/]],
   // `arr[arr.length - 1]` needs the length property and a subtraction.
   ["negativeIndexToAt", [createIdentifierPattern("length"), /-/]],
   // `x !== null && x !== undefined` needs both keywords.
@@ -90,10 +90,7 @@ export const prefilters = new Map([
   ["objectKeysForEachToEntries", [createIdentifierPattern("keys")]],
   ["objectKeysMapToValues", [createIdentifierPattern("keys")]],
   // Extractions are leading declarations inside a function body.
-  [
-    "objectPropertyExtractionToDestructuring",
-    [/\b(var|let|const|using)\b/, /=>|function/],
-  ],
+  ["objectPropertyExtractionToDestructuring", [/\b(var|let|const)\b/, /=>|function/]],
   ["optionalChaining", [/&&/]],
   ["promiseToAsyncAwait", [createIdentifierPattern("Promise|fetch")]],
   // The capture needs a `let` binding pair and a `new Promise(...)` executor.

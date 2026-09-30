@@ -37,7 +37,7 @@ export function argumentsToRestParameters(root) {
     let accountedUsages = 0
 
     body.body.forEach((statement, statementIndex) => {
-      if (!j.VariableDeclaration.check(statement)) return
+      if (!new NodeTest(statement).isVarLetOrConstDeclaration()) return
 
       statement.declarations.forEach((declarator, declaratorIndex) => {
         if (!j.Identifier.check(declarator.id)) return

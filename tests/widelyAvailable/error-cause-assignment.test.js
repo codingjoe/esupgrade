@@ -500,6 +500,30 @@ throw new Error("msg", { cause });
 
         assert(!result.modified, "skip already transformed code")
       })
+
+      test("skips a using declaration", () => {
+        const result = transform(`
+using error = new Error("msg");
+error.cause = cause;
+throw error;
+`)
+
+        assert(!result.modified, "keep resource cleanup of a using declaration")
+        assert.match(result.code, /using error = new Error\("msg"\)/)
+      })
+
+      test("skips an await using declaration", () => {
+        const result = transform(`
+async function load(cause) {
+  await using error = new Error("msg");
+  error.cause = cause;
+  throw error;
+}
+`)
+
+        assert(!result.modified, "keep resource cleanup of an await using declaration")
+        assert.match(result.code, /await using error = new Error\("msg"\)/)
+      })
     })
   })
 })
