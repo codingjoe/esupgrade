@@ -1524,6 +1524,70 @@ export class CallIndex {
 }
 
 /**
+ * Direct `eval` calls of a syntax tree.
+ *
+ * A direct `eval` runs in the scope of the call site, so it reads, writes, and
+ * declares bindings without leaving an identifier behind. Indexing the calls
+ * once replaces a tree walk per declaration.
+ */
+export class DirectEvalIndex {
+  #paths = []
+
+  /**
+   * Index every direct `eval` call of the root collection.
+   *
+   * A call is direct when its callee is the `eval` identifier of the global
+   * scope. A local or block-scoped binding of the name resolves to a scope and
+   * does not count.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection
+   */
+  constructor(root) {
+    root.find(j.CallExpression).forEach((path) => this.#append(path))
+  }
+
+  /**
+   * List the calls that run inside a scope.
+   *
+   * A call in a nested function counts, because the scope chain of the function
+   * includes the scope it sits in.
+   *
+   * @param {import("ast-types").ASTNode} scopeNode - The scope to inspect
+   * @returns {Array<import("ast-types").NodePath>} Paths of the calls
+   */
+  getPathsInScope(scopeNode) {
+    return this.#paths.filter((path) => isInsideNode(scopeNode, path))
+  }
+
+  /**
+   * Store a call when it targets the global `eval`.
+   *
+   * @param {import("ast-types").NodePath} path - The path of the call expression
+   */
+  #append(path) {
+    if (!isDirectEvalCall(path)) return
+
+    this.#paths.push(path)
+  }
+}
+
+/**
+ * Check whether a call expression calls the global `eval`.
+ *
+ * @param {import("ast-types").NodePath} path - The path of the call expression
+ * @returns {boolean} True when the call is a direct eval call
+ */
+function isDirectEvalCall(path) {
+  const { callee } = path.node
+
+  return (
+    j.Identifier.check(callee) &&
+    callee.name === "eval" &&
+    resolveBindingScope(path, "eval") === null
+  )
+}
+
+/**
  * Check if a variable is reassigned after its declaration
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
@@ -1783,28 +1847,101 @@ function isCalledBeforeDeclarator(
 }
 
 /**
- * Check whether a reference keeps reading the binding when narrowed.
+ * Check whether a path keeps reaching the narrowed binding.
  *
- * A reference outside the narrowed binding scope stops resolving, a reference
- * before the declarator reads the hoisted `undefined` instead of the temporal
- * dead zone, and a function that a call above the declarator runs reads the
- * binding before its initializer.
+ * A path outside the narrowed binding scope stops resolving, a path before the
+ * declarator reads the hoisted `undefined` instead of the temporal dead zone,
+ * and a function that a call above the declarator runs reaches the binding
+ * before its initializer.
  *
  * @param {CallIndex} calls - Indexed calls of the root
- * @param {import("ast-types").NodePath} referencePath - The path of the reference
+ * @param {import("ast-types").NodePath} path - The path to inspect
  * @param {Object} context - The declarator and the scope that would own its binding
  * @param {import("jscodeshift").VariableDeclarator} context.declarator - The
  *   declarator to narrow
  * @param {import("ast-types").NodePath} context.bindingScopePath - The scope that
  *   would own the narrowed binding
+ * @returns {boolean} True when the path stays valid
+ */
+function reachesNarrowedBinding(calls, path, context) {
+  return (
+    isInsideNode(context.bindingScopePath.node, path) &&
+    isAfterDeclarator(path, context.declarator) &&
+    !isCalledBeforeDeclarator(calls, path, context)
+  )
+}
+
+/**
+ * Check whether a reference keeps reading the binding when narrowed.
+ *
+ * @param {CallIndex} calls - Indexed calls of the root
+ * @param {import("ast-types").NodePath} referencePath - The path of the reference
+ * @param {Object} context - The declarator and the scope that would own its binding
  * @returns {boolean} True when the reference stays valid
  */
 function keepsReferenceInScope(calls, referencePath, context) {
   return (
     isDeclarationBinding(referencePath) ||
-    (isInsideNode(context.bindingScopePath.node, referencePath) &&
-      isAfterDeclarator(referencePath, context.declarator) &&
-      !isCalledBeforeDeclarator(calls, referencePath, context))
+    reachesNarrowedBinding(calls, referencePath, context)
+  )
+}
+
+/**
+ * List the direct eval calls that run in the variable scope of a declaration.
+ *
+ * A direct `eval` runs in the scope of the call site, so every call inside the
+ * variable scope reads, writes, and declares the bindings of that scope by name.
+ *
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
+ * @param {import("ast-types").NodePath} declarationPath - The path to the variable
+ *   declaration
+ * @returns {Array<import("ast-types").NodePath>} Paths of the calls
+ */
+function listScopeEvalCalls(evalCalls, declarationPath) {
+  const variableScopePath = findAncestorPath(isFunctionScopeNode, declarationPath)
+
+  return evalCalls.getPathsInScope(variableScopePath.node)
+}
+
+/**
+ * Check that the direct eval calls of a declarator keep reaching the narrowed
+ * binding.
+ *
+ * A call that the narrowed binding no longer reaches runs without the binding,
+ * so the declaration keeps `var`.
+ *
+ * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
+ * @param {import("ast-types").NodePath} declarationPath - The path to the variable
+ *   declaration
+ * @param {Object} context - The declarator and the scope that would own its binding
+ * @returns {boolean} True when every call stays valid
+ */
+function keepsEvalCallsInScope(calls, evalCalls, declarationPath, context) {
+  return listScopeEvalCalls(evalCalls, declarationPath).every((evalPath) =>
+    reachesNarrowedBinding(calls, evalPath, context),
+  )
+}
+
+/**
+ * Check whether a direct eval call writes the narrowed binding.
+ *
+ * A call that reaches the narrowed binding writes the binding without leaving an
+ * identifier behind, so the declaration cannot become `const`.
+ *
+ * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
+ * @param {import("jscodeshift").VariableDeclarator} declarator - The declarator to
+ *   narrow
+ * @param {import("ast-types").NodePath} declarationPath - The path to the variable
+ *   declaration
+ * @returns {boolean} True when a call may write the binding
+ */
+function writesNarrowedBinding(calls, evalCalls, declarator, declarationPath) {
+  const context = createReferenceContext(declarator, declarationPath)
+
+  return listScopeEvalCalls(evalCalls, declarationPath).some((evalPath) =>
+    reachesNarrowedBinding(calls, evalPath, context),
   )
 }
 
@@ -1812,6 +1949,7 @@ function keepsReferenceInScope(calls, referencePath, context) {
  * Check that a declarator keeps its own references when it narrows.
  *
  * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
  * @param {ReferenceIndex} references - Indexed identifier references of the root
  * @param {import("jscodeshift").VariableDeclarator} declarator - The declarator to
  *   narrow
@@ -1819,14 +1957,16 @@ function keepsReferenceInScope(calls, referencePath, context) {
  *   declaration
  * @returns {boolean} True when every reference stays valid
  */
-function keepsOwnReferences(calls, references, declarator, declarationPath) {
+function keepsOwnReferences(calls, evalCalls, references, declarator, declarationPath) {
   const context = createReferenceContext(declarator, declarationPath)
 
-  return [...new NodeTest(declarator.id).extractIdentifiersFromPattern()].every(
-    (varName) =>
+  return (
+    keepsEvalCallsInScope(calls, evalCalls, declarationPath, context) &&
+    [...new NodeTest(declarator.id).extractIdentifiersFromPattern()].every((varName) =>
       listBindingReferences(references, varName, declarationPath).every(
         (referencePath) => keepsReferenceInScope(calls, referencePath, context),
       ),
+    )
   )
 }
 
@@ -1838,6 +1978,7 @@ function keepsOwnReferences(calls, references, declarator, declarationPath) {
  * narrow as well, and no declaration may land in the scope of a parameter.
  *
  * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
  * @param {ReferenceIndex} references - Indexed identifier references of the root
  * @param {import("ast-types").NodePath} path - The path of the identifier
  * @param {Object} context - The declarator and the scope that would own its binding
@@ -1847,14 +1988,20 @@ function keepsOwnReferences(calls, references, declarator, declarationPath) {
  *   would own the narrowed binding
  * @returns {boolean} True when the identifier stays valid
  */
-function keepsSharedOccurrence(calls, references, path, context) {
+function keepsSharedOccurrence(calls, evalCalls, references, path, context) {
   const sibling = findBindingDeclarator(path)
 
   if (sibling) {
     return (
       sibling.node === context.declarator ||
       (findBindingScope(sibling.parentPath).node !== context.bindingScopePath.node &&
-        keepsOwnReferences(calls, references, sibling.node, sibling.parentPath))
+        keepsOwnReferences(
+          calls,
+          evalCalls,
+          references,
+          sibling.node,
+          sibling.parentPath,
+        ))
     )
   }
 
@@ -1872,6 +2019,7 @@ function keepsSharedOccurrence(calls, references, path, context) {
  * reference valid.
  *
  * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
  * @param {ReferenceIndex} references - Indexed identifier references of the root
  * @param {import("jscodeshift").VariableDeclarator} declarator - The declarator to
  *   narrow
@@ -1879,15 +2027,23 @@ function keepsSharedOccurrence(calls, references, path, context) {
  *   declaration
  * @returns {boolean} True when every reference stays valid
  */
-function keepsReferencesInScope(calls, references, declarator, declarationPath) {
+function keepsReferencesInScope(
+  calls,
+  evalCalls,
+  references,
+  declarator,
+  declarationPath,
+) {
   const context = createReferenceContext(declarator, declarationPath)
 
-  return [...new NodeTest(declarator.id).extractIdentifiersFromPattern()].every(
-    (varName) =>
+  return (
+    keepsEvalCallsInScope(calls, evalCalls, declarationPath, context) &&
+    [...new NodeTest(declarator.id).extractIdentifiersFromPattern()].every((varName) =>
       listBindingReferences(references, varName, declarationPath).every(
         (referencePath) =>
-          keepsSharedOccurrence(calls, references, referencePath, context),
+          keepsSharedOccurrence(calls, evalCalls, references, referencePath, context),
       ),
+    )
   )
 }
 
@@ -1897,6 +2053,7 @@ function keepsReferencesInScope(calls, references, declarator, declarationPath) 
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {ReferenceIndex} references - Indexed identifier references
  * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
  * @param {import("jscodeshift").VariableDeclarator} declarator - The variable
  *   declarator
  * @param {import("ast-types").NodePath} declarationPath - The path to the variable
@@ -1907,10 +2064,13 @@ export function determineDeclaratorKind(
   reassignments,
   references,
   calls,
+  evalCalls,
   declarator,
   declarationPath,
 ) {
-  if (!keepsReferencesInScope(calls, references, declarator, declarationPath)) {
+  if (
+    !keepsReferencesInScope(calls, evalCalls, references, declarator, declarationPath)
+  ) {
     return "var"
   }
 
@@ -1933,6 +2093,10 @@ export function determineDeclaratorKind(
     if (isVariableReassigned(reassignments, varName, declarationPath)) {
       return "let"
     }
+  }
+
+  if (writesNarrowedBinding(calls, evalCalls, declarator, declarationPath)) {
+    return "let"
   }
 
   return "const"
@@ -2061,10 +2225,17 @@ function resolveLexicalDeclaration(path) {
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {ReferenceIndex} references - Indexed identifier references
  * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  * @returns {boolean} True when the declaration became a lexical declaration
  */
-export function processSingleDeclarator(reassignments, references, calls, path) {
+export function processSingleDeclarator(
+  reassignments,
+  references,
+  calls,
+  evalCalls,
+  path,
+) {
   const declarationPath = resolveLexicalDeclaration(path)
 
   if (declarationPath === null) {
@@ -2076,6 +2247,7 @@ export function processSingleDeclarator(reassignments, references, calls, path) 
     reassignments,
     references,
     calls,
+    evalCalls,
     declarator,
     declarationPath,
   )
@@ -2111,12 +2283,20 @@ function canSplitDeclaration(path) {
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {ReferenceIndex} references - Indexed identifier references
  * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  * @returns {"const" | "let" | "var"} The kind for the whole declaration
  */
-function calculateMergedKind(reassignments, references, calls, path) {
+function calculateMergedKind(reassignments, references, calls, evalCalls, path) {
   const kinds = path.node.declarations.map((declarator) => {
-    return determineDeclaratorKind(reassignments, references, calls, declarator, path)
+    return determineDeclaratorKind(
+      reassignments,
+      references,
+      calls,
+      evalCalls,
+      declarator,
+      path,
+    )
   })
 
   if (kinds.includes("var")) {
@@ -2132,12 +2312,20 @@ function calculateMergedKind(reassignments, references, calls, path) {
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {ReferenceIndex} references - Indexed identifier references
  * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  * @returns {boolean} True when the declaration changed
  */
-function splitDeclarators(reassignments, references, calls, path) {
+function splitDeclarators(reassignments, references, calls, evalCalls, path) {
   const kinds = path.node.declarations.map((declarator) => {
-    return determineDeclaratorKind(reassignments, references, calls, declarator, path)
+    return determineDeclaratorKind(
+      reassignments,
+      references,
+      calls,
+      evalCalls,
+      declarator,
+      path,
+    )
   })
 
   if (kinds.every((kind) => kind === "var")) {
@@ -2161,10 +2349,17 @@ function splitDeclarators(reassignments, references, calls, path) {
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {ReferenceIndex} references - Indexed identifier references
  * @param {CallIndex} calls - Indexed calls of the root
+ * @param {DirectEvalIndex} evalCalls - Indexed direct eval calls of the root
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  * @returns {boolean} True when the declaration became a lexical declaration
  */
-export function processMultipleDeclarators(reassignments, references, calls, path) {
+export function processMultipleDeclarators(
+  reassignments,
+  references,
+  calls,
+  evalCalls,
+  path,
+) {
   const declarationPath = resolveLexicalDeclaration(path)
 
   if (declarationPath === null) {
@@ -2172,10 +2367,22 @@ export function processMultipleDeclarators(reassignments, references, calls, pat
   }
 
   if (canSplitDeclaration(declarationPath)) {
-    return splitDeclarators(reassignments, references, calls, declarationPath)
+    return splitDeclarators(
+      reassignments,
+      references,
+      calls,
+      evalCalls,
+      declarationPath,
+    )
   }
 
-  const kind = calculateMergedKind(reassignments, references, calls, declarationPath)
+  const kind = calculateMergedKind(
+    reassignments,
+    references,
+    calls,
+    evalCalls,
+    declarationPath,
+  )
 
   if (kind === declarationPath.node.kind) {
     return false

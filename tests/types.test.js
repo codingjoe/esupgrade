@@ -4,6 +4,7 @@ import { describe, suite, test } from "node:test"
 import { transform } from "../src/index.js"
 import {
   CallIndex,
+  DirectEvalIndex,
   NodeTest,
   findEnclosingFunction,
   ReferenceIndex,
@@ -456,6 +457,25 @@ g();
       const functionNode = root.find(j.FunctionDeclaration).nodes()[0]
 
       assert.equal(index.getPathsFor(functionNode).length, 1)
+    })
+  })
+
+  describe("DirectEvalIndex", () => {
+    test("lists the calls that run inside a scope", () => {
+      const root = j(`function g() { eval("a"); } function f() { eval("b"); }`)
+      const index = new DirectEvalIndex(root)
+      const [scope] = root.find(j.FunctionDeclaration).paths()
+
+      assert.equal(index.getPathsInScope(scope.node).length, 1)
+    })
+
+    test("ignores a call to a shadowed eval", () => {
+      const root = j.withParser("tsx")(
+        `declare const eval: (source: string) => unknown; eval("a");`,
+      )
+      const index = new DirectEvalIndex(root)
+
+      assert.equal(index.getPathsInScope(root.paths()[0].node).length, 0)
     })
   })
 
