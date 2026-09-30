@@ -322,6 +322,29 @@ describe("CLI", () => {
     assert.equal(result.status, 0, "exits successfully for TS files")
   })
 
+  test("handle declaration files with ambient const", () => {
+    const testFile = path.join(tempDir, "test.d.ts")
+    const originalCode = `export const program: Command;`
+    fs.writeFileSync(testFile, originalCode)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
+
+    assert.equal(
+      fs.readFileSync(testFile, "utf8"),
+      originalCode,
+      "leaves file unchanged",
+    )
+    assert.doesNotMatch(result.stderr, /Error:/, "accepts ambient const declarations")
+    assert.match(
+      result.stdout,
+      /All files are up to date/,
+      "reports all files up to date",
+    )
+    assert.equal(result.status, 0, "exits successfully for declaration files")
+  })
+
   test("error on invalid baseline", () => {
     const testFile = path.join(tempDir, "test.js")
     fs.writeFileSync(testFile, `var x = 1;`)
@@ -460,7 +483,7 @@ describe("CLI", () => {
 
   test("exit with 1 on parsing errors with --check", () => {
     const testFile = path.join(tempDir, "test.js")
-    fs.writeFileSync(testFile, `const a;\na = 'asdf'`)
+    fs.writeFileSync(testFile, `var x = ;`)
 
     const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
       encoding: "utf8",
@@ -472,7 +495,7 @@ describe("CLI", () => {
 
   test("exit with 1 on parsing errors without --check", () => {
     const testFile = path.join(tempDir, "test.js")
-    fs.writeFileSync(testFile, `const a;\na = 'asdf'`)
+    fs.writeFileSync(testFile, `var x = ;`)
 
     const result = spawnSync(process.execPath, [CLI_PATH, testFile], {
       encoding: "utf8",
@@ -531,7 +554,7 @@ describe("CLI", () => {
     const validFile = path.join(tempDir, "valid.js")
     const invalidFile = path.join(tempDir, "invalid.js")
     fs.writeFileSync(validFile, `var x = 1;`)
-    fs.writeFileSync(invalidFile, `const a;\na = 'asdf'`)
+    fs.writeFileSync(invalidFile, `var x = ;`)
 
     const result = spawnSync(
       process.execPath,

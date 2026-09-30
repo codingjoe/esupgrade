@@ -310,5 +310,45 @@ function fn(obj) {
       assert.match(result.code, /function fn\(obj\)/)
       assert.match(result.code, /const x = obj\.x/)
     })
+
+    test("keep using declaration", () => {
+      const result = transform(`
+function fn(obj) {
+  using x = obj.x;
+  return x;
+}
+      `)
+
+      assert(!result.modified, "keep resource cleanup of a using declaration")
+      assert.match(result.code, /function fn\(obj\)/)
+      assert.match(result.code, /using x = obj\.x/)
+    })
+
+    test("keep await using declaration", () => {
+      const result = transform(`
+async function fn(obj) {
+  await using x = obj.x;
+  return x;
+}
+      `)
+
+      assert(!result.modified, "keep resource cleanup of an await using declaration")
+      assert.match(result.code, /await using x = obj\.x/)
+    })
+
+    test("extract const while keeping a using declaration", () => {
+      const result = transform(`
+function load(param, other) {
+  const value = param.value;
+  using resource = other.resource;
+  return value;
+}
+      `)
+
+      assert(result.modified, "transform the const extraction")
+      assert.match(result.code, /function load\(\s*\{\s*value\s*\},\s*other\s*\)/)
+      assert.match(result.code, /using resource = other\.resource/)
+      assert.doesNotMatch(result.code, /const value = param\.value/)
+    })
   })
 })

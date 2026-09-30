@@ -15,7 +15,7 @@ export class TransformWorker {
   #stopError = null
 
   /**
-   * @param {string} workerPath - Path of the worker thread module
+   * @param {string | URL} workerPath - Path of the worker thread module
    */
   constructor(workerPath) {
     this.#worker = new Worker(workerPath)
@@ -90,7 +90,7 @@ export class WorkerPool {
 
   /**
    * @param {FileProcessorFunction} fileProcessor - Processor that handles one file
-   * @param {string} workerPath - Path of the worker thread module
+   * @param {string | URL} workerPath - Path of the worker thread module
    * @param {number} [maxWorkers] - Upper bound of concurrent workers
    */
   constructor(fileProcessor, workerPath, maxWorkers = os.availableParallelism()) {

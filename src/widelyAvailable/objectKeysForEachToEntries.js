@@ -95,7 +95,7 @@ export function objectKeysForEachToEntries(root) {
       // Look for first statement that assigns targetObject[keyName] to a variable
       if (bodyStatements.length > 0) {
         const firstStmt = bodyStatements[0]
-        if (j.VariableDeclaration.check(firstStmt)) {
+        if (new NodeTest(firstStmt).isVarLetOrConstDeclaration()) {
           if (firstStmt.declarations.length === 1) {
             const varDeclarator = firstStmt.declarations[0]
             if (j.Identifier.check(varDeclarator.id)) {

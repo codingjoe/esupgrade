@@ -6,6 +6,7 @@ const FUNCTION_TYPES = new Set([
   "FunctionExpression",
   "ArrowFunctionExpression",
 ])
+const VAR_LET_OR_CONST_KINDS = new Set(["var", "let", "const"])
 const ARRAY_METHODS_RETURNING_ARRAY = [
   "slice",
   "concat",
@@ -564,6 +565,21 @@ export class NodeTest {
           j.ForInStatement.check(statement) ||
           (j.ReturnStatement.check(statement) && statement.argument == null),
       )
+    )
+  }
+
+  /**
+   * Check if node is a `var`, `let`, or `const` declaration.
+   *
+   * `using` and `await using` declarations dispose their resource when the scope exits.
+   * Rewriting them into another declaration kind drops that cleanup, so they are excluded.
+   *
+   * @returns {boolean} True if node is a var, let, or const declaration
+   */
+  isVarLetOrConstDeclaration() {
+    return (
+      j.VariableDeclaration.check(this.node) &&
+      VAR_LET_OR_CONST_KINDS.has(this.node.kind)
     )
   }
 

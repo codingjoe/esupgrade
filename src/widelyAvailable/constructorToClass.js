@@ -60,7 +60,11 @@ function findConstructors(root) {
 
   root
     .find(j.VariableDeclaration)
-    .filter((path) => path.node.declarations.length === 1)
+    .filter(
+      (path) =>
+        new NodeTest(path.node).isVarLetOrConstDeclaration() &&
+        path.node.declarations.length === 1,
+    )
     .forEach((path) => {
       path.node.declarations.forEach((declarator) => {
         if (

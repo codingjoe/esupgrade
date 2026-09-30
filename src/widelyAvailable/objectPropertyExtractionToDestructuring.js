@@ -1,4 +1,5 @@
 import { default as j } from "jscodeshift"
+import { NodeTest } from "../types.js"
 
 const SKIP_KEYS = new Set(["loc", "start", "end", "tokens", "comments"])
 
@@ -80,7 +81,7 @@ function findExtractions(body, paramName) {
   for (let i = 0; i < body.body.length; i++) {
     const statement = body.body[i]
 
-    if (!j.VariableDeclaration.check(statement)) {
+    if (!new NodeTest(statement).isVarLetOrConstDeclaration()) {
       break
     }
 

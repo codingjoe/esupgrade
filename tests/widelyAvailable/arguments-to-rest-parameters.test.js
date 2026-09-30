@@ -227,5 +227,17 @@ function fn() {
         "skip Array.from(arguments) on a shadowed Array parameter",
       )
     })
+
+    test("keep using declaration", () => {
+      const result = transform(`
+function fn() {
+  using args = Array.from(arguments);
+  return args;
+}
+    `)
+
+      assert.doesNotMatch(result.code, /function fn\(\.\.\.args\)/)
+      assert.match(result.code, /using args = \[\.\.\.arguments\]/)
+    })
   })
 })

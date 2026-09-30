@@ -5,14 +5,9 @@ import { diffLines } from "diff"
 import { once } from "events"
 import fs from "fs/promises"
 import process from "node:process"
-import path from "path"
-import { fileURLToPath } from "url"
 import pkg from "../package.json" with { type: "json" }
 import { transform } from "../src/index.js"
 import { WorkerPool } from "../src/pool.js"
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 /**
  * CLI tool for esupgrade.
@@ -258,7 +253,7 @@ class CLIRunner {
 
 // Initialize CLI
 const program = new Command()
-const cliRunner = new CLIRunner(path.join(__dirname, "../src/worker.js"))
+const cliRunner = new CLIRunner(new URL("../src/worker.js", import.meta.url))
 
 program
   .name("esupgrade")

@@ -102,6 +102,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 - `.jsx` - React/JSX
 - `.ts` - TypeScript
 - `.tsx` - TypeScript with JSX
+- `.d.ts` - TypeScript declaration files
 - `.mjs` - ES Modules
 - `.cjs` - CommonJS
 
@@ -111,6 +112,9 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 > A transformation applies to code with a statically verifiable type. Code that shadows a
 > global such as `Array`, or that accesses a method through a computed member such as
 > `array[method]()`, stays unchanged.
+
+`using` and `await using` declarations are never rewritten, because the replacement would
+drop the resource disposal.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-widely-word-dark.svg">
