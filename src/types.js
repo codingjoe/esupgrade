@@ -20,13 +20,84 @@ const ARRAY_METHODS_RETURNING_ARRAY = [
 ]
 
 /**
+ * Statements that declare a binding which ast-types scope analysis does not
+ * track. TypeScript binds a value in the enclosing scope through enums,
+ * namespaces, and `import name = require(...)` statements.
+ */
+const TYPESCRIPT_BINDING_TYPES = new Set([
+  "TSEnumDeclaration",
+  "TSImportEqualsDeclaration",
+  "TSModuleDeclaration",
+])
+
+/**
+ * Check whether a statement declares a name through a TypeScript statement.
+ *
+ * @param {import("ast-types").ASTNode} statement - Statement to check
+ * @param {string} name - Identifier name to look for
+ * @returns {boolean} True if the statement declares the name
+ */
+function declaresTypeScriptBinding(statement, name) {
+  return (
+    TYPESCRIPT_BINDING_TYPES.has(statement.type) &&
+    j.Identifier.check(statement.id) &&
+    statement.id.name === name
+  )
+}
+
+/**
  * Wrapper class for AST nodes providing utility methods.
  *
  * @property {import("ast-types").ASTNode} node - The underlying AST node
+ * @property {import("ast-types").NodePath | null} path - Path that locates the
+ *   node, or a node inside the same scope, in the syntax tree
  */
 export class NodeTest {
-  constructor(node) {
+  /**
+   * @param {import("ast-types").ASTNode} node - The underlying AST node
+   * @param {import("ast-types").NodePath} [path] - Path that locates the node,
+   *   or a node inside the same scope. Names of globals are only trusted when
+   *   their binding can be resolved through a path.
+   */
+  constructor(node, path = null) {
     this.node = node
+    this.path = path
+  }
+
+  /**
+   * Check whether a name refers to the binding in the global scope. A name is
+   * trusted only when the enclosing scopes resolve it to the global binding.
+   *
+   * @param {string} name - Identifier name to resolve
+   * @returns {boolean} True if no enclosing scope declares the name
+   */
+  #isGlobalReference(name) {
+    return (
+      this.path !== null &&
+      this.path.scope.lookup(name) === null &&
+      !this.#hasTypeScriptBinding(this.path, name)
+    )
+  }
+
+  /**
+   * Check whether an enclosing statement list declares a name through a
+   * TypeScript statement, which ast-types scope analysis does not track.
+   *
+   * @param {import("ast-types").NodePath | null} path - Path to inspect
+   * @param {string} name - Identifier name to look for
+   * @returns {boolean} True if an enclosing statement list declares the name
+   */
+  #hasTypeScriptBinding(path, name) {
+    if (path === null) {
+      return false
+    }
+
+    const body = path.node.body
+    return (
+      (Array.isArray(body) &&
+        body.some((statement) => declaresTypeScriptBinding(statement, name))) ||
+      this.#hasTypeScriptBinding(path.parent, name)
+    )
   }
 
   /**
@@ -47,7 +118,8 @@ export class NodeTest {
     return (
       j.NewExpression.check(this.node) &&
       j.Identifier.check(this.node.callee) &&
-      this.node.callee.name === "Array"
+      this.node.callee.name === "Array" &&
+      this.#isGlobalReference("Array")
     )
   }
 
@@ -61,8 +133,10 @@ export class NodeTest {
     if (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
+      !this.node.callee.computed &&
       j.Identifier.check(this.node.callee.object) &&
-      this.node.callee.object.name === "Array"
+      this.node.callee.object.name === "Array" &&
+      this.#isGlobalReference("Array")
     ) {
       if (methodName) {
         return (
@@ -85,6 +159,7 @@ export class NodeTest {
     return (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
+      !this.node.callee.computed &&
       j.Identifier.check(this.node.callee.property) &&
       j.StringLiteral.check(this.node.callee.object) &&
       methodNames.includes(this.node.callee.property.name)
@@ -101,10 +176,11 @@ export class NodeTest {
     if (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
+      !this.node.callee.computed &&
       j.Identifier.check(this.node.callee.property) &&
       methodNames.includes(this.node.callee.property.name)
     ) {
-      return new NodeTest(this.node.callee.object).hasIndexOfAndIncludes()
+      return new NodeTest(this.node.callee.object, this.path).hasIndexOfAndIncludes()
     }
     return false
   }
@@ -173,7 +249,7 @@ export class NodeTest {
       !this.node.callee.computed &&
       j.Identifier.check(this.node.callee.property) &&
       ARRAY_METHODS_RETURNING_ARRAY.includes(this.node.callee.property.name) &&
-      new NodeTest(this.node.callee.object).isArray()
+      new NodeTest(this.node.callee.object, this.path).isArray()
     )
   }
 
@@ -631,7 +707,9 @@ export class NodeTest {
     return (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
+      !this.node.callee.computed &&
       j.MemberExpression.check(this.node.callee.object) &&
+      !this.node.callee.object.computed &&
       j.ArrayExpression.check(this.node.callee.object.object) &&
       this.node.callee.object.object.elements.length === 0 &&
       j.Identifier.check(this.node.callee.object.property) &&
@@ -752,6 +830,7 @@ export class NodeTest {
     if (
       j.CallExpression.check(this.node.left) &&
       j.MemberExpression.check(this.node.left.callee) &&
+      !this.node.left.callee.computed &&
       j.Identifier.check(this.node.left.callee.property) &&
       this.node.left.callee.property.name === "indexOf"
     ) {
@@ -765,6 +844,7 @@ export class NodeTest {
     else if (
       j.CallExpression.check(this.node.right) &&
       j.MemberExpression.check(this.node.right.callee) &&
+      !this.node.right.callee.computed &&
       j.Identifier.check(this.node.right.callee.property) &&
       this.node.right.callee.property.name === "indexOf"
     ) {

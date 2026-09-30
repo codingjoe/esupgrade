@@ -13,10 +13,13 @@ export function arraySliceToSpread(root) {
 
   root
     .find(j.CallExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Check if this is a .slice() call
       if (
         !j.MemberExpression.check(node.callee) ||
+        node.callee.computed ||
         !j.Identifier.check(node.callee.property) ||
         node.callee.property.name !== "slice"
       ) {
@@ -38,7 +41,7 @@ export function arraySliceToSpread(root) {
       }
 
       // Only transform if we can verify the object is an iterable
-      return new NodeTest(node.callee.object).isIterable()
+      return new NodeTest(node.callee.object, path).isIterable()
     })
     .forEach((path) => {
       const node = path.node

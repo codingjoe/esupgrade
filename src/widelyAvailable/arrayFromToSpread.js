@@ -19,7 +19,7 @@ export function arrayFromToSpread(root) {
       const node = path.node
 
       // Check if this is Array.from() call
-      if (!new NodeTest(node).isArrayStaticCall("from")) {
+      if (!new NodeTest(node, path).isArrayStaticCall("from")) {
         return false
       }
 

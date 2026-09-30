@@ -108,6 +108,11 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 ## Transformations
 
+> [!NOTE]
+> A transformation applies to code with a statically verifiable type. Code that shadows a
+> global such as `Array`, or that accesses a method through a computed member such as
+> `array[method]()`, stays unchanged.
+
 `using` and `await using` declarations are never rewritten, because the replacement would
 drop the resource disposal.
 

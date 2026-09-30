@@ -465,5 +465,13 @@ process(item);
         "trailing comment should be preserved",
       )
     })
+
+    test("computed forEach member name", () => {
+      const result = transform(
+        `const forEach = "map"\ndocument.querySelectorAll("div")[forEach](item => handle(item));`,
+      )
+
+      assert(!result.modified, "skip computed forEach member name")
+    })
   })
 })

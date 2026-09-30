@@ -21,7 +21,9 @@ export function trimLeftRightToTrimStartEnd(root) {
 
   root
     .find(j.CallExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       if (
         j.OptionalCallExpression.check(node) ||
         j.OptionalMemberExpression.check(node.callee)
@@ -38,7 +40,7 @@ export function trimLeftRightToTrimStartEnd(root) {
         return false
       }
 
-      return new NodeTest(node.callee.object).hasIndexOfAndIncludes()
+      return new NodeTest(node.callee.object, path).hasIndexOfAndIncludes()
     })
     .forEach(({ node }) => {
       const { property } = node.callee

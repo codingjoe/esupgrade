@@ -3,8 +3,15 @@ import { NodeTest } from "../types.js"
 
 const REGEXP_META_CHARACTERS = /[\\^$.*+?()[\]{}|]/
 
-function isKnownString(node) {
-  return new NodeTest(node).hasIndexOfAndIncludes()
+/**
+ * Check whether an expression is a known string.
+ *
+ * @param {import("ast-types").ASTNode} node - Expression to check
+ * @param {import("ast-types").NodePath} path - Path of the call expression
+ * @returns {boolean} True if the expression is a string or returns one
+ */
+function isKnownString(node, path) {
+  return new NodeTest(node, path).hasIndexOfAndIncludes()
 }
 
 function isStringLiteralNode(node) {
@@ -89,7 +96,7 @@ function isLiteralGlobalRegExp(node) {
   )
 }
 
-function extractReplaceAllComponents(node) {
+function extractReplaceAllComponents(node, path) {
   if (isJoinCall(node)) {
     const splitCall = node.callee.object
 
@@ -97,7 +104,7 @@ function extractReplaceAllComponents(node) {
       !isSplitCall(splitCall) ||
       splitCall.arguments.length !== 1 ||
       node.arguments.length !== 1 ||
-      !isKnownString(splitCall.callee.object) ||
+      !isKnownString(splitCall.callee.object, path) ||
       !isStaticString(splitCall.arguments[0]) ||
       isEmptyString(splitCall.arguments[0]) ||
       j.RegExpLiteral.check(splitCall.arguments[0]) ||
@@ -117,7 +124,7 @@ function extractReplaceAllComponents(node) {
   if (
     !isReplaceCall(node) ||
     node.arguments.length !== 2 ||
-    !isKnownString(node.callee.object)
+    !isKnownString(node.callee.object, path)
   ) {
     return null
   }
@@ -146,7 +153,7 @@ export function replaceAll(root) {
   let modified = false
 
   root.find(j.CallExpression).forEach((path) => {
-    const replaceAllComponents = extractReplaceAllComponents(path.node)
+    const replaceAllComponents = extractReplaceAllComponents(path.node, path)
 
     if (!replaceAllComponents) {
       return

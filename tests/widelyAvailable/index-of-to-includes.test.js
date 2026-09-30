@@ -408,6 +408,22 @@ suite("widely-available", () => {
         )
         assert.doesNotMatch(result.code, /indexOf/)
       })
+
+      test("computed indexOf member name", () => {
+        const result = transform(
+          `const indexOf = "lastIndexOf"\nconst hasItem = "abc"[indexOf]("a") !== -1;`,
+        )
+
+        assert(!result.modified, "skip computed indexOf member name")
+      })
+
+      test("shadowed Array parameter", () => {
+        const result = transform(
+          `function fn(Array) { return Array.of(1, 2).indexOf(2) !== -1; }`,
+        )
+
+        assert(!result.modified, "skip indexOf on a shadowed Array parameter")
+      })
     })
   })
 })

@@ -13,10 +13,13 @@ export function arrayFromForEachToForOf(root) {
 
   root
     .find(j.CallExpression)
-    .filter(({ node }) => {
+    .filter((path) => {
+      const { node } = path
+
       // Check if this is a forEach call
       if (
         !j.MemberExpression.check(node.callee) ||
+        node.callee.computed ||
         !j.Identifier.check(node.callee.property) ||
         node.callee.property.name !== "forEach"
       ) {
@@ -25,7 +28,7 @@ export function arrayFromForEachToForOf(root) {
 
       // Check if the object is Array.from()
       const object = node.callee.object
-      return new NodeTest(object).isArrayStaticCall("from")
+      return new NodeTest(object, path).isArrayStaticCall("from")
     })
     .forEach((path) => {
       const node = path.node

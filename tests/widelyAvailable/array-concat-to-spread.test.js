@@ -109,5 +109,21 @@ suite("widely-available", () => {
       assert(result.modified, "transform concat on new Array()")
       assert.match(result.code, /\[\.\.\.new Array\(5\), \.\.\.more\]/)
     })
+
+    test("computed concat member name", () => {
+      const result = transform(
+        `const concat = "keys"\nconst result = Array.of(1, 2)[concat](3);`,
+      )
+
+      assert(!result.modified, "skip computed concat member name")
+    })
+
+    test("shadowed Array local", () => {
+      const result = transform(
+        `function fn() { const Array = []\nreturn Array.of(1, 2).concat(more); }`,
+      )
+
+      assert(!result.modified, "skip concat on a shadowed Array local")
+    })
   })
 })

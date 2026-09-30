@@ -118,6 +118,22 @@ suite("widely-available", () => {
 
         assert(!result.modified, "skip lastIndexOf with mismatched suffixes")
       })
+
+      test("computed lastIndexOf member name", () => {
+        const result = transform(
+          `const lastIndexOf = "indexOf"\nconst matches = "abc"[lastIndexOf]("a") === 0;`,
+        )
+
+        assert(!result.modified, "skip computed lastIndexOf member name")
+      })
+
+      test("shadowed Array local", () => {
+        const result = transform(
+          `function fn() { const Array = []\nreturn Array.of(1, 2).lastIndexOf("2") === Array.of(1, 2).length - "2".length; }`,
+        )
+
+        assert(!result.modified, "skip lastIndexOf on a shadowed Array local")
+      })
     })
   })
 })

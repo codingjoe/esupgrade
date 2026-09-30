@@ -205,6 +205,29 @@ function fn() {
       assert.doesNotMatch(result.code, /const args/)
     })
 
+    test("computed slice member name", () => {
+      const result = transform(`function fn() {
+  const args = [][slice].call(arguments)
+  return args.length
+}
+`)
+
+      assert(!result.modified, "skip computed [].slice.call(arguments) member name")
+    })
+
+    test("shadowed Array parameter", () => {
+      const result = transform(`function fn(Array) {
+  const args = Array.from(arguments)
+  return args.length
+}
+`)
+
+      assert(
+        !result.modified,
+        "skip Array.from(arguments) on a shadowed Array parameter",
+      )
+    })
+
     test("keep using declaration", () => {
       const result = transform(`
 function fn() {

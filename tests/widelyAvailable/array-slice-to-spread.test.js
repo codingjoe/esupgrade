@@ -113,5 +113,19 @@ suite("widely-available", () => {
       assert.match(result.code, /const a = \[\.\..\[1, ?2\]\]/)
       assert.match(result.code, /b = \[\.\..\[3, ?4\]\]/)
     })
+
+    test("computed slice member name", () => {
+      const result = transform(
+        `const slice = "keys"\nconst copy = Array.of(1, 2)[slice](0);`,
+      )
+
+      assert(!result.modified, "skip computed slice member name")
+    })
+
+    test("shadowed Array parameter", () => {
+      const result = transform(`function fn(Array) { return Array.of(1, 2).slice(0); }`)
+
+      assert(!result.modified, "skip slice on a shadowed Array parameter")
+    })
   })
 })

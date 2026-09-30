@@ -498,6 +498,32 @@ copy.join();`,
 
         assert(!result.modified, "skip non-copy method on the copy")
       })
+
+      test("shadowed Array parameter", () => {
+        const result = transform(
+          `function fn(Array) { return [...Array.of(3, 1)].sort(); }`,
+        )
+
+        assert(!result.modified, "skip sort on a shadowed Array parameter")
+      })
+
+      test("shadowed Array parameter with slice copy", () => {
+        const result = transform(`function fn(Array) {
+  const copy = Array.of(1, 2).slice()
+  copy.splice(1, 1)
+}
+`)
+
+        assert(!result.modified, "skip splice on a shadowed Array slice copy")
+      })
+
+      test("computed member on the copied array", () => {
+        const result = transform(
+          `const map = "join"\nconst sorted = [...Array.of(3, 1)[map]()].sort();`,
+        )
+
+        assert(!result.modified, "skip sort on a computed array member")
+      })
     })
   })
 })

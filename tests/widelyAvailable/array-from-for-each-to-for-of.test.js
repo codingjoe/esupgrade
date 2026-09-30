@@ -124,5 +124,24 @@ suite("widely-available", () => {
       assert(result.modified, "transform when first param is ArrayPattern")
       assert.match(result.code, /for \(const \[a, b\] of items\)/)
     })
+
+    test("computed forEach member name", () => {
+      const result = transform(
+        `const forEach = "map"\nArray.from(items)[forEach](item => handle(item));`,
+      )
+
+      assert(!result.modified, "skip computed forEach member name")
+    })
+
+    test("shadowed Array parameter", () => {
+      const result = transform(
+        `function fn(Array) { Array.from(items).forEach(item => handle(item)); }`,
+      )
+
+      assert(
+        !result.modified,
+        "skip Array.from().forEach() on a shadowed Array parameter",
+      )
+    })
   })
 })
