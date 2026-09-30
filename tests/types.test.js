@@ -2,7 +2,7 @@ import { default as j } from "jscodeshift"
 import assert from "node:assert/strict"
 import { describe, suite, test } from "node:test"
 import { transform } from "../src/index.js"
-import { NodeTest, findEnclosingFunction } from "../src/types.js"
+import { NodeTest, findEnclosingFunction, ReferenceIndex } from "../src/types.js"
 
 /**
  * Run the var/let/const guard over every variable declaration in the code.
@@ -346,6 +346,20 @@ suite("types", () => {
       assert(result.modified, "transform var with leading hole")
       assert.match(result.code, /const \[ , a, b\] = arr/)
       assert.doesNotMatch(result.code, /var/)
+    })
+  })
+
+  describe("ReferenceIndex", () => {
+    test("returns no paths for an unbound name", () => {
+      const index = new ReferenceIndex(j(`var a = 1;`))
+
+      assert.deepEqual(index.getPathsFor("b"), [])
+    })
+
+    test("returns the binding and every read of a name", () => {
+      const index = new ReferenceIndex(j(`var a = 1; use(a);`))
+
+      assert.equal(index.getPathsFor("a").length, 2)
     })
   })
 
