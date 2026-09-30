@@ -42,6 +42,9 @@ Transformers must only apply to types that are statically verifiable. Use `NodeT
 
 Never apply a transformation based solely on structural shape (e.g., a `.length` property or bracket access) without first verifying the receiver is a known type. An unknown identifier such as `arr` cannot be assumed to be an array and must not be transformed.
 
+Every transformer also declares a pre-filter in `src/prefilters.js`, so files that
+cannot contain the pattern skip the syntax tree walk. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
 ## Writing Docs
 
 ### README.md

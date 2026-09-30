@@ -1,5 +1,9 @@
 import { default as j } from "jscodeshift"
-import { processMultipleDeclarators, processSingleDeclarator } from "../types.js"
+import {
+  processMultipleDeclarators,
+  processSingleDeclarator,
+  ReassignmentIndex,
+} from "../types.js"
 
 /**
  * Detect whether a path is nested in a declared TypeScript module.
@@ -34,6 +38,12 @@ function isAmbientTypeScriptVar(path) {
 /**
  * Transform var to const or let.
  *
+ * A single reassignment index serves all declarations, because indexing the whole
+ * tree once is far cheaper than traversing it per declaration. Splitting a
+ * multi-declarator declaration only re-parents declarators, so the indexed paths
+ * stay usable: the shadowing analysis reads enclosing functions, which splitting
+ * leaves in place.
+ *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
@@ -41,21 +51,22 @@ function isAmbientTypeScriptVar(path) {
  */
 export function varToLetOrConst(root) {
   let modified = false
+  let reassignments = null
 
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
     if (isAmbientTypeScriptVar(path)) {
       return
     }
 
-    const isSingleDeclarator = path.node.declarations.length === 1
+    reassignments ??= new ReassignmentIndex(root)
 
-    const result = isSingleDeclarator
-      ? processSingleDeclarator(root, path)
-      : processMultipleDeclarators(root, path)
-
-    if (result.modified) {
-      modified = true
+    if (path.node.declarations.length === 1) {
+      processSingleDeclarator(reassignments, path)
+    } else {
+      processMultipleDeclarators(reassignments, path)
     }
+
+    modified = true
   })
 
   return modified

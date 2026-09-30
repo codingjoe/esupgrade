@@ -26,6 +26,18 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /const x/)
     })
 
+    test("with repeated reassignment", () => {
+      const result = transform(`
+  var a = 1;
+  a = 2;
+  a = 3;
+`)
+
+      assert(result.modified, "transform var with repeated reassignment")
+      assert.match(result.code, /let a = 1/)
+      assert.doesNotMatch(result.code, /var a/)
+    })
+
     test("multiple declarations", () => {
       const result = transform(`
   var x = 1;
@@ -318,6 +330,22 @@ suite("widely-available", () => {
 `)
 
       assert(result.modified, "outer var not reassigned due to array param shadowing")
+      assert.match(result.code, /const a = 1/)
+      assert.doesNotMatch(result.code, /let a/)
+    })
+
+    test("function param with array hole shadows outer var", () => {
+      const result = transform(`
+  var a = 1;
+  function foo([, a]) {
+    a = 2;
+  }
+`)
+
+      assert(
+        result.modified,
+        "outer var not reassigned due to a hole in the array param",
+      )
       assert.match(result.code, /const a = 1/)
       assert.doesNotMatch(result.code, /let a/)
     })
