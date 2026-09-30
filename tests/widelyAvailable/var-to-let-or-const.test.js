@@ -524,6 +524,273 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /const pixels;/)
     })
 
+    test("declarations of one function binding share the reassignment", () => {
+      const result = transform(`
+  function a(node) {
+    var i = 0;
+    if (node) {
+      var i = node.length - 1;
+      i--;
+    }
+  }
+`)
+
+      assert(result.modified, "transform both declarations of one binding")
+      assert.match(result.code, /let i = 0/)
+      assert.match(result.code, /let i = node\.length - 1/)
+      assert.doesNotMatch(result.code, /const i/)
+    })
+
+    test("parameter shares the binding of a var declaration", () => {
+      const result = transform(`
+  function a(i) {
+    for (var i = 0; i < 3; ++i) {}
+  }
+`)
+
+      assert(result.modified, "transform var that shares the binding of a parameter")
+      assert.match(result.code, /for \(let i = 0; i < 3; \+\+i\)/)
+      assert.doesNotMatch(result.code, /const i/)
+    })
+
+    test("block declaration does not shadow a write outside the block", () => {
+      const result = transform(`
+  var x = 1;
+  function foo() {
+    {
+      let x = 2;
+    }
+    x = 3;
+  }
+`)
+
+      assert(result.modified, "transform var reassigned beside a block declaration")
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
+    test("write beside a block declaration keeps the outer binding", () => {
+      const result = transform(`
+  function foo() {
+    var x = 1;
+    {
+      let x = 2;
+      x = 3;
+    }
+    x = 4;
+  }
+`)
+
+      assert(result.modified, "transform var reassigned outside a block declaration")
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
+    test("block declaration in a nested function does not shadow a write", () => {
+      const result = transform(`
+  function foo() {
+    var x = 1;
+    function bar() {
+      {
+        let x = 2;
+      }
+      x = 3;
+    }
+  }
+`)
+
+      assert(
+        result.modified,
+        "transform var reassigned in a nested function beside a block declaration",
+      )
+      assert.match(result.code, /let x = 1/)
+    })
+
+    test("catch parameter shadows outer var", () => {
+      const result = transform(`
+  var x = 1;
+  try {
+    run();
+  } catch (x) {
+    x = 2;
+  }
+`)
+
+      assert(result.modified, "keep outer var const when a catch parameter shadows it")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /let x = 1/)
+    })
+
+    test("catch parameter of another name keeps the outer reassignment", () => {
+      const result = transform(`
+  var x = 1;
+  try {
+    run();
+  } catch (error) {
+    x = 2;
+  }
+`)
+
+      assert(result.modified, "transform var reassigned in a catch block")
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
+    test("switch case declaration shadows outer var", () => {
+      const result = transform(`
+  var x = 1;
+  switch (value) {
+    case 1:
+      let x = 2;
+      x = 3;
+  }
+`)
+
+      assert(result.modified, "keep outer var const for a switch case declaration")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /let x = 1/)
+    })
+
+    test("switch case without a declaration keeps the outer reassignment", () => {
+      const result = transform(`
+  var x = 1;
+  switch (value) {
+    case 1:
+      x = 2;
+  }
+`)
+
+      assert(result.modified, "transform var reassigned in a switch case")
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
+    test("class declaration in a block shadows outer var", () => {
+      const result = transform(`
+  var x = 1;
+  {
+    class x {}
+    x = 2;
+  }
+`)
+
+      assert(result.modified, "keep outer var const for a class declaration in a block")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /let x = 1/)
+    })
+
+    test("function declaration in a block shadows outer var", () => {
+      const result = transform(`
+  var x = 1;
+  {
+    function x() {}
+    x = 2;
+  }
+`)
+
+      assert(
+        result.modified,
+        "keep outer var const for a function declaration in a block",
+      )
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /let x = 1/)
+    })
+
+    test("loop declaration shadows outer var", () => {
+      const result = transform(`
+  var x = 1;
+  for (let x of items) {
+    x = 2;
+  }
+`)
+
+      assert(result.modified, "keep outer var const for a loop declaration")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /let x = 1/)
+    })
+
+    test("var reassigned in a static block", () => {
+      const result = transform(`
+  class C {
+    static {
+      var x = 1;
+      x = 2;
+    }
+  }
+`)
+
+      assert(result.modified, "transform var reassigned in a class static block")
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
+    test("var reassigned in a namespace block", () => {
+      const result = transform(`
+  namespace n {
+    var x = 1;
+    x = 2;
+  }
+`)
+
+      assert(result.modified, "transform var reassigned in a namespace block")
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
+    test("function declaration in a nested block does not shadow a write", () => {
+      const result = transform(`
+  var x = 1;
+  function foo() {
+    {
+      function x() {}
+    }
+    x = 2;
+  }
+`)
+
+      assert(
+        result.modified,
+        "transform var reassigned beside a function declaration in a block",
+      )
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
+    test("write to an undeclared global does not reassign a local var", () => {
+      const result = transform(`
+  function foo() {
+    var x = 1;
+  }
+  x = 2;
+`)
+
+      assert(result.modified, "keep local var const when a global is written")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /let x = 1/)
+    })
+
+    test("write in an arrow expression body reassigns the outer var", () => {
+      const result = transform(`
+  var x = 1;
+  const assign = () => (x = 2);
+`)
+
+      assert(result.modified, "transform var reassigned in an arrow expression body")
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
+    test("write in an arrow callback reassigns the outer var", () => {
+      const result = transform(`
+  var x = 1;
+  [1].forEach(() => (x = 2));
+`)
+
+      assert(result.modified, "transform var reassigned in an arrow callback")
+      assert.match(result.code, /let x = 1/)
+      assert.doesNotMatch(result.code, /const x = 1/)
+    })
+
     test("var written through a non-null assertion", () => {
       const result = transform(`
   var x = 1;

@@ -900,29 +900,6 @@ export class NodeTest {
   }
 
   /**
-   * Check if a function body has a local declaration shadowing the variable.
-   *
-   * @param {import("ast-types").NodePath} declarationPath - Path to the original
-   *   declaration
-   * @param {string} varName - Variable name to check
-   * @returns {{ hasShadowing: boolean; foundOurDeclaration: boolean }}
-   */
-  checkFunctionBodyForShadowing(declarationPath, varName) {
-    let foundOurDeclaration = false
-    const hasShadowing = j(this.node)
-      .find(j.VariableDeclarator)
-      .some((declPath) => {
-        if (declPath.parent.node === declarationPath.node) {
-          foundOurDeclaration = true
-          return false
-        }
-        return new NodeTest(declPath.node.id).patternContainsIdentifier(varName)
-      })
-
-    return { hasShadowing, foundOurDeclaration }
-  }
-
-  /**
    * Check if node is a known promise-returning expression.
    * This includes new Promise(), fetch(), Promise static methods,
    * and any method called on a promise.
@@ -1011,64 +988,263 @@ function paramsContainIdentifier(params, varName) {
 }
 
 /**
- * Check if an assignment/update expression is shadowed by a closer variable declaration
+ * Check whether a node establishes a function scope.
  *
- * @param {string} varName - The variable name to check
- * @param {import("ast-types").NodePath} declarationPath - The path to the original
- *   declaration
- * @param {import("ast-types").NodePath} currentPath - The current path being checked
- * @returns {boolean} True if the assignment is shadowed by a closer declaration
+ * A function scope holds the parameters, the `var` declarations, and the
+ * function declarations of a function, of the program, of a class static block,
+ * and of a TypeScript module block.
+ *
+ * @param {import("ast-types").ASTNode} node - Node to check
+ * @returns {boolean} True if the node establishes a function scope
  */
-function isAssignmentShadowed(varName, declarationPath, currentPath) {
-  if (!currentPath.parent) {
+function isFunctionScopeNode(node) {
+  return (
+    j.Function.check(node) ||
+    j.Program.check(node) ||
+    j.StaticBlock.check(node) ||
+    j.TSModuleBlock.check(node)
+  )
+}
+
+/**
+ * List the statements of a scope body.
+ *
+ * @param {import("ast-types").ASTNode} node - Function, program, or block node
+ * @returns {import("ast-types").ASTNode[]} Statements of the body
+ */
+function listBodyStatements(node) {
+  if (Array.isArray(node.body)) {
+    return node.body
+  }
+
+  return Array.isArray(node.body?.body) ? node.body.body : []
+}
+
+/**
+ * Check whether a variable declaration binds a name.
+ *
+ * @param {import("ast-types").namedTypes.VariableDeclaration} declaration - Declaration to check
+ * @param {string} name - Identifier name to look for
+ * @returns {boolean} True if a declarator of the declaration binds the name
+ */
+function declarationBindsName(declaration, name) {
+  return declaration.declarations.some((declarator) =>
+    new NodeTest(declarator.id).patternContainsIdentifier(name),
+  )
+}
+
+/**
+ * Check whether a statement binds a name in the block scope of its statement
+ * list.
+ *
+ * `let`, `const`, `using`, `class`, and function declarations bind in the block
+ * that holds them.
+ *
+ * @param {import("ast-types").ASTNode} statement - Statement to check
+ * @param {string} name - Identifier name to look for
+ * @returns {boolean} True if the statement binds the name in a block scope
+ */
+function statementBindsBlockScope(statement, name) {
+  if (j.VariableDeclaration.check(statement)) {
+    return statement.kind !== "var" && declarationBindsName(statement, name)
+  }
+
+  if (j.ClassDeclaration.check(statement) || j.FunctionDeclaration.check(statement)) {
+    return j.Identifier.check(statement.id) && statement.id.name === name
+  }
+
+  return false
+}
+
+/**
+ * Check whether a statement list binds a name in its block scope.
+ *
+ * @param {import("ast-types").ASTNode[]} statements - Statements of the list
+ * @param {string} name - Identifier name to look for
+ * @returns {boolean} True if the list binds the name in a block scope
+ */
+function statementsBindBlockScope(statements, name) {
+  return statements.some((statement) => statementBindsBlockScope(statement, name))
+}
+
+/**
+ * Check whether a node holds a `var` declaration of a name.
+ *
+ * A `var` declaration binds in the nearest enclosing function scope, so the
+ * search descends into blocks and statements but stops at nested functions,
+ * static blocks, and module blocks, which establish their own scope.
+ *
+ * @param {import("ast-types").ASTNode} node - Node to search
+ * @param {string} name - Identifier name to look for
+ * @returns {boolean} True if a `var` declaration binds the name
+ */
+function declaresVarBinding(node, name) {
+  if (!node || typeof node !== "object") {
     return false
   }
 
-  const node = currentPath.parent.node
-
-  if (
-    j.FunctionDeclaration.check(node) ||
-    j.FunctionExpression.check(node) ||
-    j.ArrowFunctionExpression.check(node)
-  ) {
-    if (node.params && paramsContainIdentifier(node.params, varName)) {
-      return true
-    }
-
-    if (node.body) {
-      const { hasShadowing, foundOurDeclaration } = new NodeTest(
-        node.body,
-      ).checkFunctionBodyForShadowing(declarationPath, varName)
-
-      if (hasShadowing) {
-        return true
-      }
-
-      if (foundOurDeclaration) {
-        return false
-      }
-    }
+  if (Array.isArray(node)) {
+    return node.some((item) => declaresVarBinding(item, name))
   }
 
-  return isAssignmentShadowed(varName, declarationPath, currentPath.parent)
+  if (isFunctionScopeNode(node)) {
+    return false
+  }
+
+  if (j.VariableDeclaration.check(node)) {
+    return node.kind === "var" && declarationBindsName(node, name)
+  }
+
+  return Object.entries(node).some(
+    ([key, value]) => !SKIP_KEYS.has(key) && declaresVarBinding(value, name),
+  )
+}
+
+/**
+ * Check whether a function scope binds a name.
+ *
+ * The scope holds its parameters, the `var` declarations of its body, and the
+ * declarations that sit directly in its body. A function body block shares the
+ * scope of its function, so the declarations of the body count as well.
+ *
+ * @param {import("ast-types").ASTNode} node - Function, program, or block node
+ * @param {string} name - Identifier name to look for
+ * @returns {boolean} True if the scope binds the name
+ */
+function functionScopeBinds(node, name) {
+  if (Array.isArray(node.params) && paramsContainIdentifier(node.params, name)) {
+    return true
+  }
+
+  return listBodyStatements(node).some(
+    (statement) =>
+      statementBindsBlockScope(statement, name) || declaresVarBinding(statement, name),
+  )
+}
+
+/**
+ * Check whether a block is the body of a function.
+ *
+ * A function body block binds the same names as the function scope it belongs
+ * to, so that scope covers the body.
+ *
+ * @param {import("ast-types").NodePath} path - Path of the block
+ * @returns {boolean} True if the block is a function body
+ */
+function isFunctionBody(path) {
+  const parent = path.parent.node
+
+  return j.Function.check(parent) && parent.body === path.node
+}
+
+/**
+ * Check whether a loop binds a name in its own scope.
+ *
+ * A `let` or `const` declaration in the initializer of a `for` loop, or in the
+ * head of a `for-in` or `for-of` loop, binds in the scope of the loop.
+ *
+ * @param {import("ast-types").ASTNode} node - Loop node
+ * @param {string} name - Identifier name to look for
+ * @returns {boolean} True if the loop binds the name in its own scope
+ */
+function loopBindsName(node, name) {
+  const declaration = node.init ?? node.left
+
+  return (
+    j.VariableDeclaration.check(declaration) &&
+    declaration.kind !== "var" &&
+    declarationBindsName(declaration, name)
+  )
+}
+
+/**
+ * Check whether a switch statement binds a name in its own scope.
+ *
+ * @param {import("ast-types").ASTNode} node - Switch statement
+ * @param {string} name - Identifier name to look for
+ * @returns {boolean} True if a case of the switch binds the name
+ */
+function switchBindsName(node, name) {
+  return node.cases.some((switchCase) =>
+    statementsBindBlockScope(switchCase.consequent, name),
+  )
+}
+
+/**
+ * Find the scope that the node of a path establishes for a name.
+ *
+ * @param {import("ast-types").NodePath} path - Path of the node to inspect
+ * @param {string} name - Identifier name to resolve
+ * @returns {import("ast-types").ASTNode | null} The scope node, or null
+ */
+function bindingScopeOf(path, name) {
+  const { node } = path
+
+  if (isFunctionScopeNode(node)) {
+    return functionScopeBinds(node, name) ? node : null
+  }
+
+  if (j.BlockStatement.check(node)) {
+    const bindsName = !isFunctionBody(path) && statementsBindBlockScope(node.body, name)
+
+    return bindsName ? node : null
+  }
+
+  if (
+    j.ForStatement.check(node) ||
+    j.ForInStatement.check(node) ||
+    j.ForOfStatement.check(node)
+  ) {
+    return loopBindsName(node, name) ? node : null
+  }
+
+  if (j.SwitchStatement.check(node)) {
+    return switchBindsName(node, name) ? node : null
+  }
+
+  if (j.CatchClause.check(node)) {
+    return new NodeTest(node.param).patternContainsIdentifier(name) ? node : null
+  }
+
+  return null
+}
+
+/**
+ * Resolve the scope that binds a name at a path.
+ *
+ * Resolution walks the enclosing scopes from the innermost outwards and returns
+ * the scope that binds the name, which is the binding a write of that name
+ * targets. A name that no enclosing scope binds is a global and resolves to
+ * null.
+ *
+ * @param {import("ast-types").NodePath} path - Path to resolve the name at
+ * @param {string} name - Identifier name to resolve
+ * @returns {import("ast-types").ASTNode | null} The scope that binds the name, or null
+ */
+function resolveBindingScope(path, name) {
+  if (!path) {
+    return null
+  }
+
+  return bindingScopeOf(path, name) ?? resolveBindingScope(path.parent, name)
 }
 
 /**
  * Assignment, update, and loop target expressions grouped by the identifier
- * they write.
+ * they write and the binding the write targets.
  *
  * A single index per syntax tree replaces the full tree traversal that would
  * otherwise run for every variable declaration. Indexing uses the same pattern
  * rules as {@link NodeTest#extractIdentifiersFromPattern}, so the indexed
  * candidates are exactly the nodes that a traversal would match.
  *
- * The shadowing analysis of a candidate reads the functions enclosing it, and
- * splitting a declaration leaves those functions in place. An index therefore
- * stays usable for the whole transformation, even though splitting re-parents
- * declarators.
+ * Every write resolves its binding while the indexed tree still holds the
+ * original declaration kinds. Rewriting a declaration changes the scope that
+ * binds its name, so resolving a write later would make the analysis depend on
+ * the order in which declarations are rewritten.
  */
 export class ReassignmentIndex {
-  #paths = new Map()
+  #writes = new Map()
 
   /**
    * Index every write of the root collection.
@@ -1083,13 +1259,26 @@ export class ReassignmentIndex {
   }
 
   /**
-   * List the assignments and updates that target the given variable.
+   * List the paths of the writes that target a variable name.
    *
    * @param {string} varName - The variable name to look up
    * @returns {Array<import("ast-types").NodePath>} Writing paths
    */
   getPathsFor(varName) {
-    return this.#paths.get(varName) ?? []
+    return (this.#writes.get(varName) ?? []).map((write) => write.path)
+  }
+
+  /**
+   * Check whether a write targets the binding of a scope.
+   *
+   * @param {string} varName - The variable name to look up
+   * @param {import("ast-types").ASTNode | null} bindingScope - The scope that binds the name
+   * @returns {boolean} True if an indexed write targets the binding
+   */
+  containsWriteToBinding(varName, bindingScope) {
+    return (this.#writes.get(varName) ?? []).some(
+      (write) => write.bindingScope === bindingScope,
+    )
   }
 
   /**
@@ -1110,15 +1299,16 @@ export class ReassignmentIndex {
   }
 
   /**
-   * Store a path under the given identifier name.
+   * Store a path under the given identifier name with the binding it targets.
    *
    * @param {string} name - The identifier name
    * @param {import("ast-types").NodePath} path - The path to store
    */
   #append(name, path) {
-    const paths = this.#paths.get(name)
+    const writes = this.#writes.get(name)
+    const write = { path, bindingScope: resolveBindingScope(path, name) }
 
-    paths ? paths.push(path) : this.#paths.set(name, [path])
+    writes ? writes.push(write) : this.#writes.set(name, [write])
   }
 }
 
@@ -1132,9 +1322,10 @@ export class ReassignmentIndex {
  * @returns {boolean} True if the variable is reassigned
  */
 function isVariableReassigned(reassignments, varName, declarationPath) {
-  return reassignments
-    .getPathsFor(varName)
-    .some((path) => !isAssignmentShadowed(varName, declarationPath, path))
+  return reassignments.containsWriteToBinding(
+    varName,
+    resolveBindingScope(declarationPath, varName),
+  )
 }
 
 /**
