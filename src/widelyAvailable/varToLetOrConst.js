@@ -1,5 +1,7 @@
 import { default as j } from "jscodeshift"
 import {
+  CallIndex,
+  DirectEvalIndex,
   processMultipleDeclarators,
   processSingleDeclarator,
   ReassignmentIndex,
@@ -39,11 +41,11 @@ function isAmbientTypeScriptVar(path) {
 /**
  * Transform var to const or let.
  *
- * A single reassignment and reference index serves all declarations, because
- * indexing the whole tree once is far cheaper than traversing it per declaration.
- * Splitting a multi-declarator declaration only re-parents declarators, so the
- * indexed paths stay usable: the shadowing analysis reads enclosing functions,
- * which splitting leaves in place.
+ * A single reassignment, reference, call, and direct eval index serves all
+ * declarations, because indexing the whole tree once is far cheaper than
+ * traversing it per declaration. Splitting a multi-declarator declaration only
+ * re-parents declarators, so the indexed paths stay usable: the shadowing
+ * analysis reads enclosing functions, which splitting leaves in place.
  *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @returns {boolean} True if code was modified
@@ -54,6 +56,8 @@ export function varToLetOrConst(root) {
   let modified = false
   let reassignments = null
   let references = null
+  let calls = null
+  let evalCalls = null
 
   root.find(j.VariableDeclaration, { kind: "var" }).forEach((path) => {
     if (isAmbientTypeScriptVar(path)) {
@@ -62,11 +66,13 @@ export function varToLetOrConst(root) {
 
     reassignments ??= new ReassignmentIndex(root)
     references ??= new ReferenceIndex(root)
+    calls ??= new CallIndex(root)
+    evalCalls ??= new DirectEvalIndex(root)
 
     const converted =
       path.node.declarations.length === 1
-        ? processSingleDeclarator(reassignments, references, path)
-        : processMultipleDeclarators(reassignments, references, path)
+        ? processSingleDeclarator(reassignments, references, calls, evalCalls, path)
+        : processMultipleDeclarators(reassignments, references, calls, evalCalls, path)
 
     if (converted) {
       modified = true

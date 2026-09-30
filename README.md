@@ -139,7 +139,9 @@ Declarations keep `var` when:
 
 - A reference leaves the block that would own the narrowed binding
 - A reference precedes the declaration
+- A call above the declaration runs a function that reads the binding
 - Another declaration of the shared `var` binding cannot narrow
+- A direct `eval` call leaves the binding out of reach
 
 ```js
 // Not transformed - `error` is read after the block

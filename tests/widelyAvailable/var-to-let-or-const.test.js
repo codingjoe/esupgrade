@@ -1148,6 +1148,215 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /const error/)
     })
 
+    test("var in a block read by a direct eval after the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+    }
+    return eval("error");
+  }
+`)
+
+      assert(!result.modified, "keep var that a direct eval after the block reads")
+      assert.match(result.code, /var error = 1/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("var in a block read by a direct eval in a nested function outside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+    }
+    return function read() {
+      return eval("error");
+    };
+  }
+`)
+
+      assert(!result.modified, "keep var that a direct eval in a nested function reads")
+      assert.match(result.code, /var error = 1/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("var in a block read by a direct eval inside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+      return eval("error");
+    }
+    return null;
+  }
+`)
+
+      assert(result.modified, "narrow var that a direct eval inside the block reads")
+      assert.match(result.code, /let error = 1/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("var in a block written by a direct eval inside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+      eval("error = 2");
+      return error;
+    }
+    return null;
+  }
+`)
+
+      assert(result.modified, "narrow var that a direct eval inside the block writes")
+      assert.match(result.code, /let error = 1/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("var in a block read by a direct eval in a nested function inside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+      function read() {
+        return eval("error");
+      }
+      return read();
+    }
+    return null;
+  }
+`)
+
+      assert(result.modified, "narrow var captured by a direct eval inside the block")
+      assert.match(result.code, /let error = 1/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("var in a block read by a direct eval before the declaration", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      eval("error");
+      var error = 1;
+    }
+  }
+`)
+
+      assert(
+        !result.modified,
+        "keep var that a direct eval before the declaration reads",
+      )
+      assert.match(result.code, /var error = 1/)
+      assert.doesNotMatch(result.code, /let error/)
+    })
+
+    test("var in a block read by a direct eval that a call precedes", () => {
+      const result = transform(`
+  function f() {
+    read();
+    var error = 1;
+    function read() {
+      return eval("error");
+    }
+  }
+`)
+
+      assert(
+        !result.modified,
+        "keep var that a preceding call reads through a direct eval",
+      )
+      assert.match(result.code, /var error = 1/)
+      assert.doesNotMatch(result.code, /let error/)
+    })
+
+    test("var in a block read by an indirect eval", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+    }
+    const read = eval;
+    return read("error");
+  }
+`)
+
+      assert(result.modified, "narrow var that an indirect eval reads")
+      assert.match(result.code, /const error = 1/)
+      assert.doesNotMatch(result.code, /var error/)
+    })
+
+    test("var in a block read by a shadowed eval", () => {
+      const result = transform(`
+  declare const eval: (source: string) => unknown;
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+    }
+    return eval("error");
+  }
+`)
+
+      assert(result.modified, "narrow var that a shadowed eval reads")
+      assert.match(result.code, /const error = 1/)
+      assert.doesNotMatch(result.code, /var error/)
+    })
+
+    test("var in a block beside a direct eval in another function", () => {
+      const result = transform(`
+  function g() {
+    return eval("error");
+  }
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+    }
+    return g();
+  }
+`)
+
+      assert(result.modified, "narrow var beside a direct eval in another function")
+      assert.match(result.code, /const error = 1/)
+      assert.doesNotMatch(result.code, /var error/)
+    })
+
+    test("var redeclared beside a direct eval outside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+    }
+    var error = 2;
+    return eval("error");
+  }
+`)
+
+      assert(
+        !result.modified,
+        "keep var redeclared beside a direct eval outside the block",
+      )
+      assert.match(result.code, /var error = 1/)
+      assert.match(result.code, /var error = 2/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("multiple declarators beside a direct eval outside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1, value = 2;
+    }
+    return eval("value");
+  }
+`)
+
+      assert(
+        !result.modified,
+        "keep declarators beside a direct eval outside the block",
+      )
+      assert.match(result.code, /var error = 1, value = 2/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
     test("var in a block referenced after a nested block", () => {
       const result = transform(`
   function f() {
@@ -1234,6 +1443,101 @@ suite("widely-available", () => {
       assert(!result.modified, "keep var that a reference reads before the declaration")
       assert.match(result.code, /var x = 1/)
       assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a function that a call precedes", () => {
+      const result = transform(`
+  function f() {
+    g();
+    var x = 1;
+    function g() {
+      return x;
+    }
+  }
+`)
+
+      assert(!result.modified, "keep var that a preceding call reads")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a function at the top level that a call precedes", () => {
+      const result = transform(`
+  g();
+  var x = 1;
+  function g() {
+    return x;
+  }
+`)
+
+      assert(!result.modified, "keep var that a preceding top-level call reads")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a nested function that an enclosing call precedes", () => {
+      const result = transform(`
+  function f() {
+    g();
+    var x = 1;
+    function g() {
+      function h() {
+        return x;
+      }
+      return h();
+    }
+  }
+`)
+
+      assert(!result.modified, "keep var that a preceding call reaches")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a function expression that a call precedes", () => {
+      const result = transform(`
+  function f() {
+    g();
+    var x = 1;
+    const g = () => [this, x];
+  }
+`)
+
+      assert(!result.modified, "keep var that a preceding call reads")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a function that a call follows", () => {
+      const result = transform(`
+  function f() {
+    var x = 1;
+    function g() {
+      return x;
+    }
+    g();
+  }
+`)
+
+      assert(result.modified, "narrow var that a following call reads")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /var x/)
+    })
+
+    test("var read by a function that an unresolved call precedes", () => {
+      const result = transform(`
+  function f() {
+    run();
+    var x = 1;
+    obj.handler = function () {
+      return x;
+    };
+  }
+`)
+
+      assert(result.modified, "narrow var that a property call cannot reach")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /var x/)
     })
 
     test("var written before its declaration", () => {

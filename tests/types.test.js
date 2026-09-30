@@ -3,6 +3,8 @@ import assert from "node:assert/strict"
 import { describe, suite, test } from "node:test"
 import { transform } from "../src/index.js"
 import {
+  CallIndex,
+  DirectEvalIndex,
   NodeTest,
   findEnclosingFunction,
   isShadowed,
@@ -519,6 +521,116 @@ suite("types", () => {
       const index = new ReferenceIndex(j(`var a = 1; use(a);`))
 
       assert.equal(index.getPathsFor("a").length, 2)
+    })
+  })
+
+  describe("CallIndex", () => {
+    test("returns no paths for an uncalled function", () => {
+      const root = j(`function g() {}`)
+      const index = new CallIndex(root)
+      const functionNode = root.find(j.FunctionDeclaration).nodes()[0]
+
+      assert.deepEqual(index.getPathsFor(functionNode), [])
+    })
+
+    test("returns every call of a function declaration", () => {
+      const root = j(`function g() {}\ng();\ng();`)
+      const index = new CallIndex(root)
+      const functionNode = root.find(j.FunctionDeclaration).nodes()[0]
+
+      assert.equal(index.getPathsFor(functionNode).length, 2)
+    })
+
+    test("returns the call of a function expression", () => {
+      const root = j(`const g = () => {};\ng();`)
+      const index = new CallIndex(root)
+      const functionNode = root.find(j.ArrowFunctionExpression).nodes()[0]
+
+      assert.equal(index.getPathsFor(functionNode).length, 1)
+    })
+
+    test("ignores a var declaration", () => {
+      const root = j(`
+function g() {}
+function f() {
+  var g = function () {};
+  g();
+}
+g();
+`)
+      const index = new CallIndex(root)
+      const functionNode = root.find(j.FunctionDeclaration).nodes()[0]
+
+      assert.equal(index.getPathsFor(functionNode).length, 1)
+    })
+
+    test("ignores a declaration that holds no function", () => {
+      const root = j(`
+function g() {}
+function f() {
+  const g = 1;
+  g();
+}
+g();
+`)
+      const index = new CallIndex(root)
+      const functionNode = root.find(j.FunctionDeclaration).nodes()[0]
+
+      assert.equal(index.getPathsFor(functionNode).length, 1)
+    })
+
+    test("ignores a property call", () => {
+      const root = j(`const g = { run() {} };\ng.run();`)
+      const index = new CallIndex(root)
+      const method = root.find(j.ObjectMethod).nodes()[0]
+
+      assert.deepEqual(index.getPathsFor(method), [])
+    })
+
+    test("ignores a global callee", () => {
+      const root = j(`
+use();
+const f = () => {
+  function use() {}
+  use();
+};
+`)
+      const index = new CallIndex(root)
+      const functionNode = root.find(j.FunctionDeclaration).nodes()[0]
+
+      assert.equal(index.getPathsFor(functionNode).length, 1)
+    })
+
+    test("ignores a parameter that shares the function name", () => {
+      const root = j(`
+function g(callback) {
+  callback();
+}
+g();
+`)
+      const index = new CallIndex(root)
+      const functionNode = root.find(j.FunctionDeclaration).nodes()[0]
+
+      assert.equal(index.getPathsFor(functionNode).length, 1)
+    })
+  })
+
+  describe("DirectEvalIndex", () => {
+    test("lists the calls that run inside a scope", () => {
+      const root = j(`function g() { eval("a"); } function f() { eval("b"); }`)
+      const index = new DirectEvalIndex(root)
+      const [scope] = root.find(j.FunctionDeclaration).paths()
+
+      assert.equal(index.getPathsInScope(scope.node).length, 1)
+    })
+
+    test("ignores a call to a shadowed eval", () => {
+      const root = j.withParser("tsx")(
+        `declare const eval: (source: string) => unknown; eval("a");`,
+      )
+      const index = new DirectEvalIndex(root)
+
+      assert.equal(index.getPathsInScope(root.paths()[0].node).length, 0)
     })
   })
 
