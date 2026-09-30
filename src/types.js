@@ -7,6 +7,12 @@ const FUNCTION_TYPES = new Set([
   "ArrowFunctionExpression",
 ])
 const VAR_LET_OR_CONST_KINDS = new Set(["var", "let", "const"])
+const BINDING_SCOPE_TYPES = new Set([
+  "Program",
+  "BlockStatement",
+  "StaticBlock",
+  "SwitchStatement",
+])
 const ARRAY_METHODS_RETURNING_ARRAY = [
   "slice",
   "concat",
@@ -1333,6 +1339,89 @@ export class ReassignmentIndex {
 }
 
 /**
+ * Check whether an identifier refers to a variable.
+ *
+ * Member and property names name a field instead of a variable, so they never
+ * resolve to a declaration. Declared identifiers resolve to the binding they
+ * create, which declarations of one name share.
+ *
+ * @param {import("ast-types").NodePath} path - The path of the identifier
+ * @returns {boolean} True if the identifier refers to a variable
+ */
+function isReferenceIdentifier({ node, parentPath }) {
+  const parent = parentPath?.node
+
+  if (j.JSXMemberExpression.check(parent)) {
+    return parent.object === node
+  }
+  if (j.JSXOpeningElement.check(parent) || j.JSXClosingElement.check(parent)) {
+    return parent.name === node
+  }
+  if (j.JSXAttribute.check(parent) || j.JSXNamespacedName.check(parent)) {
+    return false
+  }
+  if (j.MemberExpression.check(parent)) {
+    return parent.computed || parent.property !== node
+  }
+  if (
+    j.Property.check(parent) ||
+    j.ObjectProperty.check(parent) ||
+    j.ObjectMethod.check(parent) ||
+    j.ClassMethod.check(parent) ||
+    j.ClassPrivateMethod.check(parent) ||
+    j.ClassProperty.check(parent) ||
+    j.ClassPrivateProperty.check(parent)
+  ) {
+    return parent.computed || parent.key !== node
+  }
+
+  return true
+}
+
+/**
+ * Identifiers grouped by the name they read or declare.
+ *
+ * A single index per syntax tree replaces the tree walk that would otherwise run
+ * for every name of every declaration.
+ */
+export class ReferenceIndex {
+  #paths = new Map()
+
+  /**
+   * Index every identifier that takes part in the binding of a name.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection
+   */
+  constructor(root) {
+    root.find(j.Identifier).forEach((path) => this.#append(path))
+    root.find(j.JSXIdentifier).forEach((path) => this.#append(path))
+  }
+
+  /**
+   * List the identifiers that read or declare the given variable.
+   *
+   * @param {string} varName - The variable name to look up
+   * @returns {Array<import("ast-types").NodePath>} Identifier paths
+   */
+  getPathsFor(varName) {
+    return this.#paths.get(varName) ?? []
+  }
+
+  /**
+   * Store an identifier under its name.
+   *
+   * @param {import("ast-types").NodePath} path - The path of the identifier
+   */
+  #append(path) {
+    if (!isReferenceIdentifier(path)) return
+
+    const paths = this.#paths.get(path.node.name)
+
+    paths ? paths.push(path) : this.#paths.set(path.node.name, [path])
+  }
+}
+
+/**
  * Check if a variable is reassigned after its declaration
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
@@ -1349,16 +1438,316 @@ function isVariableReassigned(reassignments, varName, declarationPath) {
 }
 
 /**
- * Determine the appropriate kind (const or let) for a declarator
+ * Check whether a declaration sits in the head of a loop.
+ *
+ * A loop head owns its declarations and scopes them to the whole loop.
+ *
+ * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {boolean} True when the loop head holds the declaration
+ */
+function isLoopHeadDeclaration({ node, parentPath }) {
+  const parent = parentPath?.node
+
+  if (j.ForStatement.check(parent)) {
+    return parent.init === node
+  }
+
+  return (
+    (j.ForOfStatement.check(parent) || j.ForInStatement.check(parent)) &&
+    parent.left === node
+  )
+}
+
+/**
+ * Check whether a node owns a `let` or `const` binding.
+ *
+ * @param {import("ast-types").ASTNode} node - The node to check
+ * @returns {boolean} True when the node owns `let` or `const` bindings
+ */
+function isBindingScopeNode({ type }) {
+  return BINDING_SCOPE_TYPES.has(type)
+}
+
+/**
+ * Find the closest ancestor that matches a predicate.
+ *
+ * The program encloses every node, so an ancestor always matches.
+ *
+ * @param {(node: import("ast-types").ASTNode) => boolean} isMatch - Predicate for
+ *   a candidate node
+ * @param {import("ast-types").NodePath} path - The path whose ancestors to search
+ * @returns {import("ast-types").NodePath} The closest matching ancestor path
+ */
+function findAncestorPath(isMatch, { parentPath: currentPath }) {
+  return isMatch(currentPath.node)
+    ? currentPath
+    : findAncestorPath(isMatch, currentPath)
+}
+
+/**
+ * Check whether a node encloses a path.
+ *
+ * @param {import("ast-types").ASTNode} node - The enclosing node
+ * @param {import("ast-types").NodePath} path - The path to inspect
+ * @returns {boolean} True when the node encloses the path
+ */
+function isInsideNode(node, { parentPath: currentPath }) {
+  if (!currentPath) return false
+
+  return currentPath.node === node || isInsideNode(node, currentPath)
+}
+
+/**
+ * Find the scope that would own the binding of a narrowed declaration.
+ *
+ * A loop head owns its declarations and scopes them to the whole loop.
+ *
+ * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {import("ast-types").NodePath} The owning scope path
+ */
+function findBindingScope(path) {
+  return isLoopHeadDeclaration(path)
+    ? path.parentPath
+    : findAncestorPath(isBindingScopeNode, path)
+}
+
+/**
+ * Find the declarator that binds an identifier.
+ *
+ * @param {import("ast-types").NodePath} path - The path of the identifier
+ * @returns {import("ast-types").NodePath | null} The declarator path that binds the
+ *   identifier, or null when the identifier is read instead of bound
+ */
+function findBindingDeclarator(path) {
+  const { parentPath } = path
+
+  if (!parentPath) {
+    return null
+  }
+
+  if (j.VariableDeclarator.check(parentPath.node)) {
+    return parentPath.node.id === path.node ? parentPath : null
+  }
+
+  return findBindingDeclarator(parentPath)
+}
+
+/**
+ * Find the scope that binds an identifier through a parameter.
+ *
+ * @param {import("ast-types").NodePath} path - The path of the identifier
+ * @returns {import("ast-types").ASTNode | null} The function or catch clause that
+ *   binds the identifier through a parameter, or null
+ */
+function findBindingParameter(path) {
+  const { parentPath } = path
+
+  if (!parentPath) {
+    return null
+  }
+
+  const { node } = parentPath
+
+  if (j.Function.check(node) && node.params?.includes(path.node)) {
+    return node
+  }
+
+  if (j.CatchClause.check(node) && node.param === path.node) {
+    return node
+  }
+
+  return findBindingParameter(parentPath)
+}
+
+/**
+ * Check whether an identifier binds a declaration instead of reading a binding.
+ *
+ * Binding identifiers of other declarations narrow or keep their kind on their
+ * own, so they do not count as references.
+ *
+ * @param {import("ast-types").NodePath} path - The path of the identifier
+ * @returns {boolean} True when the identifier binds a declaration
+ */
+function isDeclarationBinding(path) {
+  return findBindingDeclarator(path) !== null || findBindingParameter(path) !== null
+}
+
+/**
+ * List the identifiers that belong to the binding of a name.
+ *
+ * Identifiers that resolve to another scope, such as a declaration that shadows
+ * the name inside a block, belong to a different binding.
+ *
+ * @param {ReferenceIndex} references - Indexed identifier references of the root
+ * @param {string} varName - The declared name
+ * @param {import("ast-types").NodePath} declarationPath - The path to the variable
+ *   declaration
+ * @returns {Array<import("ast-types").NodePath>} Identifiers of the binding
+ */
+function listBindingReferences(references, varName, declarationPath) {
+  const variableScope = resolveBindingScope(declarationPath, varName)
+
+  return references
+    .getPathsFor(varName)
+    .filter((path) => resolveBindingScope(path, varName) === variableScope)
+}
+
+/**
+ * Check whether a reference follows the initialization of a declarator.
+ *
+ * Positions are missing on nodes that a transformer created, so those count as
+ * preceding the declaration. A transformer also re-parents declarators when it
+ * splits a declaration, so the end of the declarator is compared instead of the
+ * end of its declaration.
+ *
+ * @param {import("ast-types").NodePath} referencePath - The path of the reference
+ * @param {import("jscodeshift").VariableDeclarator} declarator - The declarator to
+ *   narrow
+ * @returns {boolean} True when the reference follows the declarator
+ */
+function isAfterDeclarator(referencePath, declarator) {
+  return referencePath.node.start >= declarator.end
+}
+
+/**
+ * Build the reference context of a declarator.
+ *
+ * @param {import("jscodeshift").VariableDeclarator} declarator - The declarator to
+ *   narrow
+ * @param {import("ast-types").NodePath} declarationPath - The path to the variable
+ *   declaration
+ * @returns {Object} The declarator and the scope that would own its narrowed binding
+ */
+function createReferenceContext(declarator, declarationPath) {
+  return {
+    declarator,
+    bindingScopePath: findBindingScope(declarationPath),
+  }
+}
+
+/**
+ * Check whether a reference keeps reading the binding when narrowed.
+ *
+ * A reference outside the narrowed binding scope stops resolving, and a reference
+ * before the declarator reads the hoisted `undefined` instead of the temporal
+ * dead zone.
+ *
+ * @param {import("ast-types").NodePath} referencePath - The path of the reference
+ * @param {Object} context - The declarator and the scope that would own its binding
+ * @param {import("jscodeshift").VariableDeclarator} context.declarator - The
+ *   declarator to narrow
+ * @param {import("ast-types").NodePath} context.bindingScopePath - The scope that
+ *   would own the narrowed binding
+ * @returns {boolean} True when the reference stays valid
+ */
+function keepsReferenceInScope(referencePath, { declarator, bindingScopePath }) {
+  return (
+    isDeclarationBinding(referencePath) ||
+    (isInsideNode(bindingScopePath.node, referencePath) &&
+      isAfterDeclarator(referencePath, declarator))
+  )
+}
+
+/**
+ * Check that a declarator keeps its own references when it narrows.
+ *
+ * @param {ReferenceIndex} references - Indexed identifier references of the root
+ * @param {import("jscodeshift").VariableDeclarator} declarator - The declarator to
+ *   narrow
+ * @param {import("ast-types").NodePath} declarationPath - The path to the variable
+ *   declaration
+ * @returns {boolean} True when every reference stays valid
+ */
+function keepsOwnReferences(references, declarator, declarationPath) {
+  const context = createReferenceContext(declarator, declarationPath)
+
+  return [...new NodeTest(declarator.id).extractIdentifiersFromPattern()].every(
+    (varName) =>
+      listBindingReferences(references, varName, declarationPath).every(
+        (referencePath) => keepsReferenceInScope(referencePath, context),
+      ),
+  )
+}
+
+/**
+ * Check whether an identifier keeps every declaration of a shared binding valid.
+ *
+ * `var` declarations of one name in a variable scope share a single binding.
+ * Narrowing one of them moves it into a block, so the other declarations must
+ * narrow as well, and no declaration may land in the scope of a parameter.
+ *
+ * @param {ReferenceIndex} references - Indexed identifier references of the root
+ * @param {import("ast-types").NodePath} path - The path of the identifier
+ * @param {Object} context - The declarator and the scope that would own its binding
+ * @param {import("jscodeshift").VariableDeclarator} context.declarator - The
+ *   declarator to narrow
+ * @param {import("ast-types").NodePath} context.bindingScopePath - The scope that
+ *   would own the narrowed binding
+ * @returns {boolean} True when the identifier stays valid
+ */
+function keepsSharedOccurrence(references, path, context) {
+  const sibling = findBindingDeclarator(path)
+
+  if (sibling) {
+    return (
+      sibling.node === context.declarator ||
+      (findBindingScope(sibling.parentPath).node !== context.bindingScopePath.node &&
+        keepsOwnReferences(references, sibling.node, sibling.parentPath))
+    )
+  }
+
+  const parameter = findBindingParameter(path)
+
+  if (parameter) {
+    return parameter.body !== context.bindingScopePath.node
+  }
+
+  return keepsReferenceInScope(path, context)
+}
+
+/**
+ * Check that narrowing a declarator to a block-scoped binding keeps every
+ * reference valid.
+ *
+ * @param {ReferenceIndex} references - Indexed identifier references of the root
+ * @param {import("jscodeshift").VariableDeclarator} declarator - The declarator to
+ *   narrow
+ * @param {import("ast-types").NodePath} declarationPath - The path to the variable
+ *   declaration
+ * @returns {boolean} True when every reference stays valid
+ */
+function keepsReferencesInScope(references, declarator, declarationPath) {
+  const context = createReferenceContext(declarator, declarationPath)
+
+  return [...new NodeTest(declarator.id).extractIdentifiersFromPattern()].every(
+    (varName) =>
+      listBindingReferences(references, varName, declarationPath).every(
+        (referencePath) => keepsSharedOccurrence(references, referencePath, context),
+      ),
+  )
+}
+
+/**
+ * Determine the appropriate kind (const, let or var) for a declarator
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
+ * @param {ReferenceIndex} references - Indexed identifier references
  * @param {import("jscodeshift").VariableDeclarator} declarator - The variable
  *   declarator
  * @param {import("ast-types").NodePath} declarationPath - The path to the variable
  *   declaration
- * @returns {"const" | "let"} The appropriate variable kind
+ * @returns {"const" | "let" | "var"} The appropriate variable kind
  */
-export function determineDeclaratorKind(reassignments, declarator, declarationPath) {
+export function determineDeclaratorKind(
+  reassignments,
+  references,
+  declarator,
+  declarationPath,
+) {
+  if (!keepsReferencesInScope(references, declarator, declarationPath)) {
+    return "var"
+  }
+
   // Check if this is a for-of or for-in loop variable declaration
   const isLoopVariable =
     declarationPath.parent &&
@@ -1504,10 +1893,11 @@ function resolveLexicalDeclaration(path) {
  * Process a single declarator variable declaration
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
+ * @param {ReferenceIndex} references - Indexed identifier references
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  * @returns {boolean} True when the declaration became a lexical declaration
  */
-export function processSingleDeclarator(reassignments, path) {
+export function processSingleDeclarator(reassignments, references, path) {
   const declarationPath = resolveLexicalDeclaration(path)
 
   if (declarationPath === null) {
@@ -1515,11 +1905,18 @@ export function processSingleDeclarator(reassignments, path) {
   }
 
   const declarator = declarationPath.node.declarations[0]
-  declarationPath.node.kind = determineDeclaratorKind(
+  const kind = determineDeclaratorKind(
     reassignments,
+    references,
     declarator,
     declarationPath,
   )
+
+  if (kind === declarationPath.node.kind) {
+    return false
+  }
+
+  declarationPath.node.kind = kind
 
   return true
 }
@@ -1540,36 +1937,50 @@ function canSplitDeclaration(path) {
 /**
  * Calculate the kind shared by all declarators of a declaration.
  *
- * The declarators keep a single kind, which is `let` as soon as one declarator
- * requires it.
+ * The declarators keep a single kind, which is `var` or `let` as soon as one
+ * declarator requires it.
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
+ * @param {ReferenceIndex} references - Indexed identifier references
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
- * @returns {"const" | "let"} The kind for the whole declaration
+ * @returns {"const" | "let" | "var"} The kind for the whole declaration
  */
-function calculateMergedKind(reassignments, path) {
-  const hasLetDeclarator = path.node.declarations.some((declarator) => {
-    return determineDeclaratorKind(reassignments, declarator, path) === "let"
+function calculateMergedKind(reassignments, references, path) {
+  const kinds = path.node.declarations.map((declarator) => {
+    return determineDeclaratorKind(reassignments, references, declarator, path)
   })
 
-  return hasLetDeclarator ? "let" : "const"
+  if (kinds.includes("var")) {
+    return "var"
+  }
+
+  return kinds.includes("let") ? "let" : "const"
 }
 
 /**
  * Split a variable declaration into one declaration per declarator.
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
+ * @param {ReferenceIndex} references - Indexed identifier references
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {boolean} True when the declaration changed
  */
-function splitDeclarators(reassignments, path) {
-  const declarations = path.node.declarations.map((declarator) => {
-    return j.variableDeclaration(
-      determineDeclaratorKind(reassignments, declarator, path),
-      [declarator],
-    )
+function splitDeclarators(reassignments, references, path) {
+  const kinds = path.node.declarations.map((declarator) => {
+    return determineDeclaratorKind(reassignments, references, declarator, path)
   })
 
-  j(path).replaceWith(declarations)
+  if (kinds.every((kind) => kind === "var")) {
+    return false
+  }
+
+  j(path).replaceWith(
+    kinds.map((kind, index) => {
+      return j.variableDeclaration(kind, [path.node.declarations[index]])
+    }),
+  )
+
+  return true
 }
 
 /**
@@ -1578,10 +1989,11 @@ function splitDeclarators(reassignments, path) {
  * split.
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
+ * @param {ReferenceIndex} references - Indexed identifier references
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  * @returns {boolean} True when the declaration became a lexical declaration
  */
-export function processMultipleDeclarators(reassignments, path) {
+export function processMultipleDeclarators(reassignments, references, path) {
   const declarationPath = resolveLexicalDeclaration(path)
 
   if (declarationPath === null) {
@@ -1589,10 +2001,16 @@ export function processMultipleDeclarators(reassignments, path) {
   }
 
   if (canSplitDeclaration(declarationPath)) {
-    splitDeclarators(reassignments, declarationPath)
-  } else {
-    declarationPath.node.kind = calculateMergedKind(reassignments, declarationPath)
+    return splitDeclarators(reassignments, references, declarationPath)
   }
+
+  const kind = calculateMergedKind(reassignments, references, declarationPath)
+
+  if (kind === declarationPath.node.kind) {
+    return false
+  }
+
+  declarationPath.node.kind = kind
 
   return true
 }

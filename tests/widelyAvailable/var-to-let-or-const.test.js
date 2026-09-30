@@ -1080,6 +1080,401 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /let csrftoken: string;/)
     })
 
+    test("var in a block referenced after the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+    }
+    return error;
+  }
+`)
+
+      assert(!result.modified, "keep var that references leave the block")
+      assert.match(result.code, /var error = 1/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("var in a block referenced inside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+      return error;
+    }
+    return null;
+  }
+`)
+
+      assert(result.modified, "narrow var that stays inside the block")
+      assert.match(result.code, /const error = 1/)
+      assert.doesNotMatch(result.code, /var error/)
+    })
+
+    test("var in a block referenced by a closure inside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+      function read() {
+        return error;
+      }
+      return read();
+    }
+    return null;
+  }
+`)
+
+      assert(result.modified, "narrow var captured inside the block")
+      assert.match(result.code, /const error = 1/)
+      assert.doesNotMatch(result.code, /var error/)
+    })
+
+    test("var in a block referenced by a function outside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var error = 1;
+    }
+    function read() {
+      return error;
+    }
+    return read();
+  }
+`)
+
+      assert(!result.modified, "keep var that a function outside the block reads")
+      assert.match(result.code, /var error = 1/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("var in a block referenced after a nested block", () => {
+      const result = transform(`
+  function f() {
+    if (a) {
+      {
+        var x = 1;
+      }
+      return x;
+    }
+    return null;
+  }
+`)
+
+      assert(!result.modified, "keep var that references leave the inner block")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var destructured in a block referenced after the block", () => {
+      const result = transform(`
+  function f() {
+    if (a) {
+      var { x, y } = obj;
+    }
+    return x + y;
+  }
+`)
+
+      assert(!result.modified, "keep destructured var that leaves the block")
+      assert.match(result.code, /var \{ x, y \} = obj/)
+      assert.doesNotMatch(result.code, /const \{ x, y \}/)
+    })
+
+    test("var in a for loop head referenced after the loop", () => {
+      const result = transform(`
+  for (var i = 0; i < 3; i++) {
+    use(i);
+  }
+  use(i);
+`)
+
+      assert(!result.modified, "keep loop variable that a later reference reads")
+      assert.match(result.code, /for \(var i = 0;/)
+      assert.doesNotMatch(result.code, /for \(let i = 0;/)
+    })
+
+    test("var in a for-of head referenced after the loop", () => {
+      const result = transform(`
+  const items = [1];
+  for (var item of items) {
+    use(item);
+  }
+  use(item);
+`)
+
+      assert(!result.modified, "keep for-of variable that a later reference reads")
+      assert.match(result.code, /for \(var item of items\)/)
+      assert.doesNotMatch(result.code, /for \(const item of items\)/)
+    })
+
+    test("var in a switch case referenced after the switch", () => {
+      const result = transform(`
+  switch (value) {
+    case 1:
+      var result = 1;
+      break;
+  }
+  use(result);
+`)
+
+      assert(!result.modified, "keep case variable that a later reference reads")
+      assert.match(result.code, /var result = 1/)
+      assert.doesNotMatch(result.code, /const result/)
+    })
+
+    test("var read before its declaration", () => {
+      const result = transform(`
+  function f() {
+    use(x);
+    var x = 1;
+  }
+`)
+
+      assert(!result.modified, "keep var that a reference reads before the declaration")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var written before its declaration", () => {
+      const result = transform(`
+  function f() {
+    x = 1;
+    var x;
+  }
+`)
+
+      assert(!result.modified, "keep var that a write precedes")
+      assert.match(result.code, /var x;/)
+      assert.doesNotMatch(result.code, /let x;/)
+    })
+
+    test("var initialized from itself", () => {
+      const result = transform(`
+  var x = x || 1;
+`)
+
+      assert(!result.modified, "keep var whose initializer reads the binding")
+      assert.match(result.code, /var x = x \|\| 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var initialized from an earlier declarator", () => {
+      const result = transform(`
+  var width = 10, height = width * 2;
+`)
+
+      assert(result.modified, "narrow declarators initialized in order")
+      assert.match(result.code, /const width = 10/)
+      assert.match(result.code, /const height = width \* 2/)
+    })
+
+    test("var initialized from a later declarator", () => {
+      const result = transform(`
+  var height = width * 2, width = 10;
+`)
+
+      assert(result.modified, "keep the declarator a forward reference reads")
+      assert.match(result.code, /const height = width \* 2/)
+      assert.match(result.code, /var width = 10/)
+      assert.doesNotMatch(result.code, /const width/)
+    })
+
+    test("multiple declarators referenced after the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var x = 1, y = 2;
+    }
+    return x + y;
+  }
+`)
+
+      assert(!result.modified, "keep a declaration that references leave the block")
+      assert.match(result.code, /var x = 1, y = 2/)
+      assert.doesNotMatch(result.code, /const x/)
+      assert.doesNotMatch(result.code, /let x/)
+    })
+
+    test("multiple declarators with one leaving the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var x = 1, y = 2;
+      console.log(y);
+    }
+    return x;
+  }
+`)
+
+      assert(result.modified, "split declarators with different scopes")
+      assert.match(result.code, /var x = 1/)
+      assert.match(result.code, /const y = 2/)
+    })
+
+    test("var in a for loop head that cannot split or narrow", () => {
+      const result = transform(`
+  function f() {
+    for (var i = 0, n = 8; i < n; i++) {
+      use(i);
+    }
+    return [i, n];
+  }
+`)
+
+      assert(!result.modified, "keep loop declarations that share the binding")
+      assert.match(result.code, /for \(var i = 0, n = 8; i < n; i\+\+\)/)
+      assert.doesNotMatch(result.code, /for \(let i = 0, n = 8;/)
+    })
+
+    test("var redeclared in the same scope", () => {
+      const result = transform(`
+  function f(object) {
+    var key;
+    for (var key in object) {
+      use(key);
+    }
+  }
+`)
+
+      assert(result.modified, "narrow declarations that share a var binding")
+      assert.match(result.code, /let key;/)
+      assert.match(result.code, /for \(const key in object\)/)
+    })
+
+    test("var redeclared beside a reference outside the loop", () => {
+      const result = transform(`
+  function f(object) {
+    var key;
+    for (var key in object) {
+      use(key);
+    }
+    return key;
+  }
+`)
+
+      assert(!result.modified, "keep declarations that a later reference reads")
+      assert.match(result.code, /var key;/)
+      assert.match(result.code, /for \(var key in object\)/)
+      assert.doesNotMatch(result.code, /let key/)
+    })
+
+    test("var beside a catch parameter of the same name", () => {
+      const result = transform(`
+  try {
+    run();
+  } catch (error) {
+    var error = 1;
+    use(error);
+  }
+`)
+
+      assert(!result.modified, "keep var that shares the binding of a catch parameter")
+      assert.match(result.code, /var error = 1/)
+      assert.doesNotMatch(result.code, /const error/)
+    })
+
+    test("var beside a catch parameter of another name", () => {
+      const result = transform(`
+  try {
+    run();
+  } catch (error) {
+    var value = 1;
+    use(value);
+  }
+`)
+
+      assert(result.modified, "narrow var that no catch parameter binds")
+      assert.match(result.code, /const value = 1/)
+      assert.doesNotMatch(result.code, /var value/)
+    })
+
+    test("redeclared declarators in a single statement", () => {
+      const result = transform(`
+  var x = 1, x = 2;
+`)
+
+      assert(!result.modified, "keep redeclared declarators")
+      assert.match(result.code, /var x = 1, x = 2/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var shadowed by a member property name", () => {
+      const result = transform(`
+  function f(node) {
+    if (node) {
+      var name = node.name;
+    }
+    return node.name;
+  }
+`)
+
+      assert(result.modified, "ignore member properties that name a field")
+      assert.match(result.code, /const name = node.name/)
+      assert.doesNotMatch(result.code, /var name/)
+    })
+
+    test("var referenced by a JSX element outside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var Component = Flagged;
+    }
+    return <Component />;
+  }
+`)
+
+      assert(!result.modified, "keep var that a JSX element outside the block reads")
+      assert.match(result.code, /var Component = Flagged/)
+      assert.doesNotMatch(result.code, /const Component/)
+    })
+
+    test("var referenced by a JSX element inside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var Component = Flagged;
+      return <Component />;
+    }
+    return null;
+  }
+`)
+
+      assert(result.modified, "narrow var that a JSX element inside the block reads")
+      assert.match(result.code, /const Component = Flagged/)
+      assert.doesNotMatch(result.code, /var Component/)
+    })
+
+    test("var named after a JSX attribute", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var className = "active";
+    }
+    return <div className="active" />;
+  }
+`)
+
+      assert(result.modified, "ignore JSX attributes that name a property")
+      assert.match(result.code, /const className = "active"/)
+      assert.doesNotMatch(result.code, /var className/)
+    })
+
+    test("var read through a JSX member expression outside the block", () => {
+      const result = transform(`
+  function f(flag) {
+    if (flag) {
+      var Component = Flagged;
+    }
+    return <Component.Item />;
+  }
+`)
+
+      assert(!result.modified, "keep var that a JSX member expression reads")
+      assert.match(result.code, /var Component = Flagged/)
+      assert.doesNotMatch(result.code, /const Component/)
+    })
+
     test("preserve top-level declare var", () => {
       const result = transform(`
   declare var csrftoken: string;

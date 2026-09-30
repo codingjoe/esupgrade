@@ -135,6 +135,22 @@ drop the resource disposal.
 +y = 3;
 ```
 
+Declarations keep `var` when:
+
+- A reference leaves the block that would own the narrowed binding
+- A reference precedes the declaration
+- Another declaration of the shared `var` binding cannot narrow
+
+```js
+// Not transformed - `error` is read after the block
+function f(flag) {
+  if (flag) {
+    var error = 1;
+  }
+  return error;
+}
+```
+
 #### String concatenation → [Template literals][mdn-template-literals]
 
 ```diff
