@@ -214,7 +214,7 @@ function fn() {
     `)
 
       assert.doesNotMatch(result.code, /function fn\(\.\.\.args\)/)
-      assert.match(result.code, /using args = /)
+      assert.match(result.code, /using args = \[\.\.\.arguments\]/)
     })
   })
 })
