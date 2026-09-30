@@ -288,7 +288,14 @@ Decimal and octal numerals are grouped by triplets; hex and binary by byte.
 +const copy = Array.of(1, 2).toSpliced(1, 2);
 ```
 
-Not transformed: receivers that are not statically verified arrays; mutating calls without a copy; and `splice()` calls whose result is used, whose arguments come from the copy, or that are not a bare statement directly below a single-declarator copy declaration.
+The following are not transformed:
+
+- Receivers that are not statically verified arrays
+- Mutating calls without a copy
+- Expression-form `splice()` on a copy, which returns the removed elements
+- `splice()` calls whose result is used
+- `splice()` calls whose arguments come from the copy
+- Copy-to-variable rewrites where the declaration is not the single declarator directly above the mutating call, as in `const copy = [...items], total = 0`
 
 #### `Array.filter()[0]` → [`Array.find()`][mdn-find]
 
