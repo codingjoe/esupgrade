@@ -58,7 +58,7 @@ export function objectPropertyExtractionToDestructuring(root) {
         return
       }
 
-      func.params[paramIndex] = buildObjectPattern(result.extractions, param)
+      func.params[paramIndex] = createObjectPattern(result.extractions, param)
       removeExtractionDeclarators(body, result.extractions)
       modified = true
     })
@@ -282,14 +282,14 @@ function isStringLiteralNode(node) {
 }
 
 /**
- * Build an ObjectPattern AST node from a list of property extractions.
+ * Create an ObjectPattern AST node from a list of property extractions.
  * Preserves TypeScript type annotations from the original parameter.
  *
- * @param {Array<{localName: string, propertyName: string}>} extractions - The extractions to build from
+ * @param {Array<{localName: string, propertyName: string}>} extractions - The extractions to create from
  * @param {import("ast-types").namedTypes.Identifier} originalParam - The original parameter node
  * @returns {import("ast-types").namedTypes.ObjectPattern} The destructuring pattern
  */
-function buildObjectPattern(extractions, originalParam) {
+function createObjectPattern(extractions, originalParam) {
   const properties = extractions.map(({ localName, propertyName }) => {
     const key = j.identifier(propertyName)
     const value = j.identifier(localName)

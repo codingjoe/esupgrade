@@ -69,7 +69,7 @@ function isVerifiableMatch(root, reassignments, match) {
  */
 function applyDeferredPromise(statements, index, match) {
   const replaced = statements.slice(index, index + match.statementCount + 1)
-  const declaration = buildWithResolversDeclaration(
+  const declaration = createWithResolversDeclaration(
     match.promiseName,
     match.bindingNames,
   )
@@ -327,13 +327,13 @@ function isReferencedBesidesDeclarator(root, identifier) {
 }
 
 /**
- * Build a `Promise.withResolvers()` destructuring declaration.
+ * Create a `Promise.withResolvers()` destructuring declaration.
  *
  * @param {string} promiseName - The name of the promise binding
  * @param {string[]} bindingNames - The deferred binding names
  * @returns {import("ast-types").namedTypes.VariableDeclaration} The replacement declaration
  */
-function buildWithResolversDeclaration(promiseName, bindingNames) {
+function createWithResolversDeclaration(promiseName, bindingNames) {
   const properties = [
     ["promise", promiseName],
     ["resolve", bindingNames[0]],
