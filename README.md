@@ -730,6 +730,30 @@ TypeScript type annotations on the original parameter are preserved on the resul
 - The promise chain is returned from the function or used inside an already async function
 - The expression is a known promise (`fetch()`, `new Promise()`, or promise methods)
 
+#### `error.cause` assignment → [Error cause option][mdn-error-cause]
+
+```diff
+-try {
+-  doWork();
+-} catch (cause) {
+-  const error = new Error("Work failed");
+-  error.cause = cause;
+-  throw error;
+-}
++try {
++  doWork();
++} catch (cause) {
++  throw new Error("Work failed", { cause });
++}
+```
+
+Transformations are limited to built-in error constructors. The following are not transformed:
+
+- Constructions without a message argument
+- Constructions that already pass an options argument
+- Custom error subclasses
+- Assignments whose value references the error itself, as in `error.cause = error`
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word.svg">
@@ -795,6 +819,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
 [mdn-destructuring]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment
 [mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
+[mdn-error-cause]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/cause
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-find]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
