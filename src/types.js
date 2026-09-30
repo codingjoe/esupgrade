@@ -669,7 +669,13 @@ export class NodeTest {
    * @returns {Generator<string, void, unknown>}
    */
   *extractIdentifiersFromPattern() {
-    if (j.Identifier.check(this.node)) {
+    if (
+      j.TSNonNullExpression.check(this.node) ||
+      j.TSAsExpression.check(this.node) ||
+      j.TSSatisfiesExpression.check(this.node)
+    ) {
+      yield* new NodeTest(this.node.expression).extractIdentifiersFromPattern()
+    } else if (j.Identifier.check(this.node)) {
       yield this.node.name
     } else if (j.ObjectPattern.check(this.node)) {
       for (const prop of this.node.properties) {
@@ -952,7 +958,8 @@ function isAssignmentShadowed(varName, declarationPath, currentPath) {
 }
 
 /**
- * Assignment and update expressions grouped by the identifier they target.
+ * Assignment, update, and loop target expressions grouped by the identifier
+ * they write.
  *
  * A single index per syntax tree replaces the full tree traversal that would
  * otherwise run for every variable declaration. Indexing uses the same pattern
@@ -968,22 +975,15 @@ export class ReassignmentIndex {
   #paths = new Map()
 
   /**
-   * Index every assignment and update expression of the root collection.
+   * Index every write of the root collection.
    *
    * @param {import("jscodeshift").Collection} root - The root AST collection
    */
   constructor(root) {
-    root.find(j.AssignmentExpression).forEach((path) => {
-      for (const name of new NodeTest(path.node.left).extractIdentifiersFromPattern()) {
-        this.#append(name, path)
-      }
-    })
-
-    root.find(j.UpdateExpression).forEach((path) => {
-      if (j.Identifier.check(path.node.argument)) {
-        this.#append(path.node.argument.name, path)
-      }
-    })
+    this.#indexWrites(root, j.AssignmentExpression, "left")
+    this.#indexWrites(root, j.UpdateExpression, "argument")
+    this.#indexWrites(root, j.ForOfStatement, "left")
+    this.#indexWrites(root, j.ForInStatement, "left")
   }
 
   /**
@@ -994,6 +994,23 @@ export class ReassignmentIndex {
    */
   getPathsFor(varName) {
     return this.#paths.get(varName) ?? []
+  }
+
+  /**
+   * Index the identifiers a node type writes through one of its fields.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection
+   * @param {import("jscodeshift").ASTType} nodeType - The node type to index
+   * @param {string} field - The field holding the written target
+   */
+  #indexWrites(root, nodeType, field) {
+    root.find(nodeType).forEach((path) => {
+      const target = path.node[field]
+
+      for (const name of new NodeTest(target).extractIdentifiersFromPattern()) {
+        this.#append(name, path)
+      }
+    })
   }
 
   /**
