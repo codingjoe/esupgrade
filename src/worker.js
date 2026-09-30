@@ -1,28 +1,30 @@
 import fs from "fs/promises"
-import { parentPort, workerData } from "worker_threads"
+import { parentPort } from "worker_threads"
 import { transform } from "./index.js"
 
-/** Worker thread for processing files in parallel. */
+/** Worker thread that transforms files on request. */
 
-const { filePath, baseline } = workerData
+parentPort.on("message", async ({ id, filePath, baseline, includeOriginal }) => {
+  try {
+    const code = await fs.readFile(filePath, "utf8")
+    const result = transform(code, baseline)
 
-try {
-  const code = await fs.readFile(filePath, "utf8")
-  const result = transform(code, baseline)
-
-  parentPort.postMessage({
-    success: true,
-    filePath,
-    result: {
-      modified: result.modified,
-      original: code,
-      code: result.code,
-    },
-  })
-} catch (error) {
-  parentPort.postMessage({
-    success: false,
-    filePath,
-    error,
-  })
-}
+    parentPort.postMessage({
+      id,
+      success: true,
+      filePath,
+      result: {
+        modified: result.modified,
+        original: includeOriginal ? code : undefined,
+        code: result.code,
+      },
+    })
+  } catch (error) {
+    parentPort.postMessage({
+      id,
+      success: false,
+      filePath,
+      error,
+    })
+  }
+})

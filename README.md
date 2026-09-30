@@ -76,6 +76,15 @@ esupgrade is available as a skill in [Claude Code]. The plugin is distributed vi
 
 The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
+## Performance
+
+esupgrade parses each file and runs every transformation on it, so two mechanisms keep large codebases fast:
+
+- **Text pre-filters**: each transformation declares the source text it needs, such as `hasOwnProperty` or `=>`. When a file cannot contain that text, esupgrade skips the transformation and its syntax tree walk.
+- **Worker reuse**: the CLI loads the transformation pipeline once per worker thread and hands every file of the queue to that thread.
+
+Every file pays for one pass over all transformations, and every changed file pays for a second pass to confirm the result. Parsing and printing are memory bound, so extra processes stop helping once the workers saturate the memory bandwidth.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-wordmark-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-wordmark.svg">

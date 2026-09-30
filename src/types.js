@@ -935,62 +935,106 @@ function isAssignmentShadowed(varName, declarationPath, currentPath) {
 }
 
 /**
+ * Assignment and update expressions grouped by the identifier they target.
+ *
+ * A single index per syntax tree replaces the full tree traversal that would
+ * otherwise run for every variable declaration. Indexing uses the same pattern
+ * rules as {@link NodeTest#extractIdentifiersFromPattern}, so the indexed
+ * candidates are exactly the nodes that a traversal would match.
+ *
+ * The shadowing analysis of a candidate reads the functions enclosing it, and
+ * splitting a declaration leaves those functions in place. An index therefore
+ * stays usable for the whole transformation, even though splitting re-parents
+ * declarators.
+ */
+export class ReassignmentIndex {
+  #assignmentPaths = new Map()
+  #updatePaths = new Map()
+
+  /**
+   * Index every assignment and update expression of the root collection.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection
+   */
+  constructor(root) {
+    root.find(j.AssignmentExpression).forEach((path) => {
+      for (const name of new NodeTest(path.node.left).extractIdentifiersFromPattern()) {
+        this.#append(this.#assignmentPaths, name, path)
+      }
+    })
+
+    root.find(j.UpdateExpression).forEach((path) => {
+      if (j.Identifier.check(path.node.argument)) {
+        this.#append(this.#updatePaths, path.node.argument.name, path)
+      }
+    })
+  }
+
+  /**
+   * List the assignments that target the given variable.
+   *
+   * @param {string} varName - The variable name to look up
+   * @returns {Array<import("ast-types").NodePath>} Assignment paths
+   */
+  assignmentsFor(varName) {
+    return this.#assignmentPaths.get(varName) ?? []
+  }
+
+  /**
+   * List the updates that target the given variable.
+   *
+   * @param {string} varName - The variable name to look up
+   * @returns {Array<import("ast-types").NodePath>} Update paths
+   */
+  updatesFor(varName) {
+    return this.#updatePaths.get(varName) ?? []
+  }
+
+  /**
+   * Store a path under the given identifier name.
+   *
+   * @param {Map<string, Array<import("ast-types").NodePath>>} index - Index to extend
+   * @param {string} name - The identifier name
+   * @param {import("ast-types").NodePath} path - The path to store
+   */
+  #append(index, name, path) {
+    const paths = index.get(name)
+
+    paths ? paths.push(path) : index.set(name, [path])
+  }
+}
+
+/**
  * Check if a variable is reassigned after its declaration
  *
- * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {string} varName - The variable name to check
  * @param {import("ast-types").NodePath} declarationPath - The path to the variable
  *   declaration
  * @returns {boolean} True if the variable is reassigned
  */
-function isVariableReassigned(root, varName, declarationPath) {
-  let isReassigned = false
+function isVariableReassigned(reassignments, varName, declarationPath) {
+  const candidates = [
+    ...reassignments.assignmentsFor(varName),
+    ...reassignments.updatesFor(varName),
+  ]
 
-  // Check for AssignmentExpression where left side targets the variable
-  root.find(j.AssignmentExpression).forEach((assignPath) => {
-    if (!new NodeTest(assignPath.node.left).patternContainsIdentifier(varName)) {
-      return
-    }
-
-    if (isAssignmentShadowed(varName, declarationPath, assignPath)) {
-      return
-    }
-
-    isReassigned = true
-  })
-
-  if (isReassigned) return true
-
-  // Check for UpdateExpression (++, --)
-  root.find(j.UpdateExpression).forEach((updatePath) => {
-    if (
-      !j.Identifier.check(updatePath.node.argument) ||
-      updatePath.node.argument.name !== varName
-    ) {
-      return
-    }
-
-    if (isAssignmentShadowed(varName, declarationPath, updatePath)) {
-      return
-    }
-
-    isReassigned = true
-  })
-
-  return isReassigned
+  return candidates.some(
+    (path) => !isAssignmentShadowed(varName, declarationPath, path),
+  )
 }
 
 /**
  * Determine the appropriate kind (const or let) for a declarator
  *
- * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("jscodeshift").VariableDeclarator} declarator - The variable
  *   declarator
  * @param {import("ast-types").NodePath} declarationPath - The path to the variable
  *   declaration
  * @returns {"const" | "let"} The appropriate variable kind
  */
-export function determineDeclaratorKind(root, declarator, declarationPath) {
+export function determineDeclaratorKind(reassignments, declarator, declarationPath) {
   // Check if this is a for-of or for-in loop variable declaration
   const isLoopVariable =
     declarationPath.parent &&
@@ -1006,14 +1050,14 @@ export function determineDeclaratorKind(root, declarator, declarationPath) {
   }
 
   if (j.Identifier.check(declarator.id)) {
-    return isVariableReassigned(root, declarator.id.name, declarationPath)
+    return isVariableReassigned(reassignments, declarator.id.name, declarationPath)
       ? "let"
       : "const"
   }
 
   // Destructuring pattern - check if any identifier is reassigned
   for (const varName of new NodeTest(declarator.id).extractIdentifiersFromPattern()) {
-    if (isVariableReassigned(root, varName, declarationPath)) {
+    if (isVariableReassigned(reassignments, varName, declarationPath)) {
       return "let"
     }
   }
@@ -1024,13 +1068,13 @@ export function determineDeclaratorKind(root, declarator, declarationPath) {
 /**
  * Process a single declarator variable declaration
  *
- * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  * @returns {{ modified: boolean; change: { type: string; line: number } | null }}
  */
-export function processSingleDeclarator(root, path) {
+export function processSingleDeclarator(reassignments, path) {
   const declarator = path.node.declarations[0]
-  path.node.kind = determineDeclaratorKind(root, declarator, path)
+  path.node.kind = determineDeclaratorKind(reassignments, declarator, path)
 
   const change = path.node.loc
     ? { type: "varToLetOrConst", line: path.node.loc.start.line }
@@ -1043,15 +1087,16 @@ export function processSingleDeclarator(root, path) {
  * Process a multiple declarator variable declaration by splitting into separate
  * declarations
  *
- * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
  * @returns {{ modified: boolean; change: { type: string; line: number } | null }}
  */
-export function processMultipleDeclarators(root, path) {
+export function processMultipleDeclarators(reassignments, path) {
   const declarations = path.node.declarations.map((declarator) => {
-    return j.variableDeclaration(determineDeclaratorKind(root, declarator, path), [
-      declarator,
-    ])
+    return j.variableDeclaration(
+      determineDeclaratorKind(reassignments, declarator, path),
+      [declarator],
+    )
   })
 
   j(path).replaceWith(declarations)

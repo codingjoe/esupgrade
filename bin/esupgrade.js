@@ -5,12 +5,11 @@ import { diffLines } from "diff"
 import { once } from "events"
 import fs from "fs/promises"
 import process from "node:process"
-import os from "os"
 import path from "path"
 import { fileURLToPath } from "url"
-import { Worker } from "worker_threads"
 import pkg from "../package.json" with { type: "json" }
 import { transform } from "../src/index.js"
+import { WorkerPool } from "../src/pool.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,37 +19,9 @@ const __dirname = path.dirname(__filename)
  */
 
 /**
- * Handles worker thread execution for file processing.
- */
-class WorkerRunner {
-  constructor(workerPath) {
-    this.workerPath = workerPath
-  }
-
-  /**
-   * Run a worker thread to process a file.
-   * @param {string} filePath - Path to the file to process.
-   * @param {string} baseline - Baseline level for transformations.
-   * @returns {Promise<Object>} Worker message result.
-   */
-  async run(filePath, baseline) {
-    const worker = new Worker(this.workerPath, {
-      workerData: { filePath, baseline },
-    })
-
-    const [message] = await once(worker, "message")
-    return message
-  }
-}
-
-/**
  * Processes individual files and handles output.
  */
 class FileProcessor {
-  constructor(workerRunner) {
-    this.workerRunner = workerRunner
-  }
-
   /**
    * Process a file using a worker thread.
    * @param {string} filePath - Path to the file to process.
@@ -59,9 +30,10 @@ class FileProcessor {
    * @param {boolean} options.check - Whether to only check for changes.
    * @param {boolean} options.write - Whether to write changes to file.
    * @param {boolean} options.verbose - The verbosity level for logging.
+   * @param {import("../src/pool.js").TransformWorker} worker - Worker that transforms the file.
    * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
    */
-  async processFile(filePath, options) {
+  async processFile(filePath, options, worker) {
     // Validate that the provided path exists and is a file.
     try {
       const stats = await fs.stat(filePath)
@@ -75,7 +47,11 @@ class FileProcessor {
     }
 
     try {
-      const workerResult = await this.workerRunner.run(filePath, options.baseline)
+      const workerResult = await worker.transform({
+        filePath,
+        baseline: options.baseline,
+        includeOriginal: options.check || !options.write,
+      })
 
       if (!workerResult.success) {
         if (options.verbose) console.error(workerResult.error)
@@ -144,43 +120,6 @@ class FileProcessor {
 }
 
 /**
- * Manages a pool of workers for parallel file processing.
- */
-class WorkerPool {
-  constructor(fileProcessor, maxWorkers = os.cpus().length) {
-    this.fileProcessor = fileProcessor
-    this.maxWorkers = maxWorkers
-  }
-
-  /**
-   * Process files with a worker pool for better CPU utilization.
-   * @param {string[]} files - Files to process.
-   * @param {Object} options - Processing options.
-   * @returns {Promise<Array>} Array of processing results.
-   */
-  async processFiles(files, options) {
-    const results = new Array(files.length)
-    let fileIndex = 0
-
-    // Worker pool pattern - each worker processes files until queue is empty
-    const processNext = async () => {
-      while (fileIndex < files.length) {
-        const currentIndex = fileIndex++
-        const file = files[currentIndex]
-        results[currentIndex] = await this.fileProcessor.processFile(file, options)
-      }
-    }
-
-    // Start worker pool and wait for all to complete
-    const workerCount = Math.min(this.maxWorkers, files.length)
-    const workers = Array.from({ length: workerCount }, () => processNext())
-    await Promise.all(workers)
-
-    return results
-  }
-}
-
-/**
  * Processes stdin and handles output.
  */
 class StdinProcessor {
@@ -241,9 +180,8 @@ class StdinProcessor {
  */
 class CLIRunner {
   constructor(workerPath) {
-    const workerRunner = new WorkerRunner(workerPath)
-    const fileProcessor = new FileProcessor(workerRunner)
-    this.workerPool = new WorkerPool(fileProcessor)
+    const fileProcessor = new FileProcessor()
+    this.workerPool = new WorkerPool(fileProcessor, workerPath)
     this.stdinProcessor = new StdinProcessor()
   }
 

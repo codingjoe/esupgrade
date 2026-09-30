@@ -1,11 +1,18 @@
 import jscodeshift from "jscodeshift"
 import * as newlyAvailable from "./newlyAvailable.js"
+import { matchesPrefilter } from "./prefilters.js"
 import * as widelyAvailable from "./widelyAvailable.js"
 
 /**
  * Transformer function type.
  *
  * @typedef {function(import('jscodeshift').Collection): boolean} Transformer
+ */
+
+/**
+ * Named transformer, keyed by the name it is exported under.
+ *
+ * @typedef {[string, Transformer]} NamedTransformer
  */
 
 /**
@@ -21,7 +28,7 @@ import * as widelyAvailable from "./widelyAvailable.js"
  *
  * @param {string} code - The source code to transform.
  * @param {import('jscodeshift').JSCodeshift} j - jscodeshift instance.
- * @param {Transformer[]} transformers - Transformer functions.
+ * @param {NamedTransformer[]} transformers - Named transformer functions.
  * @param {boolean} globalModified - Whether any modifications have occurred.
  * @returns {TransformResult} Object with transformed code and modification status.
  */
@@ -29,7 +36,11 @@ function applyTransformersRecursively(code, j, transformers, globalModified = fa
   const root = j(code)
   let passModified = false
 
-  for (const transformer of transformers) {
+  for (const [name, transformer] of transformers) {
+    if (!matchesPrefilter(name, code)) {
+      continue
+    }
+
     passModified = transformer(root) || passModified
   }
 
@@ -53,10 +64,10 @@ function applyTransformersRecursively(code, j, transformers, globalModified = fa
 export function transform(code, baseline = "widely-available") {
   const j = jscodeshift.withParser("tsx")
 
-  let transformers =
+  const transformers =
     baseline === "newly-available"
       ? { ...widelyAvailable, ...newlyAvailable }
       : widelyAvailable
 
-  return applyTransformersRecursively(code, j, Object.values(transformers))
+  return applyTransformersRecursively(code, j, Object.entries(transformers))
 }
