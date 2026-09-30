@@ -23,36 +23,13 @@ export function lastIndexOfToEndsWith(root) {
         return false
       }
 
-      // Check if one side is lastIndexOf() and the other is a subtraction
-      let lastIndexOfCall = null
-      let comparisonValue = null
-
-      // Check left side for lastIndexOf
-      if (
-        j.CallExpression.check(node.left) &&
-        j.MemberExpression.check(node.left.callee) &&
-        !node.left.callee.computed &&
-        j.Identifier.check(node.left.callee.property) &&
-        node.left.callee.property.name === "lastIndexOf"
-      ) {
-        lastIndexOfCall = node.left
-        comparisonValue = node.right
-      }
-      // Check right side for lastIndexOf
-      else if (
-        j.CallExpression.check(node.right) &&
-        j.MemberExpression.check(node.right.callee) &&
-        !node.right.callee.computed &&
-        j.Identifier.check(node.right.callee.property) &&
-        node.right.callee.property.name === "lastIndexOf"
-      ) {
-        lastIndexOfCall = node.right
-        comparisonValue = node.left
-      }
-
-      if (!lastIndexOfCall) {
+      // Check if one side is a .lastIndexOf() call and the other is a subtraction
+      const lastIndexOfInfo = new NodeTest(node).getComparisonCall(["lastIndexOf"])
+      if (!lastIndexOfInfo) {
         return false
       }
+
+      const { call: lastIndexOfCall, comparisonValue } = lastIndexOfInfo
 
       // Only transform if lastIndexOf has exactly 1 argument (the search value)
       if (lastIndexOfCall.arguments.length !== 1) {
@@ -109,18 +86,8 @@ export function lastIndexOfToEndsWith(root) {
     .forEach((path) => {
       const node = path.node
 
-      // Determine which side is lastIndexOf (guaranteed by filter to exist)
-      let lastIndexOfCall
-      if (
-        j.CallExpression.check(node.left) &&
-        j.MemberExpression.check(node.left.callee) &&
-        j.Identifier.check(node.left.callee.property) &&
-        node.left.callee.property.name === "lastIndexOf"
-      ) {
-        lastIndexOfCall = node.left
-      } else {
-        lastIndexOfCall = node.right
-      }
+      const lastIndexOfInfo = new NodeTest(node).getComparisonCall(["lastIndexOf"])
+      const { call: lastIndexOfCall } = lastIndexOfInfo
 
       // Create endsWith() call
       const endsWithCall = j.callExpression(

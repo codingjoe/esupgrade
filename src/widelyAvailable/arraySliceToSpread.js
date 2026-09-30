@@ -16,13 +16,7 @@ export function arraySliceToSpread(root) {
     .filter((path) => {
       const { node } = path
 
-      // Check if this is a .slice() call
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        node.callee.computed ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "slice"
-      ) {
+      if (!new NodeTest(node, path).isMethodCall(["slice"])) {
         return false
       }
 

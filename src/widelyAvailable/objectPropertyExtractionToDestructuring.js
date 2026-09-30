@@ -1,8 +1,6 @@
 import { default as j } from "jscodeshift"
 import { NodeTest } from "../types.js"
 
-const SKIP_KEYS = new Set(["loc", "start", "end", "tokens", "comments"])
-
 /**
  * Transform manual property extraction to destructuring in function parameters.
  * Converts patterns where a function body begins with property extractions from a
@@ -140,7 +138,11 @@ function isPropertyExtractionFrom(declarator, paramName) {
 function isParamUsedAfterExtractions(body, paramName, result) {
   const remainingStatements = body.body.slice(result.boundary)
 
-  if (remainingStatements.some((stmt) => deepContainsIdentifier(stmt, paramName))) {
+  if (
+    remainingStatements.some((statement) =>
+      new NodeTest(statement).containsIdentifier(paramName, { crossFunctions: true }),
+    )
+  ) {
     return true
   }
 
@@ -176,7 +178,9 @@ function isMixedDeclaratorUsingParam(body, paramName, extractions) {
         return false
       }
 
-      return deepContainsIdentifier(declarator.init, paramName)
+      return new NodeTest(declarator.init).containsIdentifier(paramName, {
+        crossFunctions: true,
+      })
     })
   })
 }
@@ -213,7 +217,7 @@ function wouldPromoteDirective(body, result) {
   return (
     nextStatement !== undefined &&
     j.ExpressionStatement.check(nextStatement) &&
-    isStringLiteralNode(nextStatement.expression) &&
+    j.StringLiteral.check(nextStatement.expression) &&
     nextStatement.expression.value === "use strict"
   )
 }
@@ -229,56 +233,10 @@ function wouldPromoteDirective(body, result) {
  */
 function isParamReferencedInOtherParams(params, paramIndex, paramName) {
   return params.some(
-    (param, i) => i !== paramIndex && deepContainsIdentifier(param, paramName),
+    (param, i) =>
+      i !== paramIndex &&
+      new NodeTest(param).containsIdentifier(paramName, { crossFunctions: true }),
   )
-}
-
-/**
- * Deeply check if an identifier name appears anywhere in an AST subtree,
- * including inside nested functions and arrow functions.
- *
- * @param {import("ast-types").ASTNode | null | undefined} node - The node to search
- * @param {string} name - The identifier name to search for
- * @returns {boolean} True if the identifier is found anywhere in the subtree
- */
-function deepContainsIdentifier(node, name) {
-  if (!node || typeof node !== "object") {
-    return false
-  }
-
-  if (node.type === "Identifier" && node.name === name) {
-    return true
-  }
-
-  for (const key in node) {
-    if (SKIP_KEYS.has(key)) {
-      continue
-    }
-
-    const value = node[key]
-
-    if (Array.isArray(value)) {
-      if (value.some((item) => deepContainsIdentifier(item, name))) {
-        return true
-      }
-    } else if (value && typeof value === "object") {
-      if (deepContainsIdentifier(value, name)) {
-        return true
-      }
-    }
-  }
-
-  return false
-}
-
-/**
- * Check if a node is a string literal.
- *
- * @param {import("ast-types").ASTNode} node - The node to check
- * @returns {boolean} True if the node is a string literal
- */
-function isStringLiteralNode(node) {
-  return j.StringLiteral.check(node)
 }
 
 /**

@@ -25,12 +25,16 @@ export function indexOfToIncludes(root) {
       }
 
       // Check if one side is a .indexOf() call and the other is -1 or 0
-      const indexOfInfo = new NodeTest(node).getIndexOfInfo()
+      const indexOfInfo = new NodeTest(node).getComparisonCall(["indexOf"])
       if (!indexOfInfo) {
         return false
       }
 
-      const { indexOfCall, comparisonValue, isLeftIndexOf } = indexOfInfo
+      const {
+        call: indexOfCall,
+        comparisonValue,
+        isLeftCall: isLeftIndexOf,
+      } = indexOfInfo
 
       // Only transform if indexOf has exactly 1 argument (the search value)
       // indexOf with fromIndex (2nd argument) has different semantics
@@ -93,9 +97,12 @@ export function indexOfToIncludes(root) {
     .forEach((path) => {
       const node = path.node
 
-      // Get indexOf call info using helper
-      const indexOfInfo = new NodeTest(node).getIndexOfInfo()
-      const { indexOfCall, comparisonValue, isLeftIndexOf } = indexOfInfo
+      const indexOfInfo = new NodeTest(node).getComparisonCall(["indexOf"])
+      const {
+        call: indexOfCall,
+        comparisonValue,
+        isLeftCall: isLeftIndexOf,
+      } = indexOfInfo
 
       const operator = node.operator
       const value = new NodeTest(comparisonValue).getNumericValue()

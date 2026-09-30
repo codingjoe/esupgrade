@@ -5,6 +5,7 @@ const TRIM_METHOD_RENAMES = new Map([
   ["trimLeft", "trimStart"],
   ["trimRight", "trimEnd"],
 ])
+const TRIM_METHOD_NAMES = [...TRIM_METHOD_RENAMES.keys()]
 
 /**
  * Transform String.prototype.trimLeft() and String.prototype.trimRight() to
@@ -31,12 +32,7 @@ export function trimLeftRightToTrimStartEnd(root) {
         return false
       }
 
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        node.callee.computed ||
-        !j.Identifier.check(node.callee.property) ||
-        !TRIM_METHOD_RENAMES.has(node.callee.property.name)
-      ) {
+      if (!new NodeTest(node, path).isMethodCall(TRIM_METHOD_NAMES)) {
         return false
       }
 

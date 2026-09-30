@@ -34,13 +34,7 @@ export function iterableForEachToForOf(root) {
     .filter((path) => {
       const { node } = path
 
-      // Check if this is a forEach call
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        node.callee.computed ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "forEach"
-      ) {
+      if (!new NodeTest(node, path).isMethodCall(["forEach"])) {
         return false
       }
 
@@ -116,11 +110,7 @@ export function iterableForEachToForOf(root) {
       }
 
       const callback = node.arguments[0]
-      // Only transform if callback is an inline function (arrow or function expression)
-      if (
-        !j.ArrowFunctionExpression.check(callback) &&
-        !j.FunctionExpression.check(callback)
-      ) {
+      if (!new NodeTest(callback).isFunctionExpression()) {
         return false
       }
 

@@ -23,12 +23,12 @@ export function indexOfToStartsWith(root) {
       }
 
       // Check if one side is a .indexOf() call and the other is 0
-      const indexOfInfo = new NodeTest(node).getIndexOfInfo()
+      const indexOfInfo = new NodeTest(node).getComparisonCall(["indexOf"])
       if (!indexOfInfo) {
         return false
       }
 
-      const { indexOfCall, comparisonValue } = indexOfInfo
+      const { call: indexOfCall, comparisonValue } = indexOfInfo
 
       // Only transform if indexOf has exactly 1 argument (the search value)
       if (!indexOfCall || indexOfCall.arguments.length !== 1) {
@@ -47,8 +47,8 @@ export function indexOfToStartsWith(root) {
     })
     .forEach((path) => {
       const node = path.node
-      const indexOfInfo = new NodeTest(node).getIndexOfInfo()
-      const { indexOfCall } = indexOfInfo
+      const indexOfInfo = new NodeTest(node).getComparisonCall(["indexOf"])
+      const { call: indexOfCall } = indexOfInfo
 
       // Create startsWith() call
       const startsWithCall = j.callExpression(

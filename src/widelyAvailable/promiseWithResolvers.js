@@ -1,5 +1,5 @@
 import { default as j } from "jscodeshift"
-import { isShadowed, ReassignmentIndex } from "../types.js"
+import { isShadowed, NodeTest, ReassignmentIndex } from "../types.js"
 
 /**
  * Transform deferred promise resolve/reject capture to Promise.withResolvers().
@@ -241,10 +241,7 @@ function getPromiseExecutor(node) {
  * @returns {boolean} True if the executor assigns each binding exactly once
  */
 function isExecutorAssigningBindings(executor, bindingNames) {
-  if (
-    !j.FunctionExpression.check(executor) &&
-    !j.ArrowFunctionExpression.check(executor)
-  ) {
+  if (!new NodeTest(executor).isFunctionExpression()) {
     return false
   }
 

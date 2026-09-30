@@ -16,24 +16,16 @@ export function objectKeysForEachToEntries(root) {
   root
     .find(j.CallExpression)
     .filter(({ node }) => {
-      // Check if this is a forEach call
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "forEach"
-      ) {
+      if (!new NodeTest(node).isMethodCall(["forEach"])) {
         return false
       }
 
       // Check if the object is Object.keys()
       const object = node.callee.object
       if (
-        !j.CallExpression.check(object) ||
-        !j.MemberExpression.check(object.callee) ||
+        !new NodeTest(object).isMethodCall(["keys"]) ||
         !j.Identifier.check(object.callee.object) ||
-        object.callee.object.name !== "Object" ||
-        !j.Identifier.check(object.callee.property) ||
-        object.callee.property.name !== "keys"
+        object.callee.object.name !== "Object"
       ) {
         return false
       }
@@ -49,11 +41,7 @@ export function objectKeysForEachToEntries(root) {
       }
 
       const callback = node.arguments[0]
-      // Only transform if callback is an inline function (arrow or function expression)
-      if (
-        !j.ArrowFunctionExpression.check(callback) &&
-        !j.FunctionExpression.check(callback)
-      ) {
+      if (!new NodeTest(callback).isFunctionExpression()) {
         return false
       }
 

@@ -16,13 +16,7 @@ export function arrayFromForEachToForOf(root) {
     .filter((path) => {
       const { node } = path
 
-      // Check if this is a forEach call
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        node.callee.computed ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "forEach"
-      ) {
+      if (!new NodeTest(node, path).isMethodCall(["forEach"])) {
         return false
       }
 
@@ -35,12 +29,7 @@ export function arrayFromForEachToForOf(root) {
       const iterable = node.callee.object.arguments[0]
       const callback = node.arguments[0]
 
-      // Only transform if callback is a function
-      if (
-        callback &&
-        (j.ArrowFunctionExpression.check(callback) ||
-          j.FunctionExpression.check(callback))
-      ) {
+      if (new NodeTest(callback).isFunctionExpression()) {
         // Only transform if:
         // 1. Callback has exactly 1 parameter (element only), OR
         // 2. Callback has 2+ params AND first param is a destructuring pattern (e.g., [key, value])
