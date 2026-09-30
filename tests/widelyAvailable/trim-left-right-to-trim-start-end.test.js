@@ -51,6 +51,27 @@ const right = "  world  ".trimRight();
         assert.match(result.code, /const right = " {2}world {2}"\.trimEnd\(\)/)
         assert.doesNotMatch(result.code, /trimLeft|trimRight/)
       })
+
+      test("rename aliases in a template literal chain", () => {
+        const result = transform("const trimmed = `  x  `.trimLeft().trimRight();")
+
+        assert(result.modified, "rename aliases on a template literal chain")
+        assert.match(result.code, /` {2}x {2}`\.trimStart\(\)\.trimEnd\(\)/)
+        assert.doesNotMatch(result.code, /trimLeft|trimRight/)
+      })
+
+      test("rename aliases in a chain of three calls", () => {
+        const result = transform(
+          `const trimmed = "  x  ".trimLeft().trimRight().trimLeft();`,
+        )
+
+        assert(result.modified, "rename every alias in a deep chain")
+        assert.match(
+          result.code,
+          /" {2}x {2}"\.trimStart\(\)\.trimEnd\(\)\.trimStart\(\)/,
+        )
+        assert.doesNotMatch(result.code, /trimLeft|trimRight/)
+      })
     })
 
     describe("skipped receivers", () => {

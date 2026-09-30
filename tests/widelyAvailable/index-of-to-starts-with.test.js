@@ -48,6 +48,27 @@ suite("widely-available", () => {
         assert.match(result.code, /"HELLO"\.toLowerCase\(\)\.startsWith\("hello"\)/)
         assert.doesNotMatch(result.code, /indexOf/)
       })
+
+      test("nested string method chain with indexOf === 0", () => {
+        const result = transform(
+          `const found = "HELLO".trim().toLowerCase().indexOf("hello") === 0;`,
+        )
+
+        assert(result.modified, "transform nested string chain indexOf")
+        assert.match(
+          result.code,
+          /"HELLO"\.trim\(\)\.toLowerCase\(\)\.startsWith\("hello"\)/,
+        )
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("template literal method chain with indexOf === 0", () => {
+        const result = transform("const found = `hello`.trim().indexOf(prefix) === 0;")
+
+        assert(result.modified, "transform template literal chain indexOf")
+        assert.match(result.code, /`hello`\.trim\(\)\.startsWith\(prefix\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
     })
 
     describe("non-transformable patterns", () => {

@@ -173,6 +173,27 @@ suite("widely-available", () => {
         assert.doesNotMatch(result.code, /indexOf/)
       })
 
+      test("nested string method chain", () => {
+        const result = transform(
+          `const found = "hello".toUpperCase().toLowerCase().indexOf(item) !== -1;`,
+        )
+
+        assert(result.modified, "transform with nested string method chain")
+        assert.match(
+          result.code,
+          /const found = "hello"\.toUpperCase\(\)\.toLowerCase\(\)\.includes\(item\)/,
+        )
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
+      test("template literal method chain", () => {
+        const result = transform("const found = `hello`.trim().indexOf(prefix) !== -1;")
+
+        assert(result.modified, "transform with template literal method chain")
+        assert.match(result.code, /`hello`\.trim\(\)\.includes\(prefix\)/)
+        assert.doesNotMatch(result.code, /indexOf/)
+      })
+
       test("in if condition with array literal", () => {
         const result = transform(
           `if ([1, 2, 3].indexOf(item) !== -1) { console.log('found'); }`,
