@@ -776,6 +776,31 @@ Transformations are limited to built-in error constructors. The following are no
 - Custom error subclasses
 - Assignments whose value references the error itself, as in `error.cause = error`
 
+#### Deferred promise capture → [Promise.withResolvers()][mdn-promise-with-resolvers]
+
+```diff
+-let resolve, reject;
+-const promise = new Promise((res, rej) => {
+-  resolve = res;
+-  reject = rej;
+-});
++const {
++  promise,
++  resolve,
++  reject
++} = Promise.withResolvers();
++
+ await promise;
+```
+
+The following are not transformed:
+
+- Bindings that carry a type annotation, an initializer, or an ambient `declare`
+- `new Promise` constructions that carry type arguments
+- Executors that are generators, that name a binding, or that hold statements besides the two assignments
+- Resolving functions that are written outside their executor assignment, and promise bindings that are written after their declaration
+- Promises that no other identifier references
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word.svg">
@@ -856,6 +881,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-object-has-own]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn
 [mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
+[mdn-promise-with-resolvers]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers
 [mdn-replaceall]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replaceAll
 [mdn-rest-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
 [mdn-slice]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice

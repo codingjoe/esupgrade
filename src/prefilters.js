@@ -96,6 +96,8 @@ export const prefilters = new Map([
   ],
   ["optionalChaining", [/&&/]],
   ["promiseToAsyncAwait", [createIdentifierPattern("Promise|fetch")]],
+  // The capture needs a `let` binding pair and a `new Promise(...)` executor.
+  ["promiseWithResolvers", [/\blet\b/, /\bnew\b/, createIdentifierPattern("Promise")]],
   // Removing a directive needs the directive text and module syntax.
   ["removeUseStrictFromModules", [/["']use strict["']/, /\bimport\b|\bexport\b/]],
   // `x.replaceAll(...)` replaces, `x.split(...).join(...)` splits first.

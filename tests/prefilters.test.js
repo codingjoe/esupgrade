@@ -78,6 +78,10 @@ const samples = new Map([
     `function f() {\n  return Promise.resolve(1).then((v) => v).catch((e) => e);\n}`,
   ],
   [
+    "promiseWithResolvers",
+    `let resolve, reject;\nconst promise = new Promise((res, rej) => {\n  resolve = res;\n  reject = rej;\n});\nawait promise;`,
+  ],
+  [
     "removeUseStrictFromModules",
     `"use strict";\nimport x from "y";\nexport default x;`,
   ],
