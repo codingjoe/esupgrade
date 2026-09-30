@@ -109,7 +109,7 @@ export function forLoopToForOf(root) {
       // Check that the index variable is not used elsewhere in the body
       const bodyWithoutFirst = node.body.body.slice(1)
       const indexVarUsed = bodyWithoutFirst.some((stmt) =>
-        new NodeTest(stmt).usesIdentifier(indexVar),
+        new NodeTest(stmt).containsIdentifier(indexVar),
       )
 
       return !indexVarUsed

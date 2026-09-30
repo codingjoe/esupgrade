@@ -23,36 +23,13 @@ export function substringToStartsWith(root) {
         return false
       }
 
-      // Check if one side is substring() and the other is an identifier/expression
-      let substringCall = null
-      let comparisonValue = null
-
-      // Check left side for substring
-      if (
-        j.CallExpression.check(node.left) &&
-        j.MemberExpression.check(node.left.callee) &&
-        !node.left.callee.computed &&
-        j.Identifier.check(node.left.callee.property) &&
-        node.left.callee.property.name === "substring"
-      ) {
-        substringCall = node.left
-        comparisonValue = node.right
-      }
-      // Check right side for substring
-      else if (
-        j.CallExpression.check(node.right) &&
-        j.MemberExpression.check(node.right.callee) &&
-        !node.right.callee.computed &&
-        j.Identifier.check(node.right.callee.property) &&
-        node.right.callee.property.name === "substring"
-      ) {
-        substringCall = node.right
-        comparisonValue = node.left
-      }
-
-      if (!substringCall) {
+      // Check if one side is a .substring() call and the other a comparison value
+      const substringInfo = new NodeTest(node).getComparisonCall(["substring"])
+      if (!substringInfo) {
         return false
       }
+
+      const { call: substringCall, comparisonValue } = substringInfo
 
       // Must have exactly 2 arguments
       if (substringCall.arguments.length !== 2) {
@@ -87,20 +64,8 @@ export function substringToStartsWith(root) {
     .forEach((path) => {
       const node = path.node
 
-      // Determine which side is substring (guaranteed by filter to exist)
-      let substringCall, comparisonValue
-      if (
-        j.CallExpression.check(node.left) &&
-        j.MemberExpression.check(node.left.callee) &&
-        j.Identifier.check(node.left.callee.property) &&
-        node.left.callee.property.name === "substring"
-      ) {
-        substringCall = node.left
-        comparisonValue = node.right
-      } else {
-        substringCall = node.right
-        comparisonValue = node.left
-      }
+      const substringInfo = new NodeTest(node).getComparisonCall(["substring"])
+      const { call: substringCall, comparisonValue } = substringInfo
 
       // Create startsWith() call
       const startsWithCall = j.callExpression(

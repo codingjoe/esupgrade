@@ -16,13 +16,7 @@ export function arrayConcatToSpread(root) {
     .filter((path) => {
       const { node } = path
 
-      // Check if this is a .concat() call
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        node.callee.computed ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "concat"
-      ) {
+      if (!new NodeTest(node, path).isMethodCall(["concat"])) {
         return false
       }
 

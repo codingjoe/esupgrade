@@ -45,15 +45,11 @@ export function namedArrowFunctionToNamedFunction(root) {
       }
 
       // Init must be an arrow function or anonymous function expression
-      const isArrowFunction = j.ArrowFunctionExpression.check(declarator.init)
-      const isFunctionExpression =
-        j.FunctionExpression.check(declarator.init) && !declarator.init.id
+      const func = declarator.init
 
-      if (!isArrowFunction && !isFunctionExpression) {
+      if (!new NodeTest(func).isFunctionExpression() || func.id) {
         return false
       }
-
-      const func = declarator.init
 
       // Skip if the variable has a TypeScript type annotation but the function
       // doesn't have its own return type annotation (which we can preserve)
@@ -74,7 +70,7 @@ export function namedArrowFunctionToNamedFunction(root) {
       }
 
       // Skip if the function uses 'arguments' (only relevant for function expressions)
-      if (isFunctionExpression && new NodeTest(func.body).usesArguments()) {
+      if (j.FunctionExpression.check(func) && new NodeTest(func.body).usesArguments()) {
         return false
       }
 

@@ -1,5 +1,5 @@
 import { default as j } from "jscodeshift"
-import { isShadowed } from "../types.js"
+import { isShadowed, NodeTest } from "../types.js"
 
 /**
  * Check whether a node is `Object.prototype`.
@@ -49,9 +49,7 @@ export function objectHasOwn(root) {
       const { node } = path
       return (
         node.arguments.length === 2 &&
-        j.MemberExpression.check(node.callee) &&
-        j.Identifier.check(node.callee.property) &&
-        node.callee.property.name === "call" &&
+        new NodeTest(node, path).isMethodCall(["call"]) &&
         isSupportedHasOwnProperty(node.callee.object) &&
         !isShadowed(path, "Object")
       )

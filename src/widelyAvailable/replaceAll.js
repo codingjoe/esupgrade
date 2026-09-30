@@ -34,10 +34,6 @@ function isEmptyString(node) {
   )
 }
 
-function isFunctionExpression(node) {
-  return j.FunctionExpression.check(node) || j.ArrowFunctionExpression.check(node)
-}
-
 function isSafeLiteralReplacement(node) {
   if (isStringLiteralNode(node)) {
     return !node.value.includes("$")
@@ -49,36 +45,6 @@ function isSafeLiteralReplacement(node) {
     )
   }
   return false
-}
-
-function isSplitCall(node) {
-  return (
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    node.callee.computed === false &&
-    j.Identifier.check(node.callee.property) &&
-    node.callee.property.name === "split"
-  )
-}
-
-function isJoinCall(node) {
-  return (
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    node.callee.computed === false &&
-    j.Identifier.check(node.callee.property) &&
-    node.callee.property.name === "join"
-  )
-}
-
-function isReplaceCall(node) {
-  return (
-    j.CallExpression.check(node) &&
-    j.MemberExpression.check(node.callee) &&
-    node.callee.computed === false &&
-    j.Identifier.check(node.callee.property) &&
-    node.callee.property.name === "replace"
-  )
 }
 
 function isStaticString(node) {
@@ -97,18 +63,18 @@ function isLiteralGlobalRegExp(node) {
 }
 
 function extractReplaceAllComponents(node, path) {
-  if (isJoinCall(node)) {
+  if (new NodeTest(node).isMethodCall(["join"])) {
     const splitCall = node.callee.object
 
     if (
-      !isSplitCall(splitCall) ||
+      !new NodeTest(splitCall).isMethodCall(["split"]) ||
       splitCall.arguments.length !== 1 ||
       node.arguments.length !== 1 ||
       !isKnownString(splitCall.callee.object, path) ||
       !isStaticString(splitCall.arguments[0]) ||
       isEmptyString(splitCall.arguments[0]) ||
       j.RegExpLiteral.check(splitCall.arguments[0]) ||
-      isFunctionExpression(node.arguments[0]) ||
+      new NodeTest(node.arguments[0]).isFunctionExpression() ||
       !isSafeLiteralReplacement(node.arguments[0])
     ) {
       return null
@@ -122,7 +88,7 @@ function extractReplaceAllComponents(node, path) {
   }
 
   if (
-    !isReplaceCall(node) ||
+    !new NodeTest(node).isMethodCall(["replace"]) ||
     node.arguments.length !== 2 ||
     !isKnownString(node.callee.object, path)
   ) {
@@ -131,7 +97,10 @@ function extractReplaceAllComponents(node, path) {
 
   const searchValue = node.arguments[0]
 
-  if (!isLiteralGlobalRegExp(searchValue) || isFunctionExpression(node.arguments[1])) {
+  if (
+    !isLiteralGlobalRegExp(searchValue) ||
+    new NodeTest(node.arguments[1]).isFunctionExpression()
+  ) {
     return null
   }
 

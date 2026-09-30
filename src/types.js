@@ -25,7 +25,8 @@ const ARRAY_METHODS_RETURNING_ARRAY = [
   "sort",
   "splice",
 ]
-const STRING_METHODS_RETURNING_STRING = [
+// A string is iterable, so these string-returning methods verify an iterable too.
+const ITERABLE_STRING_METHODS = [
   "slice",
   "substr",
   "substring",
@@ -34,6 +35,9 @@ const STRING_METHODS_RETURNING_STRING = [
   "trim",
   "trimStart",
   "trimEnd",
+]
+const STRING_METHODS_RETURNING_STRING = [
+  ...ITERABLE_STRING_METHODS,
   "trimLeft",
   "trimRight",
   "repeat",
@@ -46,14 +50,7 @@ const STRING_METHODS_RETURNING_STRING = [
 const STRING_METHODS_RETURNING_ITERABLE = [
   "matchAll",
   "split",
-  "slice",
-  "substr",
-  "substring",
-  "toLowerCase",
-  "toUpperCase",
-  "trim",
-  "trimStart",
-  "trimEnd",
+  ...ITERABLE_STRING_METHODS,
 ]
 
 /**
@@ -187,19 +184,30 @@ export class NodeTest {
   }
 
   /**
-   * Check if node is a method call returning one of the specified types on a
-   * verified string receiver.
+   * Check if node is a call to one of the given methods.
+   *
+   * @param {string[]} methodNames - Method names to check for
+   * @returns {boolean} True if node calls one of the methods
+   */
+  isMethodCall(methodNames) {
+    return (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      !this.node.callee.computed &&
+      j.Identifier.check(this.node.callee.property) &&
+      methodNames.includes(this.node.callee.property.name)
+    )
+  }
+
+  /**
+   * Check if node is a method call on a verified string receiver.
    *
    * @param {string[]} methodNames - Method names to check for
    * @returns {boolean} True if node matches the pattern
    */
   isStringMethodCall(methodNames) {
     return (
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      !this.node.callee.computed &&
-      j.Identifier.check(this.node.callee.property) &&
-      methodNames.includes(this.node.callee.property.name) &&
+      this.isMethodCall(methodNames) &&
       new NodeTest(this.node.callee.object, this.path).isString()
     )
   }
@@ -224,22 +232,18 @@ export class NodeTest {
   }
 
   /**
-   * Check if node is an array method call returning an array, recursively checking the object.
+   * Check if node is a method call on a receiver that passes a check.
    *
-   * @param {string[]} methodNames - Array method names that return arrays
-   * @returns {boolean} True if node is an array method call on a known array/string
+   * @param {string[]} methodNames - Method names to check for
+   * @param {(receiver: NodeTest) => boolean} isReceiverVerified - Check for the
+   *   receiver of the call
+   * @returns {boolean} True if node is a method call on a verified receiver
    */
-  isArrayMethodChain(methodNames) {
-    if (
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      !this.node.callee.computed &&
-      j.Identifier.check(this.node.callee.property) &&
-      methodNames.includes(this.node.callee.property.name)
-    ) {
-      return new NodeTest(this.node.callee.object, this.path).hasIndexOfAndIncludes()
-    }
-    return false
+  isArrayMethodChain(methodNames, isReceiverVerified) {
+    return (
+      this.isMethodCall(methodNames) &&
+      isReceiverVerified(new NodeTest(this.node.callee.object, this.path))
+    )
   }
 
   /**
@@ -277,23 +281,9 @@ export class NodeTest {
       this.isNewArray() ||
       this.isArrayStaticCall("from") ||
       this.isArrayStaticCall("of") ||
-      this.#returnsArray()
-    )
-  }
-
-  /**
-   * Check if node is an array method call returning an array on a verified array.
-   *
-   * @returns {boolean} True if node is an array method call on a verified array
-   */
-  #returnsArray() {
-    return (
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      !this.node.callee.computed &&
-      j.Identifier.check(this.node.callee.property) &&
-      ARRAY_METHODS_RETURNING_ARRAY.includes(this.node.callee.property.name) &&
-      new NodeTest(this.node.callee.object, this.path).isArray()
+      this.isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY, (receiver) =>
+        receiver.isArray(),
+      )
     )
   }
 
@@ -317,7 +307,9 @@ export class NodeTest {
       return true
     }
 
-    return this.isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY)
+    return this.isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY, (receiver) =>
+      receiver.hasIndexOfAndIncludes(),
+    )
   }
 
   /**
@@ -410,13 +402,13 @@ export class NodeTest {
 
   /**
    * Traverse an AST node recursively, calling a predicate on each node.
-   * Stop traversal into nested functions as they have their own scope.
    *
    * @param {import("ast-types").ASTNode} astNode - The node to traverse
    * @param {function(import("ast-types").ASTNode): boolean} predicate - Return true if found
+   * @param {boolean} [crossFunctions] - Traverse nested functions
    * @returns {boolean} True if predicate returned true for any node
    */
-  #traverseForPredicate(astNode, predicate) {
+  #traverseForPredicate(astNode, predicate, crossFunctions = false) {
     if (!astNode) {
       return false
     }
@@ -425,7 +417,7 @@ export class NodeTest {
       return true
     }
 
-    if (FUNCTION_TYPES.has(astNode.type)) {
+    if (!crossFunctions && FUNCTION_TYPES.has(astNode.type)) {
       return false
     }
 
@@ -436,12 +428,12 @@ export class NodeTest {
       const value = astNode[key]
       if (Array.isArray(value)) {
         for (const item of value) {
-          if (this.#traverseForPredicate(item, predicate)) {
+          if (this.#traverseForPredicate(item, predicate, crossFunctions)) {
             return true
           }
         }
       } else if (value && typeof value === "object") {
-        if (this.#traverseForPredicate(value, predicate)) {
+        if (this.#traverseForPredicate(value, predicate, crossFunctions)) {
           return true
         }
       }
@@ -474,6 +466,18 @@ export class NodeTest {
     return this.#traverseForPredicate(
       this.node,
       (node) => node.type === "Identifier" && node.name === "arguments",
+    )
+  }
+
+  /**
+   * Check if node is a function expression or an arrow function.
+   *
+   * @returns {boolean} True if node is a function expression or an arrow function
+   */
+  isFunctionExpression() {
+    return (
+      j.FunctionExpression.check(this.node) ||
+      j.ArrowFunctionExpression.check(this.node)
     )
   }
 
@@ -599,15 +603,19 @@ export class NodeTest {
   }
 
   /**
-   * Check if identifier is used in the node, ignoring nested functions.
+   * Check if identifier is used in the node, ignoring nested functions by default.
    *
    * @param {string} name - Identifier name to search for
+   * @param {object} [options] - Traversal options
+   * @param {boolean} [options.crossFunctions] - Traverse nested functions, which
+   *   have their own scope
    * @returns {boolean} True if identifier name is found
    */
-  usesIdentifier(name) {
+  containsIdentifier(name, { crossFunctions = false } = {}) {
     return this.#traverseForPredicate(
       this.node,
       (node) => node.type === "Identifier" && node.name === name,
+      crossFunctions,
     )
   }
 
@@ -840,47 +848,29 @@ export class NodeTest {
   }
 
   /**
-   * Determine which side of the binary expression has the indexOf call.
+   * Determine which side of a binary expression calls one of the given methods.
    *
+   * @param {string[]} methodNames - Method names to check for
    * @returns {{
-   *   indexOfCall: import("ast-types").namedTypes.CallExpression;
+   *   call: import("ast-types").namedTypes.CallExpression;
    *   comparisonValue: import("ast-types").namedTypes.Node;
-   *   isLeftIndexOf: boolean;
-   * } | null} Object with indexOf call info, or null if not found
+   *   isLeftCall: boolean;
+   * } | null} Object with call info, or null if not found
    */
-  getIndexOfInfo() {
+  getComparisonCall(methodNames) {
     if (!j.BinaryExpression.check(this.node)) {
       return null
     }
 
-    // Check left side
-    if (
-      j.CallExpression.check(this.node.left) &&
-      j.MemberExpression.check(this.node.left.callee) &&
-      !this.node.left.callee.computed &&
-      j.Identifier.check(this.node.left.callee.property) &&
-      this.node.left.callee.property.name === "indexOf"
-    ) {
-      return {
-        indexOfCall: this.node.left,
-        comparisonValue: this.node.right,
-        isLeftIndexOf: true,
+    for (const [call, comparisonValue, isLeftCall] of [
+      [this.node.left, this.node.right, true],
+      [this.node.right, this.node.left, false],
+    ]) {
+      if (new NodeTest(call).isMethodCall(methodNames)) {
+        return { call, comparisonValue, isLeftCall }
       }
     }
-    // Check right side
-    else if (
-      j.CallExpression.check(this.node.right) &&
-      j.MemberExpression.check(this.node.right.callee) &&
-      !this.node.right.callee.computed &&
-      j.Identifier.check(this.node.right.callee.property) &&
-      this.node.right.callee.property.name === "indexOf"
-    ) {
-      return {
-        indexOfCall: this.node.right,
-        comparisonValue: this.node.left,
-        isLeftIndexOf: false,
-      }
-    }
+
     return null
   }
 
@@ -970,36 +960,29 @@ export class NodeTest {
   }
 
   /**
-   * Unwrap Promise.resolve() and Promise.reject() calls.
-   * - Promise.resolve(value) -> value
-   * - Promise.reject(error) -> marker object { _isReject: true, argument: error } for special handling
+   * Unwrap a Promise.resolve() or Promise.reject() call.
    *
-   * @returns {*} The unwrapped value, a reject marker object, or the original node
+   * @returns {{
+   *   kind: "resolve" | "reject";
+   *   argument: import("ast-types").Node;
+   * } | null} The unwrapped call, or null when the node is no such call
    */
   unwrapPromiseResolveReject() {
     if (
-      j.CallExpression.check(this.node) &&
-      j.MemberExpression.check(this.node.callee) &&
-      j.Identifier.check(this.node.callee.object) &&
-      this.node.callee.object.name === "Promise" &&
-      j.Identifier.check(this.node.callee.property)
+      !this.isMethodCall(["resolve", "reject"]) ||
+      !j.Identifier.check(this.node.callee.object) ||
+      this.node.callee.object.name !== "Promise"
     ) {
-      if (this.node.callee.property.name === "resolve") {
-        return this.node.arguments.length === 1
-          ? this.node.arguments[0]
-          : j.identifier("undefined")
-      }
-      if (this.node.callee.property.name === "reject") {
-        return {
-          _isReject: true,
-          argument:
-            this.node.arguments.length === 1
-              ? this.node.arguments[0]
-              : j.identifier("undefined"),
-        }
-      }
+      return null
     }
-    return this.node
+
+    return {
+      kind: this.node.callee.property.name,
+      argument:
+        this.node.arguments.length === 1
+          ? this.node.arguments[0]
+          : j.identifier("undefined"),
+    }
   }
 }
 
@@ -2060,7 +2043,7 @@ function keepsReferencesInScope(
  *   declaration
  * @returns {"const" | "let" | "var"} The appropriate variable kind
  */
-export function determineDeclaratorKind(
+function determineDeclaratorKind(
   reassignments,
   references,
   calls,
@@ -2401,13 +2384,7 @@ export function processMultipleDeclarators(
  * @returns {boolean} True if the identifier is shadowed
  */
 export function isShadowed({ scope }, name) {
-  while (scope) {
-    if (scope.getBindings()[name]) {
-      return true
-    }
-    scope = scope.parent
-  }
-  return false
+  return scope.lookup(name) !== null
 }
 
 /**

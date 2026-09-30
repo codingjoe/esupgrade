@@ -7,6 +7,7 @@ import {
   DirectEvalIndex,
   NodeTest,
   findEnclosingFunction,
+  isShadowed,
   ReferenceIndex,
 } from "../src/types.js"
 
@@ -55,11 +56,30 @@ function callMethod(object, methodName) {
 
 suite("types", () => {
   describe("NodeTest", () => {
-    test("getIndexOfInfo returns null for non-binary expressions", () => {
-      const node = j.literal(1)
-      assert(!j.BinaryExpression.check(node))
-      const test = new NodeTest(node)
-      assert.equal(test.getIndexOfInfo(), null)
+    describe("getComparisonCall", () => {
+      test("reject a non-binary expression", () => {
+        const node = j.literal(1)
+        const test = new NodeTest(node)
+        assert.equal(test.getComparisonCall(["indexOf"]), null)
+      })
+
+      test("report the left-hand method call", () => {
+        const path = firstPath(`"abc".indexOf("a") !== -1`, j.BinaryExpression)
+        const info = new NodeTest(path.node, path).getComparisonCall(["indexOf"])
+
+        assert.equal(info.isLeftCall, true)
+        assert.equal(info.call, path.node.left)
+        assert.equal(info.comparisonValue, path.node.right)
+      })
+
+      test("report the right-hand method call", () => {
+        const path = firstPath(`-1 !== "abc".indexOf("a")`, j.BinaryExpression)
+        const info = new NodeTest(path.node, path).getComparisonCall(["indexOf"])
+
+        assert.equal(info.isLeftCall, false)
+        assert.equal(info.call, path.node.right)
+        assert.equal(info.comparisonValue, path.node.left)
+      })
     })
 
     describe("Array verification", () => {
@@ -142,7 +162,7 @@ suite("types", () => {
       test("reject a computed indexOf member", () => {
         const path = firstPath(`"abc"[indexOf]("a") !== -1`, j.BinaryExpression)
 
-        assert.equal(new NodeTest(path.node, path).getIndexOfInfo(), null)
+        assert.equal(new NodeTest(path.node, path).getComparisonCall(["indexOf"]), null)
       })
 
       test("reject a TypeScript enum binding", () => {
@@ -170,6 +190,118 @@ suite("types", () => {
         )
 
         assert(!new NodeTest(path.node, path).isIterable())
+      })
+    })
+
+    describe("isMethodCall", () => {
+      test("accept a call to one of the given methods", () => {
+        const path = firstPath(`x.concat(y)`, j.CallExpression)
+
+        assert(new NodeTest(path.node, path).isMethodCall(["concat"]))
+      })
+
+      test("reject another method name", () => {
+        const path = firstPath(`x.slice(y)`, j.CallExpression)
+
+        assert(!new NodeTest(path.node, path).isMethodCall(["concat"]))
+      })
+
+      test("reject a computed member call", () => {
+        const path = firstPath(`x[concat](y)`, j.CallExpression)
+
+        assert(!new NodeTest(path.node, path).isMethodCall(["concat"]))
+      })
+
+      test("reject a plain call", () => {
+        const path = firstPath(`f()`, j.CallExpression)
+
+        assert(!new NodeTest(path.node, path).isMethodCall(["concat"]))
+      })
+    })
+
+    describe("unwrapPromiseResolveReject", () => {
+      test("unwrap a Promise.resolve() argument", () => {
+        const path = firstPath(`Promise.resolve(value)`, j.CallExpression)
+        const result = new NodeTest(path.node, path).unwrapPromiseResolveReject()
+
+        assert.equal(result.kind, "resolve")
+        assert.equal(result.argument, path.node.arguments[0])
+      })
+
+      test("unwrap a Promise.reject() argument", () => {
+        const path = firstPath(`Promise.reject(error)`, j.CallExpression)
+        const result = new NodeTest(path.node, path).unwrapPromiseResolveReject()
+
+        assert.equal(result.kind, "reject")
+        assert.equal(result.argument, path.node.arguments[0])
+      })
+
+      test("default the Promise.resolve() argument to undefined", () => {
+        const path = firstPath(`Promise.resolve()`, j.CallExpression)
+        const result = new NodeTest(path.node, path).unwrapPromiseResolveReject()
+
+        assert.equal(result.kind, "resolve")
+        assert(j.Identifier.check(result.argument))
+        assert.equal(result.argument.name, "undefined")
+      })
+
+      test("reject a static call on another object", () => {
+        const path = firstPath(`foo.resolve(value)`, j.CallExpression)
+
+        assert.equal(new NodeTest(path.node, path).unwrapPromiseResolveReject(), null)
+      })
+    })
+
+    describe("containsIdentifier", () => {
+      test("find a name in the node itself", () => {
+        const path = firstPath(
+          `const result = value.map((item) => item.length)`,
+          j.VariableDeclaration,
+        )
+
+        assert(new NodeTest(path.node, path).containsIdentifier("value"))
+      })
+
+      test("ignore a name inside a nested function", () => {
+        const path = firstPath(
+          `const result = value.map((item) => item.length)`,
+          j.VariableDeclaration,
+        )
+
+        assert(!new NodeTest(path.node, path).containsIdentifier("item"))
+      })
+
+      test("find a name inside a nested function when crossing functions", () => {
+        const path = firstPath(
+          `const result = value.map((item) => item.length)`,
+          j.VariableDeclaration,
+        )
+
+        assert(
+          new NodeTest(path.node, path).containsIdentifier("item", {
+            crossFunctions: true,
+          }),
+        )
+      })
+    })
+
+    describe("isFunctionExpression", () => {
+      test("accept a function expression", () => {
+        const path = firstPath(`const fn = function () {}`, j.FunctionExpression)
+
+        assert(new NodeTest(path.node, path).isFunctionExpression())
+      })
+
+      test("accept an arrow function", () => {
+        const path = firstPath(`const fn = () => {}`, j.ArrowFunctionExpression)
+
+        assert(new NodeTest(path.node, path).isFunctionExpression())
+      })
+
+      test("reject a function declaration", () => {
+        const path = firstPath(`function fn() {}`, j.FunctionDeclaration)
+
+        assert(!new NodeTest(path.node, path).isFunctionExpression())
       })
     })
   })
@@ -352,6 +484,29 @@ suite("types", () => {
       assert(result.modified, "transform var with leading hole")
       assert.match(result.code, /const \[ , a, b\] = arr/)
       assert.doesNotMatch(result.code, /var/)
+    })
+  })
+
+  describe("isShadowed", () => {
+    test("report a parameter of the enclosing function", () => {
+      const path = firstPath(`function fn(shadow) { return shadow }`, j.ReturnStatement)
+
+      assert(isShadowed(path, "shadow"))
+    })
+
+    test("report a local binding of the enclosing function", () => {
+      const path = firstPath(
+        `function fn() { const local = 1; return local }`,
+        j.ReturnStatement,
+      )
+
+      assert(isShadowed(path, "local"))
+    })
+
+    test("ignore a free name", () => {
+      const path = firstPath(`function fn() { return free }`, j.ReturnStatement)
+
+      assert(!isShadowed(path, "free"))
     })
   })
 

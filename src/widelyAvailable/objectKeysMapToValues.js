@@ -49,22 +49,15 @@ export function objectKeysMapToValues(root) {
   root
     .find(j.CallExpression)
     .filter(({ node }) => {
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "map"
-      ) {
+      if (!new NodeTest(node).isMethodCall(["map"])) {
         return false
       }
 
       const object = node.callee.object
       if (
-        !j.CallExpression.check(object) ||
-        !j.MemberExpression.check(object.callee) ||
+        !new NodeTest(object).isMethodCall(["keys"]) ||
         !j.Identifier.check(object.callee.object) ||
-        object.callee.object.name !== "Object" ||
-        !j.Identifier.check(object.callee.property) ||
-        object.callee.property.name !== "keys"
+        object.callee.object.name !== "Object"
       ) {
         return false
       }
@@ -78,10 +71,7 @@ export function objectKeysMapToValues(root) {
       }
 
       const callback = node.arguments[0]
-      if (
-        !j.ArrowFunctionExpression.check(callback) &&
-        !j.FunctionExpression.check(callback)
-      ) {
+      if (!new NodeTest(callback).isFunctionExpression()) {
         return false
       }
 

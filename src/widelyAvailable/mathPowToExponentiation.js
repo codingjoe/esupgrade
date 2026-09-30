@@ -1,4 +1,20 @@
 import { default as j } from "jscodeshift"
+import { NodeTest } from "../types.js"
+
+/**
+ * Check whether a node is a two-argument Math.pow() call.
+ *
+ * @param {import("ast-types").ASTNode} node - The node to check
+ * @returns {boolean} True when the node is Math.pow() with two arguments
+ */
+function isMathPow(node) {
+  return (
+    new NodeTest(node).isMethodCall(["pow"]) &&
+    j.Identifier.check(node.callee.object) &&
+    node.callee.object.name === "Math" &&
+    node.arguments.length === 2
+  )
+}
 
 /**
  * Transform Math.pow() to exponentiation operator (**).
@@ -27,24 +43,10 @@ export function mathPowToExponentiation(root) {
       let [base, exponent] = node.arguments
 
       // Check if base is a Math.pow call that will become ** in this pass
-      const baseIsMathPow =
-        j.CallExpression.check(base) &&
-        j.MemberExpression.check(base.callee) &&
-        j.Identifier.check(base.callee.object) &&
-        base.callee.object.name === "Math" &&
-        j.Identifier.check(base.callee.property) &&
-        base.callee.property.name === "pow" &&
-        base.arguments?.length === 2
+      const baseIsMathPow = isMathPow(base)
 
       // Check if exponent is a Math.pow call that will become ** in this pass
-      const exponentIsMathPow =
-        j.CallExpression.check(exponent) &&
-        j.MemberExpression.check(exponent.callee) &&
-        j.Identifier.check(exponent.callee.object) &&
-        exponent.callee.object.name === "Math" &&
-        j.Identifier.check(exponent.callee.property) &&
-        exponent.callee.property.name === "pow" &&
-        exponent.arguments?.length === 2
+      const exponentIsMathPow = isMathPow(exponent)
 
       // Wrap binary expressions or Math.pow calls in parentheses to preserve order of operations
       if (j.BinaryExpression.check(base) || baseIsMathPow) {

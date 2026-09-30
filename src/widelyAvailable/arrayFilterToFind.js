@@ -34,12 +34,7 @@ export function arrayFilterToFind(root) {
 
       const filterCall = node.object
 
-      if (
-        !j.MemberExpression.check(filterCall.callee) ||
-        filterCall.callee.computed ||
-        !j.Identifier.check(filterCall.callee.property) ||
-        filterCall.callee.property.name !== "filter"
-      ) {
+      if (!new NodeTest(filterCall, path).isMethodCall(["filter"])) {
         return false
       }
 
@@ -51,10 +46,7 @@ export function arrayFilterToFind(root) {
       // Predicate must be an inline function whose body is proven side-effect free.
       // Named function references are skipped because their bodies cannot be inspected.
       const predicate = filterCall.arguments[0]
-      if (
-        !j.ArrowFunctionExpression.check(predicate) &&
-        !j.FunctionExpression.check(predicate)
-      ) {
+      if (!new NodeTest(predicate).isFunctionExpression()) {
         return false
       }
 

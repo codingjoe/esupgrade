@@ -20,13 +20,7 @@ export function substrToSlice(root) {
     .filter((path) => {
       const { node } = path
 
-      // Check if this is a .substr() call
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        node.callee.computed ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "substr"
-      ) {
+      if (!new NodeTest(node, path).isMethodCall(["substr"])) {
         return false
       }
 

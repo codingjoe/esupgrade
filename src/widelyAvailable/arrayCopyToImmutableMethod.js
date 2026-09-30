@@ -6,23 +6,20 @@ const COPYING_METHODS = new Map([
   ["reverse", "toReversed"],
   ["splice", "toSpliced"],
 ])
+const COPYING_METHOD_NAMES = [...COPYING_METHODS.keys()]
 
 /**
  * Get the Array by copy method replacing a mutating array method.
  *
- * @param {import("ast-types").ASTNode} callee - The callee of a call expression
+ * @param {import("ast-types").ASTNode} call - The candidate mutating call
  * @returns {string | null} The copying method name or null
  */
-function copyingMethodName(callee) {
-  if (
-    !j.MemberExpression.check(callee) ||
-    callee.computed ||
-    !j.Identifier.check(callee.property)
-  ) {
+function copyingMethodName(call) {
+  if (!new NodeTest(call).isMethodCall(COPYING_METHOD_NAMES)) {
     return null
   }
 
-  return COPYING_METHODS.get(callee.property.name) ?? null
+  return COPYING_METHODS.get(call.callee.property.name)
 }
 
 /**
@@ -55,14 +52,7 @@ function spreadCopySource(node, path) {
  * @returns {import("ast-types").ASTNode | null} The slice receiver or null
  */
 function sliceCopySource(node, path) {
-  if (
-    !j.CallExpression.check(node) ||
-    !j.MemberExpression.check(node.callee) ||
-    node.callee.computed ||
-    !j.Identifier.check(node.callee.property) ||
-    node.callee.property.name !== "slice" ||
-    node.arguments.length > 1
-  ) {
+  if (!new NodeTest(node).isMethodCall(["slice"]) || node.arguments.length > 1) {
     return null
   }
 
@@ -87,21 +77,6 @@ function arrayCopySource(node, path) {
 }
 
 /**
- * Check if any expression references an identifier, including nested functions.
- *
- * @param {import("ast-types").ASTNode[]} nodes - The expressions to search
- * @param {string} name - The identifier name to look for
- * @returns {boolean} True if the identifier is referenced
- */
-function anyReferencesIdentifier(nodes, name) {
-  return nodes.some(
-    (node) =>
-      (j.Identifier.check(node) && node.name === name) ||
-      j(node).find(j.Identifier, { name }).size() > 0,
-  )
-}
-
-/**
  * Transform array copies followed by a mutating method call into Array by copy methods.
  * Converts `[...array].sort()` to `array.toSorted()` and
  * `const copy = [...array]` followed by `copy.splice(1, 2)` to
@@ -116,7 +91,7 @@ export function arrayCopyToImmutableMethod(root) {
 
   root.find(j.CallExpression).forEach((path) => {
     const { node } = path
-    const method = copyingMethodName(node.callee)
+    const method = copyingMethodName(node)
 
     if (!method || method === "toSpliced") {
       return
@@ -140,17 +115,17 @@ export function arrayCopyToImmutableMethod(root) {
   root.find(j.ExpressionStatement).forEach((path) => {
     const { node } = path
     const call = node.expression
+    const method = copyingMethodName(call)
 
-    if (!j.CallExpression.check(call) || !j.MemberExpression.check(call.callee)) {
+    if (!method) {
       return
     }
 
-    const method = copyingMethodName(call.callee)
     const copyName = j.Identifier.check(call.callee.object)
       ? call.callee.object.name
       : null
 
-    if (!method || !copyName) {
+    if (!copyName) {
       return
     }
 
@@ -179,7 +154,11 @@ export function arrayCopyToImmutableMethod(root) {
     }
 
     // an argument referencing the copy lands in the copy's temporal dead zone
-    if (anyReferencesIdentifier(call.arguments, copyName)) {
+    if (
+      call.arguments.some((argument) =>
+        new NodeTest(argument).containsIdentifier(copyName, { crossFunctions: true }),
+      )
+    ) {
       return
     }
 

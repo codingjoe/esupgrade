@@ -39,6 +39,8 @@ Transformers must only apply to types that are statically verifiable. Use `NodeT
 
 - `new NodeTest(node).isIterable()` — array literals, `new Array()`, `Array.from()`, and `Array.of()`. Use this when the transformation is array-specific (e.g., index access, `.at()`).
 - `new NodeTest(node).hasIndexOfAndIncludes()` — arrays and strings (includes string literals and array method chains like `.map()`, `.filter()`). Use this when the transformation applies to both arrays and strings.
+- `new NodeTest(node).isMethodCall(["concat"])` — a non-computed call to a named method such as `.concat()`, on any receiver. Use a receiver guard such as `isIterable()` when the transformation depends on the receiver type.
+- `new NodeTest(node).isFunctionExpression()` — arrow and function expressions. Use this before inspecting a callback's parameters or body.
 - `new NodeTest(node).isVarLetOrConstDeclaration()` — `var`, `let`, and `const` declarations. Use this before rewriting or removing a declaration, because `using` and `await using` declarations dispose a resource when the scope exits.
 
 Never apply a transformation based solely on structural shape (e.g., a `.length` property or bracket access) without first verifying the receiver is a known type. An unknown identifier such as `arr` cannot be assumed to be an array and must not be transformed.

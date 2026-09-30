@@ -1,4 +1,5 @@
 import { default as j } from "jscodeshift"
+import { NodeTest } from "../types.js"
 
 /**
  * Transform new Promise((resolve, reject) => { resolve(fn()) }) to Promise.try(fn).
@@ -31,10 +32,7 @@ export function promiseTry(root) {
       }
 
       const executor = node.arguments[0]
-      if (
-        !j.ArrowFunctionExpression.check(executor) &&
-        !j.FunctionExpression.check(executor)
-      ) {
+      if (!new NodeTest(executor).isFunctionExpression()) {
         return false
       }
 

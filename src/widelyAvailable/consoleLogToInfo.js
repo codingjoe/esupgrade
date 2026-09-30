@@ -1,4 +1,5 @@
 import { default as j } from "jscodeshift"
+import { NodeTest } from "../types.js"
 
 /**
  * Transform console.log() to console.info().
@@ -14,17 +15,11 @@ export function consoleLogToInfo(root) {
     .find(j.CallExpression)
     .filter(({ node }) => {
       // Check if this is a console.log() call
-      if (
-        !j.MemberExpression.check(node.callee) ||
-        !j.Identifier.check(node.callee.object) ||
-        node.callee.object.name !== "console" ||
-        !j.Identifier.check(node.callee.property) ||
-        node.callee.property.name !== "log"
-      ) {
-        return false
-      }
-
-      return true
+      return (
+        new NodeTest(node).isMethodCall(["log"]) &&
+        j.Identifier.check(node.callee.object) &&
+        node.callee.object.name === "console"
+      )
     })
     .forEach(({ node }) => {
       // Replace the property name from 'log' to 'info'

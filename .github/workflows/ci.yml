@@ -27,7 +27,7 @@ jobs:
         with:
           node-version-file: package.json
       - run: npm ci
-      - run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=lcov.info
+      - run: npm test
       - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
