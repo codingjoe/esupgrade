@@ -12,12 +12,6 @@ suite("types", () => {
       const test = new NodeTest(node)
       assert.equal(test.getIndexOfInfo(), null)
     })
-
-    test("patternContainsIdentifier ignores non-pattern nodes", () => {
-      const node = j.memberExpression(j.identifier("obj"), j.identifier("prop"))
-      const test = new NodeTest(node)
-      assert.equal(test.patternContainsIdentifier("obj"), false)
-    })
   })
 
   describe("patternContainsIdentifier with null/undefined", () => {

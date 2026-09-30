@@ -948,8 +948,7 @@ function isAssignmentShadowed(varName, declarationPath, currentPath) {
  * declarators.
  */
 export class ReassignmentIndex {
-  #assignmentPaths = new Map()
-  #updatePaths = new Map()
+  #paths = new Map()
 
   /**
    * Index every assignment and update expression of the root collection.
@@ -959,48 +958,37 @@ export class ReassignmentIndex {
   constructor(root) {
     root.find(j.AssignmentExpression).forEach((path) => {
       for (const name of new NodeTest(path.node.left).extractIdentifiersFromPattern()) {
-        this.#append(this.#assignmentPaths, name, path)
+        this.#append(name, path)
       }
     })
 
     root.find(j.UpdateExpression).forEach((path) => {
       if (j.Identifier.check(path.node.argument)) {
-        this.#append(this.#updatePaths, path.node.argument.name, path)
+        this.#append(path.node.argument.name, path)
       }
     })
   }
 
   /**
-   * List the assignments that target the given variable.
+   * List the assignments and updates that target the given variable.
    *
    * @param {string} varName - The variable name to look up
-   * @returns {Array<import("ast-types").NodePath>} Assignment paths
+   * @returns {Array<import("ast-types").NodePath>} Writing paths
    */
-  assignmentsFor(varName) {
-    return this.#assignmentPaths.get(varName) ?? []
-  }
-
-  /**
-   * List the updates that target the given variable.
-   *
-   * @param {string} varName - The variable name to look up
-   * @returns {Array<import("ast-types").NodePath>} Update paths
-   */
-  updatesFor(varName) {
-    return this.#updatePaths.get(varName) ?? []
+  getPathsFor(varName) {
+    return this.#paths.get(varName) ?? []
   }
 
   /**
    * Store a path under the given identifier name.
    *
-   * @param {Map<string, Array<import("ast-types").NodePath>>} index - Index to extend
    * @param {string} name - The identifier name
    * @param {import("ast-types").NodePath} path - The path to store
    */
-  #append(index, name, path) {
-    const paths = index.get(name)
+  #append(name, path) {
+    const paths = this.#paths.get(name)
 
-    paths ? paths.push(path) : index.set(name, [path])
+    paths ? paths.push(path) : this.#paths.set(name, [path])
   }
 }
 
@@ -1014,14 +1002,9 @@ export class ReassignmentIndex {
  * @returns {boolean} True if the variable is reassigned
  */
 function isVariableReassigned(reassignments, varName, declarationPath) {
-  const candidates = [
-    ...reassignments.assignmentsFor(varName),
-    ...reassignments.updatesFor(varName),
-  ]
-
-  return candidates.some(
-    (path) => !isAssignmentShadowed(varName, declarationPath, path),
-  )
+  return reassignments
+    .getPathsFor(varName)
+    .some((path) => !isAssignmentShadowed(varName, declarationPath, path))
 }
 
 /**
@@ -1049,13 +1032,7 @@ export function determineDeclaratorKind(reassignments, declarator, declarationPa
     return "let"
   }
 
-  if (j.Identifier.check(declarator.id)) {
-    return isVariableReassigned(reassignments, declarator.id.name, declarationPath)
-      ? "let"
-      : "const"
-  }
-
-  // Destructuring pattern - check if any identifier is reassigned
+  // Destructuring patterns and plain identifiers both yield their bound names
   for (const varName of new NodeTest(declarator.id).extractIdentifiersFromPattern()) {
     if (isVariableReassigned(reassignments, varName, declarationPath)) {
       return "let"
@@ -1070,17 +1047,10 @@ export function determineDeclaratorKind(reassignments, declarator, declarationPa
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
- * @returns {{ modified: boolean; change: { type: string; line: number } | null }}
  */
 export function processSingleDeclarator(reassignments, path) {
   const declarator = path.node.declarations[0]
   path.node.kind = determineDeclaratorKind(reassignments, declarator, path)
-
-  const change = path.node.loc
-    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
-    : null
-
-  return { modified: true, change }
 }
 
 /**
@@ -1089,7 +1059,6 @@ export function processSingleDeclarator(reassignments, path) {
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
- * @returns {{ modified: boolean; change: { type: string; line: number } | null }}
  */
 export function processMultipleDeclarators(reassignments, path) {
   const declarations = path.node.declarations.map((declarator) => {
@@ -1100,12 +1069,6 @@ export function processMultipleDeclarators(reassignments, path) {
   })
 
   j(path).replaceWith(declarations)
-
-  const change = path.node.loc
-    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
-    : null
-
-  return { modified: true, change }
 }
 
 /**

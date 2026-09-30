@@ -78,12 +78,12 @@ The skill will analyze your selected code and suggest transformations based on t
 
 ## Performance
 
-esupgrade parses each file and runs every transformation on it, so two mechanisms keep large codebases fast:
+esupgrade parses each file and runs the transformations that can match it, so two mechanisms keep large codebases fast:
 
 - **Text pre-filters**: each transformation declares the source text it needs, such as `hasOwnProperty` or `=>`. When a file cannot contain that text, esupgrade skips the transformation and its syntax tree walk.
-- **Worker reuse**: the CLI loads the transformation pipeline once per worker thread and hands every file of the queue to that thread.
+- **Worker reuse**: the CLI loads the transformation pipeline once per worker thread, and each thread pulls files until the queue is empty.
 
-Every file pays for one pass over all transformations, and every changed file pays for a second pass to confirm the result. Parsing and printing are memory bound, so extra processes stop helping once the workers saturate the memory bandwidth.
+Every file pays for one pass over the transformations, and every changed file pays for a second pass to confirm the result.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-wordmark-dark.svg">

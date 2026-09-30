@@ -16,19 +16,17 @@ const SILENT_WORKER_PATH = path.join(
 /**
  * Collect the workers a pool used while processing files.
  *
- * @returns {{fileProcessor: Object, usedWorkers: Set<TransformWorker>}} Stub processor
+ * @returns {{fileProcessor: Function, usedWorkers: Set<TransformWorker>}} Stub processor
  */
 function createRecordingProcessor() {
   const usedWorkers = new Set()
 
   return {
     usedWorkers,
-    fileProcessor: {
-      async processFile(filePath, options, worker) {
-        usedWorkers.add(worker)
+    async fileProcessor(filePath, options, worker) {
+      usedWorkers.add(worker)
 
-        return { modified: false, error: false }
-      },
+      return { modified: false, error: false }
     },
   }
 }
@@ -65,8 +63,8 @@ describe("TransformWorker", () => {
   })
 
   test("omit the original source when it is not requested", async () => {
-    const filePath = path.join(tempDir, "modern.js")
-    fs.writeFileSync(filePath, "const x = 1;")
+    const filePath = path.join(tempDir, "legacy.js")
+    fs.writeFileSync(filePath, "var x = 1;")
     const worker = new TransformWorker(WORKER_PATH)
 
     const message = await worker.transform({
@@ -76,7 +74,8 @@ describe("TransformWorker", () => {
     })
     await worker.terminate()
 
-    assert.equal(message.result.modified, false, "reports no change")
+    assert.equal(message.result.modified, true, "reports the change")
+    assert.equal(message.result.code, "const x = 1;", "transforms the code")
     assert.equal(message.result.original, undefined, "omits the original source")
   })
 
@@ -104,8 +103,11 @@ describe("TransformWorker", () => {
 
     await worker.terminate()
 
-    await assert.rejects(pending, { name: "WorkerStopError" }, "rejects the request")
-    assert.equal(worker.stopped, true, "reports the worker as stopped")
+    await assert.rejects(
+      pending,
+      { name: "Error", message: /^Worker stopped with exit code \d+$/ },
+      "rejects the request",
+    )
   })
 
   test("reject requests sent to a stopped worker", async () => {
@@ -118,7 +120,7 @@ describe("TransformWorker", () => {
         baseline: "widely-available",
         includeOriginal: false,
       }),
-      { name: "WorkerStopError" },
+      { name: "Error", message: /^Worker stopped with exit code \d+$/ },
       "rejects the request",
     )
   })
@@ -135,7 +137,6 @@ describe("TransformWorker", () => {
       { code: "MODULE_NOT_FOUND" },
       "rejects the request",
     )
-    assert.equal(worker.stopped, true, "reports the worker as stopped")
   })
 })
 
@@ -167,7 +168,7 @@ describe("WorkerPool", () => {
       return { modified: false, error: false }
     }
 
-    const pool = new WorkerPool({ processFile: stopAfterFile }, SILENT_WORKER_PATH, 1)
+    const pool = new WorkerPool(stopAfterFile, SILENT_WORKER_PATH, 1)
 
     const results = await pool.processFiles(files, {})
 

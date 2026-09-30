@@ -19,160 +19,143 @@ const __dirname = path.dirname(__filename)
  */
 
 /**
- * Processes individual files and handles output.
+ * Process a file using a worker thread.
+ * @param {string} filePath - Path to the file to process.
+ * @param {Object} options - Processing options.
+ * @param {string} options.baseline - Baseline level for transformations.
+ * @param {boolean} options.check - Whether to only check for changes.
+ * @param {boolean} options.write - Whether to write changes to file.
+ * @param {boolean} options.verbose - The verbosity level for logging.
+ * @param {import("../src/pool.js").TransformWorker} worker - Worker that transforms the file.
+ * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
  */
-class FileProcessor {
-  /**
-   * Process a file using a worker thread.
-   * @param {string} filePath - Path to the file to process.
-   * @param {Object} options - Processing options.
-   * @param {string} options.baseline - Baseline level for transformations.
-   * @param {boolean} options.check - Whether to only check for changes.
-   * @param {boolean} options.write - Whether to write changes to file.
-   * @param {boolean} options.verbose - The verbosity level for logging.
-   * @param {import("../src/pool.js").TransformWorker} worker - Worker that transforms the file.
-   * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
-   */
-  async processFile(filePath, options, worker) {
-    // Validate that the provided path exists and is a file.
-    try {
-      const stats = await fs.stat(filePath)
-      if (!stats.isFile()) {
-        console.error(`Error: '${filePath}' is not a file`)
-        process.exit(1)
-      }
-    } catch (error) {
-      console.error(`Error: Cannot access '${filePath}': ${error.message}`)
+async function processFile(filePath, options, worker) {
+  // Validate that the provided path exists and is a file.
+  try {
+    const stats = await fs.stat(filePath)
+    if (!stats.isFile()) {
+      console.error(`Error: '${filePath}' is not a file`)
       process.exit(1)
     }
-
-    try {
-      const workerResult = await worker.transform({
-        filePath,
-        baseline: options.baseline,
-        includeOriginal: options.check || !options.write,
-      })
-
-      if (!workerResult.success) {
-        if (options.verbose) console.error(workerResult.error)
-        console.error(
-          `\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error.message}`,
-        )
-        return { modified: false, error: true }
-      }
-
-      const result = workerResult.result
-
-      if (result.modified) {
-        // Display diff if check mode or if not writing (dry-run)
-        if (options.check || !options.write) {
-          this.#displayDiff(filePath, result.original, result.code)
-        }
-
-        if (options.write) {
-          await fs.writeFile(filePath, result.code, "utf8")
-          if (!options.check) {
-            console.info(`\x1b[32m✓\x1b[0m ${filePath}`)
-          }
-        }
-
-        return { modified: true, error: false }
-      }
-
-      // Show unmodified files unless in check-only mode
-      if (!options.check) {
-        console.debug(`  ${filePath}`)
-      }
-      return { modified: false, error: false }
-    } catch (error) {
-      console.error(`\x1b[31m✗\x1b[0m Error: ${filePath}: ${error.message}`)
-      return { modified: false, error: true }
-    }
+  } catch (error) {
+    console.error(`Error: Cannot access '${filePath}': ${error.message}`)
+    process.exit(1)
   }
 
-  /**
-   * Display a diff between original and modified code.
-   * @param {string} filePath - Path to the file being displayed.
-   * @param {string} original - Original code.
-   * @param {string} modified - Modified code.
-   */
-  #displayDiff(filePath, original, modified) {
-    const diff = diffLines(original, modified)
+  try {
+    const workerResult = await worker.transform({
+      filePath,
+      baseline: options.baseline,
+      includeOriginal: options.check || !options.write,
+    })
 
-    console.group(`\x1b[31m✗\x1b[0m ${filePath}`)
-    for (const part of diff) {
-      if (part.added) {
-        for (const line of part.value.split("\n")) {
-          if (line.trim() !== "") {
-            console.info(`  \x1b[32m+ ${line}\x1b[0m`)
-          }
-        }
-      } else if (part.removed) {
-        for (const line of part.value.split("\n")) {
-          if (line.trim() !== "") {
-            console.info(`  \x1b[31m- ${line}\x1b[0m`)
-          }
+    if (!workerResult.success) {
+      if (options.verbose) console.error(workerResult.error)
+      console.error(
+        `\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error.message}`,
+      )
+      return { modified: false, error: true }
+    }
+
+    const result = workerResult.result
+
+    if (result.modified) {
+      // Display diff if check mode or if not writing (dry-run)
+      if (options.check || !options.write) {
+        displayDiff(filePath, result.original, result.code)
+      }
+
+      if (options.write) {
+        await fs.writeFile(filePath, result.code, "utf8")
+        if (!options.check) {
+          console.info(`\x1b[32m✓\x1b[0m ${filePath}`)
         }
       }
+
+      return { modified: true, error: false }
     }
-    console.groupEnd()
+
+    // Show unmodified files unless in check-only mode
+    if (!options.check) {
+      console.debug(`  ${filePath}`)
+    }
+    return { modified: false, error: false }
+  } catch (error) {
+    console.error(`\x1b[31m✗\x1b[0m Error: ${filePath}: ${error.message}`)
+    return { modified: false, error: true }
   }
 }
 
 /**
- * Processes stdin and handles output.
+ * Display a diff between original and modified code.
+ * @param {string} filePath - Path to the file being displayed.
+ * @param {string} original - Original code.
+ * @param {string} modified - Modified code.
  */
-class StdinProcessor {
-  /**
-   * Process stdin using the configured transformation options.
-   * @param {Object} options - Processing options.
-   * @param {string} options.baseline - Baseline level for transformations.
-   * @param {boolean} options.check - Whether to only check for changes.
-   * @param {boolean} options.write - Whether to write changes to file.
-   * @param {boolean} options.verbose - The verbosity level for logging.
-   * @returns {Promise<void>} Complete when stdin processing finishes.
-   */
-  async processStdin(options) {
-    if (options.write) {
-      console.error("Error: '--write' cannot be used with stdin")
-      process.exit(1)
-    }
+function displayDiff(filePath, original, modified) {
+  const changes = diffLines(original, modified).filter(
+    ({ added, removed }) => added || removed,
+  )
 
-    try {
-      const code = await this.#readStdin()
-      const result = transform(code, options.baseline)
-
-      if (options.check) {
-        if (result.modified) {
-          process.exit(1)
-        }
-        return
+  console.group(`\x1b[31m✗\x1b[0m ${filePath}`)
+  for (const { added, value } of changes) {
+    const prefix = added ? `  \x1b[32m+ ` : `  \x1b[31m- `
+    for (const line of value.split("\n")) {
+      if (line.trim() !== "") {
+        console.info(`${prefix}${line}\x1b[0m`)
       }
-
-      process.stdout.write(result.code)
-    } catch (error) {
-      if (options.verbose) console.error(error)
-      console.error(`\x1b[31m✗\x1b[0m Error: stdin: ${error.message}`)
-      process.exit(128)
     }
   }
+  console.groupEnd()
+}
 
-  /**
-   * Read source code from stdin.
-   * @returns {Promise<string>} Source code from stdin.
-   */
-  async #readStdin() {
-    process.stdin.setEncoding("utf8")
-    let code = ""
+/**
+ * Process stdin using the configured transformation options.
+ * @param {Object} options - Processing options.
+ * @param {string} options.baseline - Baseline level for transformations.
+ * @param {boolean} options.check - Whether to only check for changes.
+ * @param {boolean} options.write - Whether to write changes to file.
+ * @param {boolean} options.verbose - The verbosity level for logging.
+ * @returns {Promise<void>} Complete when stdin processing finishes.
+ */
+async function processStdin(options) {
+  if (options.write) {
+    console.error("Error: '--write' cannot be used with stdin")
+    process.exit(1)
+  }
 
-    function handleChunk(chunk) {
-      code += chunk
+  try {
+    const code = await readStdin()
+    const result = transform(code, options.baseline)
+
+    if (options.check) {
+      if (result.modified) {
+        process.exit(1)
+      }
+      return
     }
 
-    process.stdin.on("data", handleChunk)
-    await once(process.stdin, "end")
-    return code
+    process.stdout.write(result.code)
+  } catch (error) {
+    if (options.verbose) console.error(error)
+    console.error(`\x1b[31m✗\x1b[0m Error: stdin: ${error.message}`)
+    process.exit(128)
   }
+}
+
+/**
+ * Read source code from stdin.
+ * @returns {Promise<string>} Source code from stdin.
+ */
+async function readStdin() {
+  process.stdin.setEncoding("utf8")
+  let code = ""
+
+  process.stdin.on("data", (chunk) => {
+    code += chunk
+  })
+  await once(process.stdin, "end")
+  return code
 }
 
 /**
@@ -180,9 +163,7 @@ class StdinProcessor {
  */
 class CLIRunner {
   constructor(workerPath) {
-    const fileProcessor = new FileProcessor()
-    this.workerPool = new WorkerPool(fileProcessor, workerPath)
-    this.stdinProcessor = new StdinProcessor()
+    this.workerPool = new WorkerPool(processFile, workerPath)
   }
 
   /**
@@ -193,7 +174,7 @@ class CLIRunner {
   async run(patterns, options) {
     switch (this.#getInputMode(patterns)) {
       case "stdin":
-        await this.stdinProcessor.processStdin(options)
+        await processStdin(options)
         return
       case "mixed":
         console.error("Error: '-' cannot be combined with file paths")

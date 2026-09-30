@@ -10,8 +10,6 @@
 const ESCAPED_IDENTIFIER = String.raw`\\u`
 
 /**
- * Match an identifier name, or any escaped identifier.
- *
  * JavaScript allows escapes in identifiers, such as `\u0069ndexOf`, and the
  * parser resolves them to their plain name. Accepting every escape keeps the
  * pattern a necessary condition.
@@ -19,7 +17,7 @@ const ESCAPED_IDENTIFIER = String.raw`\\u`
  * @param {string} names - Identifier name, or alternatives separated by `|`
  * @returns {RegExp} Pattern that matches the plain or escaped name
  */
-function identifierPattern(names) {
+function createIdentifierPattern(names) {
   return new RegExp(`${names}|${ESCAPED_IDENTIFIER}`)
 }
 
@@ -33,76 +31,83 @@ function identifierPattern(names) {
 export const prefilters = new Map([
   // Function expressions always use the `function` keyword.
   ["anonymousFunctionToArrow", [/function/]],
-  ["argumentsToRestParameters", [identifierPattern("arguments")]],
-  ["arrayConcatToSpread", [identifierPattern("concat")]],
-  ["arrayFilterToFind", [identifierPattern("filter")]],
+  ["argumentsToRestParameters", [createIdentifierPattern("arguments")]],
+  ["arrayConcatToSpread", [createIdentifierPattern("concat")]],
+  ["arrayFilterToFind", [createIdentifierPattern("filter")]],
   // Both `Array.from(...).forEach(...)` and `window.frames.forEach(...)` need it.
-  ["arrayFromForEachToForOf", [identifierPattern("forEach")]],
-  ["arrayFromToSpread", [identifierPattern("Array"), identifierPattern("from")]],
-  ["arraySliceToSpread", [identifierPattern("slice")]],
+  ["arrayFromForEachToForOf", [createIdentifierPattern("forEach")]],
+  [
+    "arrayFromToSpread",
+    [createIdentifierPattern("Array"), createIdentifierPattern("from")],
+  ],
+  ["arraySliceToSpread", [createIdentifierPattern("slice")]],
   // `x = x + y` needs an assignment and one of the binary operators.
   ["compoundAssignment", [/-|\+|\*|\/|%/, /=/]],
   // Concatenation needs a `+` next to a string literal.
   ["concatToTemplateLiteral", [/\+/, /"|'/]],
-  ["consoleLogToInfo", [identifierPattern("console"), identifierPattern("log")]],
+  [
+    "consoleLogToInfo",
+    [createIdentifierPattern("console"), createIdentifierPattern("log")],
+  ],
   // `Name.prototype.method = ...` needs the prototype property.
-  ["constructorToClass", [identifierPattern("prototype")]],
+  ["constructorToClass", [createIdentifierPattern("prototype")]],
   // `if (x === undefined) x = value` needs a check for `undefined`.
-  ["defaultParameterValues", [identifierPattern("undefined"), /\bif\b/]],
+  ["defaultParameterValues", [createIdentifierPattern("undefined"), /\bif\b/]],
   // `<binding>.cause = value` names a binding and an error constructor.
-  ["errorCauseAssignment", [identifierPattern("Error"), identifierPattern("cause")]],
+  [
+    "errorCauseAssignment",
+    [createIdentifierPattern("Error"), createIdentifierPattern("cause")],
+  ],
   // `for (let i = 0; i < arr.length; i++)` needs all three tokens.
-  ["forLoopToForOf", [/\bfor\b/, identifierPattern("length"), /\+\+/]],
+  ["forLoopToForOf", [/\bfor\b/, createIdentifierPattern("length"), /\+\+/]],
   // Global objects are read through `window`, `self`, or `Function`.
-  ["globalContextToGlobalThis", [identifierPattern("window|self|Function")]],
-  ["indexOfToIncludes", [identifierPattern("indexOf")]],
-  ["indexOfToStartsWith", [identifierPattern("indexOf")]],
-  ["iterableForEachToForOf", [identifierPattern("forEach")]],
-  ["lastIndexOfToEndsWith", [identifierPattern("lastIndexOf")]],
+  ["globalContextToGlobalThis", [createIdentifierPattern("window|self|Function")]],
+  ["indexOfToIncludes", [createIdentifierPattern("indexOf")]],
+  ["indexOfToStartsWith", [createIdentifierPattern("indexOf")]],
+  ["iterableForEachToForOf", [createIdentifierPattern("forEach")]],
+  ["lastIndexOfToEndsWith", [createIdentifierPattern("lastIndexOf")]],
   // Reassignments are guarded by a logical operator.
   ["logicalAssignment", [/\|\||&&|\?\?/]],
-  ["mathPowToExponentiation", [identifierPattern("pow")]],
+  ["mathPowToExponentiation", [createIdentifierPattern("pow")]],
   // A variable holding a function needs a declaration and a function.
   ["namedArrowFunctionToNamedFunction", [/=>|function/, /\b(var|let|const|using)\b/]],
   // `arr[arr.length - 1]` needs the length property and a subtraction.
-  ["negativeIndexToAt", [identifierPattern("length"), /-/]],
+  ["negativeIndexToAt", [createIdentifierPattern("length"), /-/]],
   // `x !== null && x !== undefined` needs both keywords.
-  ["nullishCoalescingOperator", [/\bnull\b/, identifierPattern("undefined"), /&&/]],
-  // Numeric separators need a group of digits in a decimal, hex, octal, or
-  // binary literal.
-  ["numericSeparators", [/\d{4,}|0[xX][0-9a-fA-F]{3,}|0[oO][0-7]{4,}|0[bB][01]{9,}/]],
-  ["objectAssignToSpread", [identifierPattern("assign")]],
-  ["objectHasOwn", [identifierPattern("hasOwnProperty")]],
-  ["objectKeysForEachToEntries", [identifierPattern("keys")]],
-  ["objectKeysMapToValues", [identifierPattern("keys")]],
+  [
+    "nullishCoalescingOperator",
+    [/\bnull\b/, createIdentifierPattern("undefined"), /&&/],
+  ],
+  // Numeric separators need a group of digits in a decimal or hex literal.
+  ["numericSeparators", [/\d{4,}|0[xX][0-9a-fA-F]{3,}/]],
+  ["objectAssignToSpread", [createIdentifierPattern("assign")]],
+  ["objectHasOwn", [createIdentifierPattern("hasOwnProperty")]],
+  ["objectKeysForEachToEntries", [createIdentifierPattern("keys")]],
+  ["objectKeysMapToValues", [createIdentifierPattern("keys")]],
   // Extractions are leading declarations inside a function body.
   [
     "objectPropertyExtractionToDestructuring",
     [/\b(var|let|const|using)\b/, /=>|function/],
   ],
   ["optionalChaining", [/&&/]],
-  ["promiseToAsyncAwait", [identifierPattern("Promise|fetch")]],
+  ["promiseToAsyncAwait", [createIdentifierPattern("Promise|fetch")]],
   // Removing a directive needs the directive text and module syntax.
   ["removeUseStrictFromModules", [/["']use strict["']/, /\bimport\b|\bexport\b/]],
   // `x.replaceAll(...)` replaces, `x.split(...).join(...)` splits first.
-  ["replaceAll", [identifierPattern("replace|split")]],
-  ["substrToSlice", [identifierPattern("substr")]],
-  ["substringToStartsWith", [identifierPattern("substring")]],
+  ["replaceAll", [createIdentifierPattern("replace|split")]],
+  ["substrToSlice", [createIdentifierPattern("substr")]],
+  ["substringToStartsWith", [createIdentifierPattern("substring")]],
   // `str.trimLeft()` and `str.trimRight()` name the renamed methods.
-  ["trimLeftRightToTrimStartEnd", [identifierPattern("trimLeft|trimRight")]],
+  ["trimLeftRightToTrimStartEnd", [createIdentifierPattern("trimLeft|trimRight")]],
   ["varToLetOrConst", [/\bvar\b/]],
-  ["promiseTry", [identifierPattern("Promise")]],
+  ["promiseTry", [createIdentifierPattern("Promise")]],
 ])
 
 /**
- * Check whether a transformer can match the given source text.
- *
  * @param {string} name - Transformer name
  * @param {string} code - Source text of the current transformation pass
  * @returns {boolean} True when the transformer needs to run
  */
 export function matchesPrefilter(name, code) {
-  const conditions = prefilters.get(name) ?? []
-
-  return conditions.every((condition) => condition.test(code))
+  return prefilters.get(name).every((condition) => condition.test(code))
 }

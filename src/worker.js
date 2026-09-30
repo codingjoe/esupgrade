@@ -4,27 +4,18 @@ import { transform } from "./index.js"
 
 /** Worker thread that transforms files on request. */
 
-parentPort.on("message", async ({ id, filePath, baseline, includeOriginal }) => {
+parentPort.on("message", async ({ filePath, baseline, includeOriginal }) => {
   try {
     const code = await fs.readFile(filePath, "utf8")
     const result = transform(code, baseline)
 
     parentPort.postMessage({
-      id,
       success: true,
-      filePath,
-      result: {
-        modified: result.modified,
-        original: includeOriginal ? code : undefined,
-        code: result.code,
-      },
+      result: result.modified
+        ? { ...result, original: includeOriginal ? code : undefined }
+        : { modified: false },
     })
   } catch (error) {
-    parentPort.postMessage({
-      id,
-      success: false,
-      filePath,
-      error,
-    })
+    parentPort.postMessage({ success: false, error })
   }
 })

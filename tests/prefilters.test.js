@@ -88,30 +88,29 @@ const samples = new Map([
 const transformers = { ...widelyAvailable, ...newlyAvailable }
 
 /**
- * Transform source code, reporting errors instead of throwing.
+ * Transform source code with the prefilters in place.
  *
  * @param {string} code - Source code to transform
  * @param {string} baseline - Baseline level for transformations
- * @returns {{code?: string, error?: string}} Transformation outcome
+ * @returns {string} Transformed code
  */
 function runTransform(code, baseline) {
-  try {
-    return { code: transform(code, baseline).code }
-  } catch (error) {
-    return { error: error.message }
-  }
+  return transform(code, baseline).code
 }
 
 /**
- * Transform source code with every prefilter removed.
+ * Transform source code with every prefilter condition dropped.
  *
  * @param {string} code - Source code to transform
  * @param {string} baseline - Baseline level for transformations
- * @returns {{code?: string, error?: string}} Transformation outcome
+ * @returns {string} Transformed code
  */
 function runWithoutPrefilters(code, baseline) {
   const conditions = new Map(prefilters)
-  prefilters.clear()
+
+  for (const name of prefilters.keys()) {
+    prefilters.set(name, [])
+  }
 
   try {
     return runTransform(code, baseline)
@@ -138,10 +137,6 @@ suite("prefilters", () => {
   })
 
   describe("matchesPrefilter", () => {
-    test("accepts unknown transformers", () => {
-      assert(matchesPrefilter("unknownTransformer", "anything"), "runs unknown names")
-    })
-
     test("rejects source text without the pattern", () => {
       assert(
         !matchesPrefilter("varToLetOrConst", "const a = 1;"),
