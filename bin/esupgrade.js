@@ -155,6 +155,33 @@ async function readStdin() {
 }
 
 /**
+ * Identify a result that changed the file.
+ * @param {{modified: boolean}} result - Result of processing one file.
+ * @returns {boolean} True when the file changed.
+ */
+function isModified({ modified }) {
+  return modified
+}
+
+/**
+ * Identify a result that failed.
+ * @param {{error: boolean}} result - Result of processing one file.
+ * @returns {boolean} True when the file failed to process.
+ */
+function isFailed({ error }) {
+  return error
+}
+
+/**
+ * Describe a number of files.
+ * @param {number} count - Number of files.
+ * @returns {string} Count followed by a singular or plural noun.
+ */
+function formatFileCount(count) {
+  return `${count} file${count === 1 ? "" : "s"}`
+}
+
+/**
  * Orchestrates the CLI application.
  */
 class CLIRunner {
@@ -205,48 +232,62 @@ class CLIRunner {
     }
   }
 
+  /**
+   * Report the outcome of a file-processing run.
+   *
+   * @param {Array<{modified: boolean, error: boolean}>} results - Result per file.
+   * @param {Object} options - Processing options.
+   */
   #reportSummary(results, options) {
-    let modifiedCount = 0
-    const errorCount = results.filter((result) => {
-      if (result.modified) {
-        modifiedCount++
-      }
-      return result.error
-    }).length
+    const modifiedCount = results.filter(isModified).length
+    const errorCount = results.filter(isFailed).length
 
     console.info("")
 
-    if (modifiedCount === 0) {
-      console.info("All files are up to date")
-    } else {
-      if (options.check) {
-        console.info(
-          `${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} need${modifiedCount === 1 ? "s" : ""} upgrading`,
-        )
-        if (options.write) {
-          console.info("Changes have been written")
+    switch (modifiedCount) {
+      case 0:
+        if (errorCount === 0) {
+          console.info("All files are up to date")
         }
-      } else if (options.write) {
-        // --write without --check
-        console.info(
-          `✓ ${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} upgraded`,
-        )
-      } else {
-        // Dry-run mode (no --check, no --write)
-        console.info(
-          `${modifiedCount} file${modifiedCount !== 1 ? "s" : ""} would be upgraded`,
-        )
-      }
+        break
+      default:
+        this.#reportUpgrades(modifiedCount, options)
+        break
     }
 
-    // Errors take precedence over --check flag.
-    // Exit with error code if any file processing errors occurred.
     if (errorCount > 0) {
+      console.info(`${formatFileCount(errorCount)} failed to process`)
+      // Errors take precedence over the --check flag.
       process.exit(128)
     }
 
     if (options.check && modifiedCount > 0) {
       process.exit(1)
+    }
+  }
+
+  /**
+   * Report how many files were upgraded.
+   *
+   * @param {number} modifiedCount - Number of files with changes.
+   * @param {Object} options - Processing options.
+   */
+  #reportUpgrades(modifiedCount, options) {
+    switch (true) {
+      case options.check:
+        console.info(
+          `${formatFileCount(modifiedCount)} need${modifiedCount === 1 ? "s" : ""} upgrading`,
+        )
+        if (options.write) {
+          console.info("Changes have been written")
+        }
+        break
+      case options.write:
+        console.info(`✓ ${formatFileCount(modifiedCount)} upgraded`)
+        break
+      default:
+        console.info(`${formatFileCount(modifiedCount)} would be upgraded`)
+        break
     }
   }
 }

@@ -523,6 +523,83 @@ describe("CLI", () => {
     assert.equal(result.status, 128, "exits with 1 on errors without --check")
   })
 
+  test("report multiple files needing upgrading with --check", () => {
+    const firstFile = path.join(tempDir, "first.js")
+    const secondFile = path.join(tempDir, "second.js")
+    fs.writeFileSync(firstFile, `var x = 1;`)
+    fs.writeFileSync(secondFile, `var y = 2;`)
+
+    const result = spawnSync(
+      process.execPath,
+      [CLI_PATH, firstFile, secondFile, "--check"],
+      {
+        encoding: "utf8",
+      },
+    )
+
+    assert.match(result.stdout, /2 files need upgrading/, "reports both files")
+    assert.equal(result.status, 1, "exits with 1 when changes needed")
+  })
+
+  test("report failed files in the summary", () => {
+    const testFile = path.join(tempDir, "broken.js")
+    fs.writeFileSync(testFile, `const = 1;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, testFile, "--check"], {
+      encoding: "utf8",
+    })
+
+    assert.match(
+      result.stderr,
+      /broken\.js: Unexpected token/,
+      "prints the parse error next to the file name",
+    )
+    assert.match(result.stdout, /1 file failed to process/, "reports the failed file")
+    assert.doesNotMatch(
+      result.stdout,
+      /All files are up to date/,
+      "omits the up-to-date summary",
+    )
+    assert.equal(result.status, 128, "exits with 1 on errors")
+  })
+
+  test("report multiple failed files in the summary", () => {
+    const firstFile = path.join(tempDir, "first.js")
+    const secondFile = path.join(tempDir, "second.js")
+    fs.writeFileSync(firstFile, `const = 1;`)
+    fs.writeFileSync(secondFile, `var x = ;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, firstFile, secondFile], {
+      encoding: "utf8",
+    })
+
+    assert.match(
+      result.stdout,
+      /2 files failed to process/,
+      "reports both failed files",
+    )
+    assert.equal(result.status, 128, "exits with 1 on errors")
+  })
+
+  test("report failed and upgradable files in the summary", () => {
+    const brokenFile = path.join(tempDir, "broken.js")
+    const legacyFile = path.join(tempDir, "legacy.js")
+    fs.writeFileSync(brokenFile, `const = 1;`)
+    fs.writeFileSync(legacyFile, `var x = 1;`)
+
+    const result = spawnSync(
+      process.execPath,
+      [CLI_PATH, brokenFile, legacyFile, "--check"],
+      {
+        encoding: "utf8",
+      },
+    )
+
+    assert.match(result.stdout, /1 file needs upgrading/, "reports the upgradable file")
+    assert.match(result.stdout, /1 file failed to process/, "reports the failed file")
+    assert.equal(result.status, 128, "exits with 1 on errors")
+  })
+
   test("dry-run mode without flags shows changes but doesn't write", () => {
     const testFile = path.join(tempDir, "test.js")
     const originalCode = `var x = 1;`
