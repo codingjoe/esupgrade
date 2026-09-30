@@ -275,6 +275,28 @@ Decimal and octal numerals are grouped by triplets; hex and binary by byte.
 +const clone = [...Array.from(items)];
 ```
 
+#### `[...array].sort()` → [`Array.toSorted()`][mdn-tosorted], [`Array.toReversed()`][mdn-toreversed] & [`Array.toSpliced()`][mdn-tospliced]
+
+```diff
+-const sorted = [...[3, 1, 2]].sort((a, b) => a - b);
+-const reversed = Array.from(items).slice().reverse();
++const sorted = [3, 1, 2].toSorted((a, b) => a - b);
++const reversed = Array.from(items).toReversed();
+
+-const copy = [...Array.of(1, 2)];
+-copy.splice(1, 2);
++const copy = Array.of(1, 2).toSpliced(1, 2);
+```
+
+The following are not transformed:
+
+- Receivers that are not statically verified arrays
+- Mutating calls without a copy
+- Expression-form `splice()` on a copy, which returns the removed elements
+- `splice()` calls whose result is used
+- `splice()` calls whose arguments come from the copy
+- Copy-to-variable rewrites where the declaration is not the single declarator directly above the mutating call, as in `const copy = [...items], total = 0`
+
 #### `Array.filter()[0]` → [`Array.find()`][mdn-find]
 
 ```diff
@@ -841,6 +863,9 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-startswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+[mdn-toreversed]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toReversed
+[mdn-tosorted]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSorted
+[mdn-tospliced]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSpliced
 [mdn-trimend]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimEnd
 [mdn-trimstart]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimStart
 [pre-commit]: https://pre-commit.com/

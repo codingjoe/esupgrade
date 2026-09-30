@@ -17,6 +17,10 @@ const samples = new Map([
     `function f() { const args = Array.from(arguments); return args; }`,
   ],
   ["arrayConcatToSpread", `const a = [1].concat([2]);`],
+  [
+    "arrayCopyToImmutableMethod",
+    `const sorted = [...[3, 1, 2]].sort((a, b) => a - b);`,
+  ],
   ["arrayFilterToFind", `const a = [1, 2].filter((n) => n > 1)[0];`],
   ["arrayFromForEachToForOf", `Array.from([1]).forEach((n) => console.debug(n));`],
   ["arrayFromToSpread", `const a = Array.from(new Set([1]));`],

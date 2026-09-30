@@ -33,6 +33,11 @@ export const prefilters = new Map([
   ["anonymousFunctionToArrow", [/function/]],
   ["argumentsToRestParameters", [createIdentifierPattern("arguments")]],
   ["arrayConcatToSpread", [createIdentifierPattern("concat")]],
+  // A copy is `[...array]` or `array.slice()`, then sort, reverse or splice.
+  [
+    "arrayCopyToImmutableMethod",
+    [createIdentifierPattern("sort|reverse|splice"), /\.\.\.|slice/],
+  ],
   ["arrayFilterToFind", [createIdentifierPattern("filter")]],
   // Both `Array.from(...).forEach(...)` and `window.frames.forEach(...)` need it.
   ["arrayFromForEachToForOf", [createIdentifierPattern("forEach")]],

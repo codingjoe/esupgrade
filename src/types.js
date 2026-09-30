@@ -6,6 +6,17 @@ const FUNCTION_TYPES = new Set([
   "FunctionExpression",
   "ArrowFunctionExpression",
 ])
+const ARRAY_METHODS_RETURNING_ARRAY = [
+  "slice",
+  "concat",
+  "map",
+  "filter",
+  "flat",
+  "flatMap",
+  "reverse",
+  "sort",
+  "splice",
+]
 
 /**
  * Wrapper class for AST nodes providing utility methods.
@@ -133,6 +144,39 @@ export class NodeTest {
   }
 
   /**
+   * Check if an expression is statically verifiable as an array. Unlike isIterable(),
+   * strings and other iterables are rejected. Used by transformers relying on Array
+   * methods that no other iterable provides.
+   *
+   * @returns {boolean} True if the node can be verified as an array
+   */
+  isArray() {
+    return (
+      this.isArrayLiteral() ||
+      this.isNewArray() ||
+      this.isArrayStaticCall("from") ||
+      this.isArrayStaticCall("of") ||
+      this.#returnsArray()
+    )
+  }
+
+  /**
+   * Check if node is an array method call returning an array on a verified array.
+   *
+   * @returns {boolean} True if node is an array method call on a verified array
+   */
+  #returnsArray() {
+    return (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      !this.node.callee.computed &&
+      j.Identifier.check(this.node.callee.property) &&
+      ARRAY_METHODS_RETURNING_ARRAY.includes(this.node.callee.property.name) &&
+      new NodeTest(this.node.callee.object).isArray()
+    )
+  }
+
+  /**
    * Check if an expression is statically verifiable as an array or string.
    * Used by transformers to ensure they only transform known types that support
    * both indexOf and includes methods.
@@ -180,18 +224,6 @@ export class NodeTest {
     if (this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_STRING)) {
       return true
     }
-
-    const ARRAY_METHODS_RETURNING_ARRAY = [
-      "slice",
-      "concat",
-      "map",
-      "filter",
-      "flat",
-      "flatMap",
-      "reverse",
-      "sort",
-      "splice",
-    ]
 
     return this.isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY)
   }
@@ -347,19 +379,10 @@ export class NodeTest {
    * @returns {boolean} True if 'arguments' is used in the node
    */
   usesArguments() {
-    const body = j.BlockStatement.check(this.node) ? this.node.body : [this.node]
-    for (const statement of body) {
-      if (
-        this.#traverseForPredicate(
-          statement,
-          (node) => node.type === "Identifier" && node.name === "arguments",
-        )
-      ) {
-        return true
-      }
-    }
-
-    return false
+    return this.#traverseForPredicate(
+      this.node,
+      (node) => node.type === "Identifier" && node.name === "arguments",
+    )
   }
 
   /**
@@ -743,16 +766,10 @@ export class NodeTest {
       (this.node.operator === "!==" || this.node.operator === "===")
     ) {
       const isNegated = this.node.operator === "!=="
-      if (
-        j.NullLiteral.check(this.node.right) ||
-        (j.Literal.check(this.node.right) && this.node.right.value === null)
-      ) {
+      if (j.Literal.check(this.node.right) && this.node.right.value === null) {
         return { value: this.node.left, isNegated }
       }
-      if (
-        j.NullLiteral.check(this.node.left) ||
-        (j.Literal.check(this.node.left) && this.node.left.value === null)
-      ) {
+      if (j.Literal.check(this.node.left) && this.node.left.value === null) {
         return { value: this.node.right, isNegated }
       }
     }
