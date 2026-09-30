@@ -72,7 +72,7 @@ echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.t
 esupgrade is available as a skill in [Claude Code]. The plugin is distributed via the [codingjoe/claude-plugins](https://github.com/codingjoe/claude-plugins) marketplace. To use it:
 
 1. Run `/plugin marketplace add codingjoe/claude-plugins`
-1. Run `/plugin install esupgrade@codingjoe`
+2. Run `/plugin install esupgrade@codingjoe`
 
 The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
@@ -271,11 +271,11 @@ Decimal and octal numerals are grouped by triplets; hex and binary by byte.
 ```diff
 -const emoji = "\uD83D\uDE00";
 -const wave = `Hello ${name} \uD83D\uDC4B`;
+-const key = "\ud83d\ude00";
 +const emoji = "\u{1F600}";
 +const wave = `Hello ${name} \u{1F44B}`;
++const key = "\u{1f600}";
 ```
-
-Merges adjacent surrogate pairs in string and template literals into a single code point escape, keeping the hex case of the leading escape: `\ud83d\ude00` becomes `\u{1f600}` and `\uD83D\ude00` becomes `\u{1F600}`. Strings in a JSX expression container, such as `<div title={"\uD83D\uDE00"} />`, merge the same way.
 
 Not transformed:
 
@@ -293,6 +293,28 @@ Not transformed:
 +const copy = [...[1, 2, 3]];
 +const clone = [...Array.from(items)];
 ```
+
+#### `[...array].sort()` → [`Array.toSorted()`][mdn-tosorted], [`Array.toReversed()`][mdn-toreversed] & [`Array.toSpliced()`][mdn-tospliced]
+
+```diff
+-const sorted = [...[3, 1, 2]].sort((a, b) => a - b);
+-const reversed = Array.from(items).slice().reverse();
++const sorted = [3, 1, 2].toSorted((a, b) => a - b);
++const reversed = Array.from(items).toReversed();
+
+-const copy = [...Array.of(1, 2)];
+-copy.splice(1, 2);
++const copy = Array.of(1, 2).toSpliced(1, 2);
+```
+
+The following are not transformed:
+
+- Receivers that are not statically verified arrays
+- Mutating calls without a copy
+- Expression-form `splice()` on a copy, which returns the removed elements
+- `splice()` calls whose result is used
+- `splice()` calls whose arguments come from the copy
+- Copy-to-variable rewrites where the declaration is not the single declarator directly above the mutating call, as in `const copy = [...items], total = 0`
 
 #### `Array.filter()[0]` → [`Array.find()`][mdn-find]
 
@@ -566,6 +588,15 @@ Transforms the deprecated `substr()` method to `slice()`:
 
 Transformations are limited to when the receiver can be verified as a string (string literals, template literals, or string method chains).
 
+#### `String.trimLeft()` / `String.trimRight()` → [String.trimStart()][mdn-trimstart] / [String.trimEnd()][mdn-trimend]
+
+```diff
+-const left = "  hello  ".trimLeft();
+-const right = "  hello  ".trimRight();
++const left = "  hello  ".trimStart();
++const right = "  hello  ".trimEnd();
+```
+
 #### `split().join()` / `replace(/literal/g)` → [String.replaceAll()][mdn-replaceall]
 
 ```diff
@@ -740,6 +771,55 @@ TypeScript type annotations on the original parameter are preserved on the resul
 - The promise chain is returned from the function or used inside an already async function
 - The expression is a known promise (`fetch()`, `new Promise()`, or promise methods)
 
+#### `error.cause` assignment → [Error cause option][mdn-error-cause]
+
+```diff
+-try {
+-  doWork();
+-} catch (cause) {
+-  const error = new Error("Work failed");
+-  error.cause = cause;
+-  throw error;
+-}
++try {
++  doWork();
++} catch (cause) {
++  throw new Error("Work failed", { cause });
++}
+```
+
+Transformations are limited to built-in error constructors. The following are not transformed:
+
+- Constructions without a message argument
+- Constructions that already pass an options argument
+- Custom error subclasses
+- Assignments whose value references the error itself, as in `error.cause = error`
+
+#### Deferred promise capture → [Promise.withResolvers()][mdn-promise-with-resolvers]
+
+```diff
+-let resolve, reject;
+-const promise = new Promise((res, rej) => {
+-  resolve = res;
+-  reject = rej;
+-});
++const {
++  promise,
++  resolve,
++  reject
++} = Promise.withResolvers();
++
+ await promise;
+```
+
+The following are not transformed:
+
+- Bindings that carry a type annotation, an initializer, or an ambient `declare`
+- `new Promise` constructions that carry type arguments
+- Executors that are generators, that name a binding, or that hold statements besides the two assignments
+- Resolving functions that are written outside their executor assignment, and promise bindings that are written after their declaration
+- Promises that no other identifier references
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word.svg">
@@ -805,6 +885,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
 [mdn-destructuring]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment
 [mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
+[mdn-error-cause]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/cause
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-find]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
@@ -819,6 +900,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-object-has-own]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn
 [mdn-object-values]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values
 [mdn-promise-try]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
+[mdn-promise-with-resolvers]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers
 [mdn-replaceall]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replaceAll
 [mdn-rest-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters
 [mdn-slice]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice
@@ -826,6 +908,11 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-startswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+[mdn-toreversed]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toReversed
+[mdn-tosorted]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSorted
+[mdn-tospliced]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSpliced
+[mdn-trimend]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimEnd
+[mdn-trimstart]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimStart
 [mdn-unicode-point-escapes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#unicode_code_point_escapes
 [pre-commit]: https://pre-commit.com/
 [pyupgrade]: https://github.com/asottile/pyupgrade

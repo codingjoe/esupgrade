@@ -6,6 +6,17 @@ const FUNCTION_TYPES = new Set([
   "FunctionExpression",
   "ArrowFunctionExpression",
 ])
+const ARRAY_METHODS_RETURNING_ARRAY = [
+  "slice",
+  "concat",
+  "map",
+  "filter",
+  "flat",
+  "flatMap",
+  "reverse",
+  "sort",
+  "splice",
+]
 
 /**
  * Wrapper class for AST nodes providing utility methods.
@@ -133,6 +144,39 @@ export class NodeTest {
   }
 
   /**
+   * Check if an expression is statically verifiable as an array. Unlike isIterable(),
+   * strings and other iterables are rejected. Used by transformers relying on Array
+   * methods that no other iterable provides.
+   *
+   * @returns {boolean} True if the node can be verified as an array
+   */
+  isArray() {
+    return (
+      this.isArrayLiteral() ||
+      this.isNewArray() ||
+      this.isArrayStaticCall("from") ||
+      this.isArrayStaticCall("of") ||
+      this.#returnsArray()
+    )
+  }
+
+  /**
+   * Check if node is an array method call returning an array on a verified array.
+   *
+   * @returns {boolean} True if node is an array method call on a verified array
+   */
+  #returnsArray() {
+    return (
+      j.CallExpression.check(this.node) &&
+      j.MemberExpression.check(this.node.callee) &&
+      !this.node.callee.computed &&
+      j.Identifier.check(this.node.callee.property) &&
+      ARRAY_METHODS_RETURNING_ARRAY.includes(this.node.callee.property.name) &&
+      new NodeTest(this.node.callee.object).isArray()
+    )
+  }
+
+  /**
    * Check if an expression is statically verifiable as an array or string.
    * Used by transformers to ensure they only transform known types that support
    * both indexOf and includes methods.
@@ -180,18 +224,6 @@ export class NodeTest {
     if (this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_STRING)) {
       return true
     }
-
-    const ARRAY_METHODS_RETURNING_ARRAY = [
-      "slice",
-      "concat",
-      "map",
-      "filter",
-      "flat",
-      "flatMap",
-      "reverse",
-      "sort",
-      "splice",
-    ]
 
     return this.isArrayMethodChain(ARRAY_METHODS_RETURNING_ARRAY)
   }
@@ -347,19 +379,10 @@ export class NodeTest {
    * @returns {boolean} True if 'arguments' is used in the node
    */
   usesArguments() {
-    const body = j.BlockStatement.check(this.node) ? this.node.body : [this.node]
-    for (const statement of body) {
-      if (
-        this.#traverseForPredicate(
-          statement,
-          (node) => node.type === "Identifier" && node.name === "arguments",
-        )
-      ) {
-        return true
-      }
-    }
-
-    return false
+    return this.#traverseForPredicate(
+      this.node,
+      (node) => node.type === "Identifier" && node.name === "arguments",
+    )
   }
 
   /**
@@ -646,7 +669,13 @@ export class NodeTest {
    * @returns {Generator<string, void, unknown>}
    */
   *extractIdentifiersFromPattern() {
-    if (j.Identifier.check(this.node)) {
+    if (
+      j.TSNonNullExpression.check(this.node) ||
+      j.TSAsExpression.check(this.node) ||
+      j.TSSatisfiesExpression.check(this.node)
+    ) {
+      yield* new NodeTest(this.node.expression).extractIdentifiersFromPattern()
+    } else if (j.Identifier.check(this.node)) {
       yield this.node.name
     } else if (j.ObjectPattern.check(this.node)) {
       for (const prop of this.node.properties) {
@@ -743,16 +772,10 @@ export class NodeTest {
       (this.node.operator === "!==" || this.node.operator === "===")
     ) {
       const isNegated = this.node.operator === "!=="
-      if (
-        j.NullLiteral.check(this.node.right) ||
-        (j.Literal.check(this.node.right) && this.node.right.value === null)
-      ) {
+      if (j.Literal.check(this.node.right) && this.node.right.value === null) {
         return { value: this.node.left, isNegated }
       }
-      if (
-        j.NullLiteral.check(this.node.left) ||
-        (j.Literal.check(this.node.left) && this.node.left.value === null)
-      ) {
+      if (j.Literal.check(this.node.left) && this.node.left.value === null) {
         return { value: this.node.right, isNegated }
       }
     }
@@ -935,62 +958,100 @@ function isAssignmentShadowed(varName, declarationPath, currentPath) {
 }
 
 /**
+ * Assignment, update, and loop target expressions grouped by the identifier
+ * they write.
+ *
+ * A single index per syntax tree replaces the full tree traversal that would
+ * otherwise run for every variable declaration. Indexing uses the same pattern
+ * rules as {@link NodeTest#extractIdentifiersFromPattern}, so the indexed
+ * candidates are exactly the nodes that a traversal would match.
+ *
+ * The shadowing analysis of a candidate reads the functions enclosing it, and
+ * splitting a declaration leaves those functions in place. An index therefore
+ * stays usable for the whole transformation, even though splitting re-parents
+ * declarators.
+ */
+export class ReassignmentIndex {
+  #paths = new Map()
+
+  /**
+   * Index every write of the root collection.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection
+   */
+  constructor(root) {
+    this.#indexWrites(root, j.AssignmentExpression, "left")
+    this.#indexWrites(root, j.UpdateExpression, "argument")
+    this.#indexWrites(root, j.ForOfStatement, "left")
+    this.#indexWrites(root, j.ForInStatement, "left")
+  }
+
+  /**
+   * List the assignments and updates that target the given variable.
+   *
+   * @param {string} varName - The variable name to look up
+   * @returns {Array<import("ast-types").NodePath>} Writing paths
+   */
+  getPathsFor(varName) {
+    return this.#paths.get(varName) ?? []
+  }
+
+  /**
+   * Index the identifiers a node type writes through one of its fields.
+   *
+   * @param {import("jscodeshift").Collection} root - The root AST collection
+   * @param {import("jscodeshift").ASTType} nodeType - The node type to index
+   * @param {string} field - The field holding the written target
+   */
+  #indexWrites(root, nodeType, field) {
+    root.find(nodeType).forEach((path) => {
+      const target = path.node[field]
+
+      for (const name of new NodeTest(target).extractIdentifiersFromPattern()) {
+        this.#append(name, path)
+      }
+    })
+  }
+
+  /**
+   * Store a path under the given identifier name.
+   *
+   * @param {string} name - The identifier name
+   * @param {import("ast-types").NodePath} path - The path to store
+   */
+  #append(name, path) {
+    const paths = this.#paths.get(name)
+
+    paths ? paths.push(path) : this.#paths.set(name, [path])
+  }
+}
+
+/**
  * Check if a variable is reassigned after its declaration
  *
- * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {string} varName - The variable name to check
  * @param {import("ast-types").NodePath} declarationPath - The path to the variable
  *   declaration
  * @returns {boolean} True if the variable is reassigned
  */
-function isVariableReassigned(root, varName, declarationPath) {
-  let isReassigned = false
-
-  // Check for AssignmentExpression where left side targets the variable
-  root.find(j.AssignmentExpression).forEach((assignPath) => {
-    if (!new NodeTest(assignPath.node.left).patternContainsIdentifier(varName)) {
-      return
-    }
-
-    if (isAssignmentShadowed(varName, declarationPath, assignPath)) {
-      return
-    }
-
-    isReassigned = true
-  })
-
-  if (isReassigned) return true
-
-  // Check for UpdateExpression (++, --)
-  root.find(j.UpdateExpression).forEach((updatePath) => {
-    if (
-      !j.Identifier.check(updatePath.node.argument) ||
-      updatePath.node.argument.name !== varName
-    ) {
-      return
-    }
-
-    if (isAssignmentShadowed(varName, declarationPath, updatePath)) {
-      return
-    }
-
-    isReassigned = true
-  })
-
-  return isReassigned
+function isVariableReassigned(reassignments, varName, declarationPath) {
+  return reassignments
+    .getPathsFor(varName)
+    .some((path) => !isAssignmentShadowed(varName, declarationPath, path))
 }
 
 /**
  * Determine the appropriate kind (const or let) for a declarator
  *
- * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("jscodeshift").VariableDeclarator} declarator - The variable
  *   declarator
  * @param {import("ast-types").NodePath} declarationPath - The path to the variable
  *   declaration
  * @returns {"const" | "let"} The appropriate variable kind
  */
-export function determineDeclaratorKind(root, declarator, declarationPath) {
+export function determineDeclaratorKind(reassignments, declarator, declarationPath) {
   // Check if this is a for-of or for-in loop variable declaration
   const isLoopVariable =
     declarationPath.parent &&
@@ -1005,15 +1066,9 @@ export function determineDeclaratorKind(root, declarator, declarationPath) {
     return "let"
   }
 
-  if (j.Identifier.check(declarator.id)) {
-    return isVariableReassigned(root, declarator.id.name, declarationPath)
-      ? "let"
-      : "const"
-  }
-
-  // Destructuring pattern - check if any identifier is reassigned
+  // Destructuring patterns and plain identifiers both yield their bound names
   for (const varName of new NodeTest(declarator.id).extractIdentifiersFromPattern()) {
-    if (isVariableReassigned(root, varName, declarationPath)) {
+    if (isVariableReassigned(reassignments, varName, declarationPath)) {
       return "let"
     }
   }
@@ -1024,43 +1079,30 @@ export function determineDeclaratorKind(root, declarator, declarationPath) {
 /**
  * Process a single declarator variable declaration
  *
- * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
- * @returns {{ modified: boolean; change: { type: string; line: number } | null }}
  */
-export function processSingleDeclarator(root, path) {
+export function processSingleDeclarator(reassignments, path) {
   const declarator = path.node.declarations[0]
-  path.node.kind = determineDeclaratorKind(root, declarator, path)
-
-  const change = path.node.loc
-    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
-    : null
-
-  return { modified: true, change }
+  path.node.kind = determineDeclaratorKind(reassignments, declarator, path)
 }
 
 /**
  * Process a multiple declarator variable declaration by splitting into separate
  * declarations
  *
- * @param {import("jscodeshift").Collection} root - The root AST collection
+ * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
- * @returns {{ modified: boolean; change: { type: string; line: number } | null }}
  */
-export function processMultipleDeclarators(root, path) {
+export function processMultipleDeclarators(reassignments, path) {
   const declarations = path.node.declarations.map((declarator) => {
-    return j.variableDeclaration(determineDeclaratorKind(root, declarator, path), [
-      declarator,
-    ])
+    return j.variableDeclaration(
+      determineDeclaratorKind(reassignments, declarator, path),
+      [declarator],
+    )
   })
 
   j(path).replaceWith(declarations)
-
-  const change = path.node.loc
-    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
-    : null
-
-  return { modified: true, change }
 }
 
 /**

@@ -5,12 +5,11 @@ import { diffLines } from "diff"
 import { once } from "events"
 import fs from "fs/promises"
 import process from "node:process"
-import os from "os"
 import path from "path"
 import { fileURLToPath } from "url"
-import { Worker } from "worker_threads"
 import pkg from "../package.json" with { type: "json" }
 import { transform } from "../src/index.js"
+import { WorkerPool } from "../src/pool.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,220 +19,144 @@ const __dirname = path.dirname(__filename)
  */
 
 /**
- * Handles worker thread execution for file processing.
+ * Process a file using a worker thread.
+ * @param {string} filePath - Path to the file to process.
+ * @param {Object} options - Processing options.
+ * @param {string} options.baseline - Baseline level for transformations.
+ * @param {boolean} options.check - Whether to only check for changes.
+ * @param {boolean} options.write - Whether to write changes to file.
+ * @param {boolean} options.verbose - The verbosity level for logging.
+ * @param {import("../src/pool.js").TransformWorker} worker - Worker that transforms the file.
+ * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
  */
-class WorkerRunner {
-  constructor(workerPath) {
-    this.workerPath = workerPath
+async function processFile(filePath, options, worker) {
+  // Validate that the provided path exists and is a file.
+  try {
+    const stats = await fs.stat(filePath)
+    if (!stats.isFile()) {
+      console.error(`Error: '${filePath}' is not a file`)
+      process.exit(1)
+    }
+  } catch (error) {
+    console.error(`Error: Cannot access '${filePath}': ${error.message}`)
+    process.exit(1)
   }
 
-  /**
-   * Run a worker thread to process a file.
-   * @param {string} filePath - Path to the file to process.
-   * @param {string} baseline - Baseline level for transformations.
-   * @returns {Promise<Object>} Worker message result.
-   */
-  async run(filePath, baseline) {
-    const worker = new Worker(this.workerPath, {
-      workerData: { filePath, baseline },
+  try {
+    // The worker only ships the original source when a diff can be printed.
+    const showsDiff = options.check || !options.write
+    const workerResult = await worker.transform({
+      filePath,
+      baseline: options.baseline,
+      includeOriginal: showsDiff,
     })
 
-    const [message] = await once(worker, "message")
-    return message
-  }
-}
-
-/**
- * Processes individual files and handles output.
- */
-class FileProcessor {
-  constructor(workerRunner) {
-    this.workerRunner = workerRunner
-  }
-
-  /**
-   * Process a file using a worker thread.
-   * @param {string} filePath - Path to the file to process.
-   * @param {Object} options - Processing options.
-   * @param {string} options.baseline - Baseline level for transformations.
-   * @param {boolean} options.check - Whether to only check for changes.
-   * @param {boolean} options.write - Whether to write changes to file.
-   * @param {boolean} options.verbose - The verbosity level for logging.
-   * @returns {Promise<{modified: boolean, error: boolean}>} Result of processing.
-   */
-  async processFile(filePath, options) {
-    // Validate that the provided path exists and is a file.
-    try {
-      const stats = await fs.stat(filePath)
-      if (!stats.isFile()) {
-        console.error(`Error: '${filePath}' is not a file`)
-        process.exit(1)
-      }
-    } catch (error) {
-      console.error(`Error: Cannot access '${filePath}': ${error.message}`)
-      process.exit(1)
-    }
-
-    try {
-      const workerResult = await this.workerRunner.run(filePath, options.baseline)
-
-      if (!workerResult.success) {
-        if (options.verbose) console.error(workerResult.error)
-        console.error(
-          `\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error.message}`,
-        )
-        return { modified: false, error: true }
-      }
-
-      const result = workerResult.result
-
-      if (result.modified) {
-        // Display diff if check mode or if not writing (dry-run)
-        if (options.check || !options.write) {
-          this.#displayDiff(filePath, result.original, result.code)
-        }
-
-        if (options.write) {
-          await fs.writeFile(filePath, result.code, "utf8")
-          if (!options.check) {
-            console.info(`\x1b[32m✓\x1b[0m ${filePath}`)
-          }
-        }
-
-        return { modified: true, error: false }
-      }
-
-      // Show unmodified files unless in check-only mode
-      if (!options.check) {
-        console.debug(`  ${filePath}`)
-      }
-      return { modified: false, error: false }
-    } catch (error) {
-      console.error(`\x1b[31m✗\x1b[0m Error: ${filePath}: ${error.message}`)
+    if (!workerResult.success) {
+      if (options.verbose) console.error(workerResult.error)
+      console.error(
+        `\x1b[31m✗\x1b[0m Error: ${filePath}: ${workerResult.error.message}`,
+      )
       return { modified: false, error: true }
     }
-  }
 
-  /**
-   * Display a diff between original and modified code.
-   * @param {string} filePath - Path to the file being displayed.
-   * @param {string} original - Original code.
-   * @param {string} modified - Modified code.
-   */
-  #displayDiff(filePath, original, modified) {
-    const diff = diffLines(original, modified)
+    const result = workerResult.result
 
-    console.group(`\x1b[31m✗\x1b[0m ${filePath}`)
-    for (const part of diff) {
-      if (part.added) {
-        for (const line of part.value.split("\n")) {
-          if (line.trim() !== "") {
-            console.info(`  \x1b[32m+ ${line}\x1b[0m`)
-          }
-        }
-      } else if (part.removed) {
-        for (const line of part.value.split("\n")) {
-          if (line.trim() !== "") {
-            console.info(`  \x1b[31m- ${line}\x1b[0m`)
-          }
+    if (result.modified) {
+      if (showsDiff) {
+        displayDiff(filePath, result.original, result.code)
+      }
+
+      if (options.write) {
+        await fs.writeFile(filePath, result.code, "utf8")
+        if (!options.check) {
+          console.info(`\x1b[32m✓\x1b[0m ${filePath}`)
         }
       }
+
+      return { modified: true, error: false }
     }
-    console.groupEnd()
+
+    // Show unmodified files unless in check-only mode
+    if (!options.check) {
+      console.debug(`  ${filePath}`)
+    }
+    return { modified: false, error: false }
+  } catch (error) {
+    console.error(`\x1b[31m✗\x1b[0m Error: ${filePath}: ${error.message}`)
+    return { modified: false, error: true }
   }
 }
 
 /**
- * Manages a pool of workers for parallel file processing.
+ * Display a diff between original and modified code.
+ * @param {string} filePath - Path to the file being displayed.
+ * @param {string} original - Original code.
+ * @param {string} modified - Modified code.
  */
-class WorkerPool {
-  constructor(fileProcessor, maxWorkers = os.cpus().length) {
-    this.fileProcessor = fileProcessor
-    this.maxWorkers = maxWorkers
-  }
+function displayDiff(filePath, original, modified) {
+  const changes = diffLines(original, modified).filter(
+    ({ added, removed }) => added || removed,
+  )
 
-  /**
-   * Process files with a worker pool for better CPU utilization.
-   * @param {string[]} files - Files to process.
-   * @param {Object} options - Processing options.
-   * @returns {Promise<Array>} Array of processing results.
-   */
-  async processFiles(files, options) {
-    const results = new Array(files.length)
-    let fileIndex = 0
-
-    // Worker pool pattern - each worker processes files until queue is empty
-    const processNext = async () => {
-      while (fileIndex < files.length) {
-        const currentIndex = fileIndex++
-        const file = files[currentIndex]
-        results[currentIndex] = await this.fileProcessor.processFile(file, options)
+  console.group(`\x1b[31m✗\x1b[0m ${filePath}`)
+  for (const { added, value } of changes) {
+    const prefix = added ? `  \x1b[32m+ ` : `  \x1b[31m- `
+    for (const line of value.split("\n")) {
+      if (line.trim() !== "") {
+        console.info(`${prefix}${line}\x1b[0m`)
       }
     }
+  }
+  console.groupEnd()
+}
 
-    // Start worker pool and wait for all to complete
-    const workerCount = Math.min(this.maxWorkers, files.length)
-    const workers = Array.from({ length: workerCount }, () => processNext())
-    await Promise.all(workers)
+/**
+ * Process stdin using the configured transformation options.
+ * @param {Object} options - Processing options.
+ * @param {string} options.baseline - Baseline level for transformations.
+ * @param {boolean} options.check - Whether to only check for changes.
+ * @param {boolean} options.write - Whether to write changes to file.
+ * @param {boolean} options.verbose - The verbosity level for logging.
+ * @returns {Promise<void>} Complete when stdin processing finishes.
+ */
+async function processStdin(options) {
+  if (options.write) {
+    console.error("Error: '--write' cannot be used with stdin")
+    process.exit(1)
+  }
 
-    return results
+  try {
+    const code = await readStdin()
+    const result = transform(code, options.baseline)
+
+    if (options.check) {
+      if (result.modified) {
+        process.exit(1)
+      }
+      return
+    }
+
+    process.stdout.write(result.code)
+  } catch (error) {
+    if (options.verbose) console.error(error)
+    console.error(`\x1b[31m✗\x1b[0m Error: stdin: ${error.message}`)
+    process.exit(128)
   }
 }
 
 /**
- * Processes stdin and handles output.
+ * Read source code from stdin.
+ * @returns {Promise<string>} Source code from stdin.
  */
-class StdinProcessor {
-  /**
-   * Process stdin using the configured transformation options.
-   * @param {Object} options - Processing options.
-   * @param {string} options.baseline - Baseline level for transformations.
-   * @param {boolean} options.check - Whether to only check for changes.
-   * @param {boolean} options.write - Whether to write changes to file.
-   * @param {boolean} options.verbose - The verbosity level for logging.
-   * @returns {Promise<void>} Complete when stdin processing finishes.
-   */
-  async processStdin(options) {
-    if (options.write) {
-      console.error("Error: '--write' cannot be used with stdin")
-      process.exit(1)
-    }
+async function readStdin() {
+  process.stdin.setEncoding("utf8")
+  let code = ""
 
-    try {
-      const code = await this.#readStdin()
-      const result = transform(code, options.baseline)
-
-      if (options.check) {
-        if (result.modified) {
-          process.exit(1)
-        }
-        return
-      }
-
-      process.stdout.write(result.code)
-    } catch (error) {
-      if (options.verbose) console.error(error)
-      console.error(`\x1b[31m✗\x1b[0m Error: stdin: ${error.message}`)
-      process.exit(128)
-    }
-  }
-
-  /**
-   * Read source code from stdin.
-   * @returns {Promise<string>} Source code from stdin.
-   */
-  async #readStdin() {
-    process.stdin.setEncoding("utf8")
-    let code = ""
-
-    function handleChunk(chunk) {
-      code += chunk
-    }
-
-    process.stdin.on("data", handleChunk)
-    await once(process.stdin, "end")
-    return code
-  }
+  process.stdin.on("data", (chunk) => {
+    code += chunk
+  })
+  await once(process.stdin, "end")
+  return code
 }
 
 /**
@@ -241,10 +164,7 @@ class StdinProcessor {
  */
 class CLIRunner {
   constructor(workerPath) {
-    const workerRunner = new WorkerRunner(workerPath)
-    const fileProcessor = new FileProcessor(workerRunner)
-    this.workerPool = new WorkerPool(fileProcessor)
-    this.stdinProcessor = new StdinProcessor()
+    this.workerPool = new WorkerPool(processFile, workerPath)
   }
 
   /**
@@ -255,7 +175,7 @@ class CLIRunner {
   async run(patterns, options) {
     switch (this.#getInputMode(patterns)) {
       case "stdin":
-        await this.stdinProcessor.processStdin(options)
+        await processStdin(options)
         return
       case "mixed":
         console.error("Error: '-' cannot be combined with file paths")

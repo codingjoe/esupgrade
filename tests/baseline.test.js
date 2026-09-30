@@ -15,7 +15,7 @@ function widelyAvailableAt(date) {
   return result
 }
 
-const currentReleaseDate = new Date(Date.UTC(2025, 0, 1))
+const currentReleaseDate = new Date(Date.UTC(2026, 9, 1))
 
 suite("baseline", () => {
   // Dates can be found on https://github.com/web-platform-dx/web-features named `baseline_low_date`

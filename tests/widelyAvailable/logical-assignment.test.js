@@ -38,6 +38,13 @@ suite("widely-available", () => {
       )
     })
 
+    test("transforms when null is compared from the left", () => {
+      assert.match(
+        transform(`if (null === x || undefined === x) x = y`).code,
+        /x \?\?= y/,
+      )
+    })
+
     test("transforms if null or undefined check with member expression", () => {
       assert.match(
         transform(`if (obj.prop === null || obj.prop === undefined) obj.prop = y`).code,

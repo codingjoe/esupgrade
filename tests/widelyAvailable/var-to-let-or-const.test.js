@@ -26,6 +26,18 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /const x/)
     })
 
+    test("with repeated reassignment", () => {
+      const result = transform(`
+  var a = 1;
+  a = 2;
+  a = 3;
+`)
+
+      assert(result.modified, "transform var with repeated reassignment")
+      assert.match(result.code, /let a = 1/)
+      assert.doesNotMatch(result.code, /var a/)
+    })
+
     test("multiple declarations", () => {
       const result = transform(`
   var x = 1;
@@ -322,6 +334,22 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /let a/)
     })
 
+    test("function param with array hole shadows outer var", () => {
+      const result = transform(`
+  var a = 1;
+  function foo([, a]) {
+    a = 2;
+  }
+`)
+
+      assert(
+        result.modified,
+        "outer var not reassigned due to a hole in the array param",
+      )
+      assert.match(result.code, /const a = 1/)
+      assert.doesNotMatch(result.code, /let a/)
+    })
+
     test("function param with default value shadows outer var", () => {
       const result = transform(`
   var x = 1;
@@ -450,6 +478,53 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /const pixels;/)
     })
 
+    test("var written through a non-null assertion", () => {
+      const result = transform(`
+  var x = 1;
+  x! = 2;
+`)
+
+      assert(result.modified, "transform var written through a non-null assertion")
+      assert.match(result.code, /let x/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var incremented through a non-null assertion", () => {
+      const result = transform(`
+  var y = 1;
+  y!++;
+`)
+
+      assert(result.modified, "transform var incremented through a non-null assertion")
+      assert.match(result.code, /let y/)
+      assert.doesNotMatch(result.code, /const y/)
+    })
+
+    test("for-of target written through a non-null assertion", () => {
+      const result = transform(`
+  var z = 1;
+  for (z! of [1, 2]) {}
+`)
+
+      assert(
+        result.modified,
+        "transform for-of target written through a non-null assertion",
+      )
+      assert.match(result.code, /let z/)
+      assert.doesNotMatch(result.code, /const z/)
+    })
+
+    test("var assigned through a type assertion", () => {
+      const result = transform(`
+  var v = 1;
+  (v as any) = 2;
+`)
+
+      assert(result.modified, "transform var assigned through a type assertion")
+      assert.match(result.code, /let v/)
+      assert.doesNotMatch(result.code, /const v/)
+    })
+
     test("for-of loop variable", () => {
       const result = transform(`
   const items = [1, 2, 3];
@@ -462,6 +537,22 @@ suite("widely-available", () => {
       assert.match(result.code, /for \(const item of items\)/)
       assert.doesNotMatch(result.code, /var item/)
       assert.doesNotMatch(result.code, /let item/)
+    })
+
+    test("for-of loop variable beside a wrapped write", () => {
+      const result = transform(`
+  const items = [1, 2, 3];
+  var other = 1;
+  for (var item of items) {
+    console.log(item);
+  }
+  other! = 2;
+`)
+
+      assert(result.modified, "transform for-of loop variable beside a wrapped write")
+      assert.match(result.code, /for \(const item of items\)/)
+      assert.doesNotMatch(result.code, /let item/)
+      assert.match(result.code, /let other/)
     })
 
     test("for-in loop variable", () => {
