@@ -1236,6 +1236,101 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /const x/)
     })
 
+    test("var read by a function that a call precedes", () => {
+      const result = transform(`
+  function f() {
+    g();
+    var x = 1;
+    function g() {
+      return x;
+    }
+  }
+`)
+
+      assert(!result.modified, "keep var that a preceding call reads")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a function at the top level that a call precedes", () => {
+      const result = transform(`
+  g();
+  var x = 1;
+  function g() {
+    return x;
+  }
+`)
+
+      assert(!result.modified, "keep var that a preceding top-level call reads")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a nested function that an enclosing call precedes", () => {
+      const result = transform(`
+  function f() {
+    g();
+    var x = 1;
+    function g() {
+      function h() {
+        return x;
+      }
+      return h();
+    }
+  }
+`)
+
+      assert(!result.modified, "keep var that a preceding call reaches")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a function expression that a call precedes", () => {
+      const result = transform(`
+  function f() {
+    g();
+    var x = 1;
+    const g = () => [this, x];
+  }
+`)
+
+      assert(!result.modified, "keep var that a preceding call reads")
+      assert.match(result.code, /var x = 1/)
+      assert.doesNotMatch(result.code, /const x/)
+    })
+
+    test("var read by a function that a call follows", () => {
+      const result = transform(`
+  function f() {
+    var x = 1;
+    function g() {
+      return x;
+    }
+    g();
+  }
+`)
+
+      assert(result.modified, "narrow var that a following call reads")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /var x/)
+    })
+
+    test("var read by a function that an unresolved call precedes", () => {
+      const result = transform(`
+  function f() {
+    run();
+    var x = 1;
+    obj.handler = function () {
+      return x;
+    };
+  }
+`)
+
+      assert(result.modified, "narrow var that a property call cannot reach")
+      assert.match(result.code, /const x = 1/)
+      assert.doesNotMatch(result.code, /var x/)
+    })
+
     test("var written before its declaration", () => {
       const result = transform(`
   function f() {
