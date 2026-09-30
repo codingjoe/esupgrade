@@ -16,7 +16,7 @@ import { NodeTest } from "../types.js"
 export function optionalChaining(root) {
   let modified = false
 
-  function buildOptionalChain(base, accesses) {
+  function createOptionalChain(base, accesses) {
     let result = base
 
     for (const access of accesses) {
@@ -80,7 +80,7 @@ export function optionalChaining(root) {
       }
 
       const { base, accesses } = chain
-      const optionalExpr = buildOptionalChain(base, accesses)
+      const optionalExpr = createOptionalChain(base, accesses)
 
       j(path).replaceWith(optionalExpr)
       modified = true
