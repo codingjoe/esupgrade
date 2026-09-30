@@ -72,7 +72,7 @@ echo "git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.t
 esupgrade is available as a skill in [Claude Code]. The plugin is distributed via the [codingjoe/claude-plugins](https://github.com/codingjoe/claude-plugins) marketplace. To use it:
 
 1. Run `/plugin marketplace add codingjoe/claude-plugins`
-1. Run `/plugin install esupgrade@codingjoe`
+2. Run `/plugin install esupgrade@codingjoe`
 
 The skill will analyze your selected code and suggest transformations based on the Baseline browser support policy.
 
@@ -562,6 +562,15 @@ Transforms the deprecated `substr()` method to `slice()`:
 
 Transformations are limited to when the receiver can be verified as a string (string literals, template literals, or string method chains).
 
+#### `String.trimLeft()` / `String.trimRight()` → [String.trimStart()][mdn-trimstart] / [String.trimEnd()][mdn-trimend]
+
+```diff
+-const left = "  hello  ".trimLeft();
+-const right = "  hello  ".trimRight();
++const left = "  hello  ".trimStart();
++const right = "  hello  ".trimEnd();
+```
+
 #### `split().join()` / `replace(/literal/g)` → [String.replaceAll()][mdn-replaceall]
 
 ```diff
@@ -736,6 +745,30 @@ TypeScript type annotations on the original parameter are preserved on the resul
 - The promise chain is returned from the function or used inside an already async function
 - The expression is a known promise (`fetch()`, `new Promise()`, or promise methods)
 
+#### `error.cause` assignment → [Error cause option][mdn-error-cause]
+
+```diff
+-try {
+-  doWork();
+-} catch (cause) {
+-  const error = new Error("Work failed");
+-  error.cause = cause;
+-  throw error;
+-}
++try {
++  doWork();
++} catch (cause) {
++  throw new Error("Work failed", { cause });
++}
+```
+
+Transformations are limited to built-in error constructors. The following are not transformed:
+
+- Constructions without a message argument
+- Constructions that already pass an options argument
+- Custom error subclasses
+- Assignments whose value references the error itself, as in `error.cause = error`
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-newly-word.svg">
@@ -801,6 +834,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-default-parameters]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
 [mdn-destructuring]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment
 [mdn-endswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith
+[mdn-error-cause]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/cause
 [mdn-exponentiation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation
 [mdn-find]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find
 [mdn-for-of]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of
@@ -825,5 +859,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-toreversed]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toReversed
 [mdn-tosorted]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSorted
 [mdn-tospliced]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSpliced
+[mdn-trimend]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimEnd
+[mdn-trimstart]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimStart
 [pre-commit]: https://pre-commit.com/
 [pyupgrade]: https://github.com/asottile/pyupgrade

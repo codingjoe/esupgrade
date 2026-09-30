@@ -18,10 +18,12 @@ repos:
     hooks:
       - id: mdformat
         additional_dependencies:
-          - mdformat-front-matters
+          - mdformat-config
           - mdformat-footnote
           - mdformat-gfm
           - mdformat-gfm-alerts
+          - mdformat-frontmatter
+        args: [--number]
   - repo: https://github.com/google/yamlfmt
     rev: v0.21.0
     hooks:
@@ -31,16 +33,14 @@ repos:
     hooks:
       - id: write-good
         args: [--no-passive]
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v10.11.0
+  - repo: https://github.com/oxc-project/mirrors-oxlint
+    rev: v1.86.0
     hooks:
-      - id: eslint
-        args: ["--fix"]
-        require_serial: true
-        additional_dependencies:
-          - "@eslint/js@9.39.2"
-          - "eslint@9.39.2"
-          - "globals@17.0.0"
+      - id: oxlint
+  - repo: https://github.com/oxc-project/mirrors-oxfmt
+    rev: v0.71.0
+    hooks:
+      - id: oxfmt
   - repo: local
     hooks:
       - id: esupgrade
@@ -50,15 +50,6 @@ repos:
         args: [--write]
         language: system
         types_or: [javascript, jsx, ts, tsx]
-        require_serial: true
-      - id: prettier
-        name: prettier
-        entry: prettier --check --write --ignore-unknown
-        args:
-          - --config=package.json
-        language: node
-        additional_dependencies: ["prettier"]
-        types_or: [javascript]
         require_serial: true
 ci:
   autoupdate_schedule: weekly
