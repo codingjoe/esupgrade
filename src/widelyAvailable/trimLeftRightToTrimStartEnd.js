@@ -22,7 +22,6 @@ export function trimLeftRightToTrimStartEnd(root) {
   root
     .find(j.CallExpression)
     .filter(({ node }) => {
-      // Skip optional chained calls: value?.trimLeft()
       if (
         j.OptionalCallExpression.check(node) ||
         j.OptionalMemberExpression.check(node.callee)
