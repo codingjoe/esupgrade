@@ -43,10 +43,12 @@ async function processFile(filePath, options, worker) {
   }
 
   try {
+    // The worker only ships the original source when a diff can be printed.
+    const showsDiff = options.check || !options.write
     const workerResult = await worker.transform({
       filePath,
       baseline: options.baseline,
-      includeOriginal: options.check || !options.write,
+      includeOriginal: showsDiff,
     })
 
     if (!workerResult.success) {
@@ -60,8 +62,7 @@ async function processFile(filePath, options, worker) {
     const result = workerResult.result
 
     if (result.modified) {
-      // Display diff if check mode or if not writing (dry-run)
-      if (options.check || !options.write) {
+      if (showsDiff) {
         displayDiff(filePath, result.original, result.code)
       }
 

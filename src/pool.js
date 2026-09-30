@@ -32,7 +32,8 @@ export class TransformWorker {
 
   /**
    * A stopped thread drops posted messages without a response, so requests fail
-   * immediately instead of waiting for a reply that never comes.
+   * immediately instead of waiting for a reply that never comes. One request runs
+   * at a time, so a second request fails loudly instead of losing the first.
    *
    * @param {{filePath: string, baseline: string, includeOriginal: boolean}} request - File to transform
    * @returns {Promise<Object>} Worker response message
@@ -40,6 +41,10 @@ export class TransformWorker {
   transform(request) {
     if (this.#stopError) {
       return Promise.reject(this.#stopError)
+    }
+
+    if (this.#pending) {
+      return Promise.reject(new Error("Worker already transformed a file"))
     }
 
     return new Promise((resolve, reject) => {

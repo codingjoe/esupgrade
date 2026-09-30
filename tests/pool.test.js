@@ -110,6 +110,28 @@ describe("TransformWorker", () => {
     )
   })
 
+  test("reject a second request while one is in flight", async () => {
+    const worker = new TransformWorker(SILENT_WORKER_PATH)
+    const inFlight = worker.transform({
+      filePath: "unused.js",
+      baseline: "widely-available",
+      includeOriginal: false,
+    })
+
+    await assert.rejects(
+      worker.transform({
+        filePath: "unused.js",
+        baseline: "widely-available",
+        includeOriginal: false,
+      }),
+      { message: "Worker already transformed a file" },
+      "rejects the second request",
+    )
+
+    await worker.terminate()
+    await assert.rejects(inFlight, "rejects the request still in flight")
+  })
+
   test("reject requests sent to a stopped worker", async () => {
     const worker = new TransformWorker(SILENT_WORKER_PATH)
     await worker.terminate()
