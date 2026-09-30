@@ -547,6 +547,15 @@ Transforms the deprecated `substr()` method to `slice()`:
 
 Transformations are limited to when the receiver can be verified as a string (string literals, template literals, or string method chains).
 
+#### `String.trimLeft()` / `String.trimRight()` → [String.trimStart()][mdn-trimstart] / [String.trimEnd()][mdn-trimend]
+
+```diff
+-const left = "  hello  ".trimLeft();
+-const right = "  hello  ".trimRight();
++const left = "  hello  ".trimStart();
++const right = "  hello  ".trimEnd();
+```
+
 #### `split().join()` / `replace(/literal/g)` → [String.replaceAll()][mdn-replaceall]
 
 ```diff
@@ -807,5 +816,7 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-startswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+[mdn-trimend]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimEnd
+[mdn-trimstart]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimStart
 [pre-commit]: https://pre-commit.com/
 [pyupgrade]: https://github.com/asottile/pyupgrade
