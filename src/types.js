@@ -379,19 +379,10 @@ export class NodeTest {
    * @returns {boolean} True if 'arguments' is used in the node
    */
   usesArguments() {
-    const body = j.BlockStatement.check(this.node) ? this.node.body : [this.node]
-    for (const statement of body) {
-      if (
-        this.#traverseForPredicate(
-          statement,
-          (node) => node.type === "Identifier" && node.name === "arguments",
-        )
-      ) {
-        return true
-      }
-    }
-
-    return false
+    return this.#traverseForPredicate(
+      this.node,
+      (node) => node.type === "Identifier" && node.name === "arguments",
+    )
   }
 
   /**
@@ -775,16 +766,10 @@ export class NodeTest {
       (this.node.operator === "!==" || this.node.operator === "===")
     ) {
       const isNegated = this.node.operator === "!=="
-      if (
-        j.NullLiteral.check(this.node.right) ||
-        (j.Literal.check(this.node.right) && this.node.right.value === null)
-      ) {
+      if (j.Literal.check(this.node.right) && this.node.right.value === null) {
         return { value: this.node.left, isNegated }
       }
-      if (
-        j.NullLiteral.check(this.node.left) ||
-        (j.Literal.check(this.node.left) && this.node.left.value === null)
-      ) {
+      if (j.Literal.check(this.node.left) && this.node.left.value === null) {
         return { value: this.node.right, isNegated }
       }
     }
@@ -1077,9 +1062,10 @@ export function processSingleDeclarator(root, path) {
  *
  * @param {import("jscodeshift").Collection} root - The root AST collection
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
- * @returns {{ modified: boolean; change: { type: string; line: number } | null }}
+ * @returns {{ modified: boolean; change: { type: string; line: number } }}
  */
 export function processMultipleDeclarators(root, path) {
+  const { loc } = path.node
   const declarations = path.node.declarations.map((declarator) => {
     return j.variableDeclaration(determineDeclaratorKind(root, declarator, path), [
       declarator,
@@ -1088,11 +1074,10 @@ export function processMultipleDeclarators(root, path) {
 
   j(path).replaceWith(declarations)
 
-  const change = path.node.loc
-    ? { type: "varToLetOrConst", line: path.node.loc.start.line }
-    : null
-
-  return { modified: true, change }
+  return {
+    modified: true,
+    change: { type: "varToLetOrConst", line: loc.start.line },
+  }
 }
 
 /**
