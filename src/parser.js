@@ -1,11 +1,7 @@
 import { parse } from "@babel/parser"
-// The TypeScript JSX parser of jscodeshift ignores custom options, so esupgrade parses
-// with @babel/parser directly and reuses the plugin options to accept the same syntax.
+// The TypeScript JSX parser of jscodeshift ignores custom options.
 import typeScriptOptions from "jscodeshift/parser/tsOptions.js"
 
-/**
- * Parser options for source files in the standard TypeScript context.
- */
 const standardOptions = {
   ...typeScriptOptions,
   plugins: ["jsx", ...typeScriptOptions.plugins],
@@ -31,9 +27,8 @@ function enableDeclarationContext(plugin) {
 }
 
 /**
- * Parse TypeScript source, retrying in the declaration context when the
- * standard context rejects it. Rethrow the standard context error when both
- * contexts fail, so code that already fails to parse reports the same error.
+ * Parse TypeScript source, retrying in the declaration context when the standard
+ * context rejects it. Keep the standard context error when both contexts fail.
  *
  * @param {string} code - Source code to parse.
  * @returns {import("@babel/parser").ParseResult<import("@babel/types").File>} Parsed Babel syntax tree.
