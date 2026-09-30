@@ -99,8 +99,8 @@ function updateStringLiteral(literalNode) {
     return false
   }
 
-  // joe: recast prints a StringLiteral from its value and honors `extra.raw`
-  // for a Literal only, hence the retype; drop it if that ever changes.
+  // recast prints a StringLiteral from its value and honors `extra.raw` for a
+  // Literal only, so the node is retyped for the raw text to reach the output.
   literalNode.type = "Literal"
   literalNode.extra = {
     ...literalNode.extra,
@@ -147,9 +147,6 @@ function updateTemplateLiteral(templateLiteralNode) {
 
     const reprinted = escapeLeadingTabs(formatted)
 
-    // joe: this shape keeps its surrogate pair until recast stops inserting
-    // the space; the whole-template reprint that avoids it reflows untouched
-    // template parts and breaks their values too.
     if (gainsAdjoiningSpace(templateLiteralNode, quasiIndex, reprinted)) {
       return
     }
