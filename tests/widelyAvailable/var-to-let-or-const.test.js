@@ -154,6 +154,52 @@ suite("widely-available", () => {
       assert.doesNotMatch(result.code, /var/)
     })
 
+    test("multiple declarators in a for initializer", () => {
+      const result = transform(`
+  for (var i = 0, n = 1; i < n; i++) {}
+`)
+
+      assert(result.modified, "transform multiple declarators in a for initializer")
+      assert.match(result.code, /for \(let i = 0, n = 1; i < n; i\+\+\)/)
+      assert.doesNotMatch(result.code, /var/)
+    })
+
+    test("initialized and uninitialized declarators in a for initializer", () => {
+      const result = transform(`
+  for (var i = 0, j; ;) break;
+`)
+
+      assert(
+        result.modified,
+        "transform initialized and uninitialized declarators in a for initializer",
+      )
+      assert.match(result.code, /for \(let i = 0, j; ;\)/)
+      assert.doesNotMatch(result.code, /var/)
+    })
+
+    test("unreassigned declarators in a for initializer", () => {
+      const result = transform(`
+  for (var i = 0, n = 1; ;) break;
+`)
+
+      assert(result.modified, "transform unreassigned declarators in a for initializer")
+      assert.match(result.code, /for \(const i = 0, n = 1; ;\)/)
+      assert.doesNotMatch(result.code, /var/)
+    })
+
+    test("multiple declarators in an exported declaration", () => {
+      const result = transform(`
+  export var x = 1, y = 2;
+`)
+
+      assert(
+        result.modified,
+        "transform multiple declarators in an exported declaration",
+      )
+      assert.match(result.code, /export const x = 1, y = 2/)
+      assert.doesNotMatch(result.code, /var/)
+    })
+
     test("destructured variable reassigned later", () => {
       const result = transform(`
   var { x, y } = obj;
