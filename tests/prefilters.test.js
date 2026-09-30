@@ -89,6 +89,7 @@ const samples = new Map([
   ["substrToSlice", `const s = "abc".substr(1);`],
   ["substringToStartsWith", `const ok = "abc".substring(0, prefix.length) === prefix;`],
   ["trimLeftRightToTrimStartEnd", `const t = "  a  ".trimLeft();`],
+  ["unicodePointEscapes", `const emoji = "\\uD83D\\uDE00";`],
   ["varToLetOrConst", `var a = 1;`],
   ["promiseTry", `const p = new Promise((resolve) => resolve(1));`],
 ])

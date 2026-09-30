@@ -266,6 +266,25 @@ Supports:
 
 Decimal and octal numerals are grouped by triplets; hex and binary by byte.
 
+#### `\uD83D\uDE00` → [Unicode code point escapes][mdn-unicode-point-escapes]
+
+```diff
+-const emoji = "\uD83D\uDE00";
+-const wave = `Hello ${name} \uD83D\uDC4B`;
+-const key = "\ud83d\ude00";
++const emoji = "\u{1F600}";
++const wave = `Hello ${name} \u{1F44B}`;
++const key = "\u{1f600}";
+```
+
+Not transformed:
+
+- Tagged templates, where `String.raw` exposes the raw text
+- JSX attribute values such as `<div title="\uD83D\uDE00" />`, which keep the backslashes
+- JSX text children such as `<div>\uD83D\uDE00</div>`, which render as written
+- A surrogate pair in the part of a template literal that ends in a letter, digit, `_` or `$` right before `${…}`, such as in `` `a${x}\uD83D\uDE00b${y}` ``, where the merge would insert a space and change the value
+- Lone surrogates, reversed pairs, and code points already written as `\u{…}`
+
 #### `Array.slice(0)` → [Array spread [...]][mdn-spread]
 
 ```diff
@@ -894,5 +913,6 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-tospliced]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSpliced
 [mdn-trimend]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimEnd
 [mdn-trimstart]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trimStart
+[mdn-unicode-point-escapes]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#unicode_code_point_escapes
 [pre-commit]: https://pre-commit.com/
 [pyupgrade]: https://github.com/asottile/pyupgrade

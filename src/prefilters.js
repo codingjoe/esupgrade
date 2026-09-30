@@ -106,6 +106,8 @@ export const prefilters = new Map([
   ["substringToStartsWith", [createIdentifierPattern("substring")]],
   // `str.trimLeft()` and `str.trimRight()` name the renamed methods.
   ["trimLeftRightToTrimStartEnd", [createIdentifierPattern("trimLeft|trimRight")]],
+  // A merged pair needs two adjacent code unit escapes in the text.
+  ["unicodePointEscapes", [/\\u[0-9a-fA-F]{4}\\u[0-9a-fA-F]{4}/]],
   ["varToLetOrConst", [/\bvar\b/]],
   ["promiseTry", [createIdentifierPattern("Promise")]],
 ])
