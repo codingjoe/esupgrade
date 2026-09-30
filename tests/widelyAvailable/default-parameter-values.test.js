@@ -294,5 +294,19 @@ function fn(a, b, c) {
       assert.match(result.code, /function fn\(a = 1, b, c\)/)
       assert.match(result.code, /console\.info\(a, b, c\)/)
     })
+
+    test("keep an empty function body", () => {
+      const result = transform(`
+function noop() {}
+function fn(x) {
+  if (x === undefined) x = 1;
+  return x;
+}
+      `)
+
+      assert(result.modified, "transform the parameter with a default")
+      assert.match(result.code, /function noop\(\) \{\}/)
+      assert.match(result.code, /function fn\(x = 1\)/)
+    })
   })
 })

@@ -60,6 +60,13 @@ suite("widely-available", () => {
       assert(!transform(`x = y + z`).modified)
     })
 
+    test("skip an operator without a compound form", () => {
+      const result = transform(`x = x + y;\nx = x & y;`)
+
+      assert.match(result.code, /x \+= y/, "transform the supported operator")
+      assert.match(result.code, /x = x & y/, "skip the bitwise assignment")
+    })
+
     test("skips plain assignment", () => {
       assert(!transform(`x = 5`).modified)
     })

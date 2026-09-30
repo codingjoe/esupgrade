@@ -406,6 +406,24 @@ describe("CLI", () => {
     assert.equal(result.status, 0, "exits successfully")
   })
 
+  test("report multiple files needing upgrades with --check", () => {
+    const file1 = path.join(tempDir, "test1.js")
+    const file2 = path.join(tempDir, "test2.js")
+    fs.writeFileSync(file1, `var x = 1;`)
+    fs.writeFileSync(file2, `var y = 2;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, file1, file2, "--check"], {
+      encoding: "utf8",
+    })
+
+    assert.match(
+      result.stdout,
+      /2 files need upgrading/,
+      "reports 2 files need upgrades",
+    )
+    assert.equal(result.status, 1, "exits with 1 with --check")
+  })
+
   test("handle files with no changes needed", () => {
     const testFile = path.join(tempDir, "test.js")
     const originalCode = `const x = 1;`
@@ -524,6 +542,24 @@ describe("CLI", () => {
       result.stdout,
       /1 file would be upgraded/,
       "reports 1 file would be upgraded",
+    )
+    assert.equal(result.status, 0, "exits with 0 in dry-run mode")
+  })
+
+  test("dry-run mode reports multiple files", () => {
+    const file1 = path.join(tempDir, "test1.js")
+    const file2 = path.join(tempDir, "test2.js")
+    fs.writeFileSync(file1, `var x = 1;`)
+    fs.writeFileSync(file2, `var y = 2;`)
+
+    const result = spawnSync(process.execPath, [CLI_PATH, file1, file2], {
+      encoding: "utf8",
+    })
+
+    assert.match(
+      result.stdout,
+      /2 files would be upgraded/,
+      "reports 2 files would be upgraded",
     )
     assert.equal(result.status, 0, "exits with 0 in dry-run mode")
   })

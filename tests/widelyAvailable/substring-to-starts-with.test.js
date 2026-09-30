@@ -116,6 +116,14 @@ suite("widely-available", () => {
 
         assert(!result.modified, "skip substring on a shadowed Array parameter")
       })
+
+      test("comparison without a substring call", () => {
+        const result = transform(
+          `const prefix = text.substring(0, 3);\nconst matches = left === right;`,
+        )
+
+        assert(!result.modified, "skip a comparison of values without a substring call")
+      })
     })
   })
 })
