@@ -102,6 +102,7 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 - `.jsx` - React/JSX
 - `.ts` - TypeScript
 - `.tsx` - TypeScript with JSX
+- `.d.ts` - TypeScript declaration files
 - `.mjs` - ES Modules
 - `.cjs` - CommonJS
 

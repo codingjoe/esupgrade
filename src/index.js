@@ -1,5 +1,6 @@
 import jscodeshift from "jscodeshift"
 import * as newlyAvailable from "./newlyAvailable.js"
+import { parseTypeScript } from "./parser.js"
 import { matchesPrefilter } from "./prefilters.js"
 import * as widelyAvailable from "./widelyAvailable.js"
 
@@ -55,14 +56,17 @@ function applyTransformersRecursively(code, j, transformers, globalModified = fa
 }
 
 /**
- * Transform JavaScript code using the specified transformers.
+ * Transform JavaScript or TypeScript code using the specified transformers.
+ *
+ * TypeScript declaration files parse in the declaration context, which accepts
+ * ambient declarations such as a `const` without initializer.
  *
  * @param {string} code - The source code to transform.
  * @param {string} baseline - Baseline level ('widely-available' or 'newly-available').
  * @returns {TransformResult} Object with transformed code and modification status.
  */
 export function transform(code, baseline = "widely-available") {
-  const j = jscodeshift.withParser("tsx")
+  const j = jscodeshift.withParser({ parse: parseTypeScript })
 
   const transformers =
     baseline === "newly-available"
