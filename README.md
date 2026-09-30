@@ -275,6 +275,21 @@ Decimal and octal numerals are grouped by triplets; hex and binary by byte.
 +const clone = [...Array.from(items)];
 ```
 
+#### `[...array].sort()` → [`Array.toSorted()`][mdn-tosorted], [`Array.toReversed()`][mdn-toreversed] & [`Array.toSpliced()`][mdn-tospliced]
+
+```diff
+-const sorted = [...[3, 1, 2]].sort((a, b) => a - b);
+-const reversed = Array.from(items).slice().reverse();
++const sorted = [3, 1, 2].toSorted((a, b) => a - b);
++const reversed = Array.from(items).toReversed();
+
+-const copy = [...Array.of(1, 2)];
+-copy.splice(1, 2);
++const copy = Array.of(1, 2).toSpliced(1, 2);
+```
+
+Transformations require a statically verified array receiver (array literals, `new Array()`, `Array.from()`, `Array.of()`, or known array method chains); a mutating call without a copy stays untouched. Because `splice()` returns the removed elements, `toSpliced()` replaces nothing but a bare `copy.splice(...)` statement directly below a single-declarator copy declaration, and never when the arguments are computed from the copy; a `splice` whose result is used is left alone.
+
 #### `Array.filter()[0]` → [`Array.find()`][mdn-find]
 
 ```diff
@@ -807,5 +822,8 @@ Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is
 [mdn-startswith]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
 [mdn-strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#strict_mode_for_modules
 [mdn-template-literals]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+[mdn-toreversed]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toReversed
+[mdn-tosorted]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSorted
+[mdn-tospliced]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSpliced
 [pre-commit]: https://pre-commit.com/
 [pyupgrade]: https://github.com/asottile/pyupgrade
