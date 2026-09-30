@@ -56,6 +56,26 @@ console.log(key, value);
       assert.match(result.code, /Object\.entries\(obj\)\.forEach\(\(\[key, value\]\)/)
     })
 
+    test("transform a function expression callback using this", () => {
+      const result = transform(`
+Object.keys(obj).forEach(function(key) {
+const value = obj[key];
+this.report(key, value);
+});
+    `)
+
+      assert(
+        result.modified,
+        "transform a callback that anonymousFunctionToArrow keeps",
+      )
+      assert.match(
+        result.code,
+        /Object\.entries\(obj\)\.forEach\(function\(\[key, value\]\)/,
+        "keeps the function expression callback",
+      )
+      assert.match(result.code, /this\.report\(key, value\)/)
+    })
+
     test("Object.keys().forEach() with async arrow function", () => {
       const result = transform(`
 Object.keys(obj).forEach(async key => {

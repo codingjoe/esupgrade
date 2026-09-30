@@ -239,5 +239,17 @@ function fn() {
       assert.doesNotMatch(result.code, /function fn\(\.\.\.args\)/)
       assert.match(result.code, /using args = \[\.\.\.arguments\]/)
     })
+
+    test("keep a destructured declarator", () => {
+      const result = transform(`
+function collect() {
+  const [first] = Array.from(arguments);
+  return first;
+}
+    `)
+
+      assert.doesNotMatch(result.code, /function collect\(\.\.\./)
+      assert.match(result.code, /const \[first\] = \[\.\.\.arguments\]/)
+    })
   })
 })

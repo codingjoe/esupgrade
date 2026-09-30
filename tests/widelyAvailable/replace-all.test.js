@@ -28,6 +28,19 @@ suite("widely-available", () => {
         assert.match(result.code, /"a,b,c"\.trim\(\)\.replaceAll\(",", "\."\)/)
       })
 
+      test("split().join() on nested string method chain", () => {
+        const result = transform(
+          `const value = "a,b,c".trim().toUpperCase().split(",").join(".");`,
+        )
+
+        assert(result.modified, "transform split().join() on nested string chain")
+        assert.match(
+          result.code,
+          /"a,b,c"\.trim\(\)\.toUpperCase\(\)\.replaceAll\(",", "\."\)/,
+        )
+        assert.doesNotMatch(result.code, /\.split\(|\.join\(/)
+      })
+
       test("split().join() with template literal search string", () => {
         const result = transform('const value = "a,b,c".split(`,`).join(".");')
 

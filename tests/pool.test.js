@@ -90,7 +90,30 @@ describe("TransformWorker", () => {
     await worker.terminate()
 
     assert.equal(message.success, false, "reports a failure")
+    assert.ok(message.error instanceof Error, "restores an error object")
     assert.match(message.error.message, /ENOENT/, "reports the read failure")
+  })
+
+  test("report the parse error of a file", async () => {
+    const filePath = path.join(tempDir, "broken.js")
+    fs.writeFileSync(filePath, "const = 1;")
+    const worker = new TransformWorker(WORKER_PATH)
+
+    const message = await worker.transform({
+      filePath,
+      baseline: "widely-available",
+      includeOriginal: false,
+    })
+    await worker.terminate()
+
+    assert.equal(message.success, false, "reports a failure")
+    assert.equal(message.error.name, "SyntaxError", "keeps the error name")
+    assert.match(
+      message.error.message,
+      /Unexpected token/,
+      "keeps the parse error message",
+    )
+    assert.match(message.error.stack, /\n\s*at /, "keeps the stack trace")
   })
 
   test("reject pending requests when the worker stops", async () => {

@@ -54,6 +54,19 @@ suite("widely-available", () => {
         assert.match(result.code, /`test`\.startsWith\(prefix\)/)
         assert.doesNotMatch(result.code, /substring/)
       })
+
+      test("substring on nested string method chain", () => {
+        const result = transform(
+          `const matches = "hello world".toUpperCase().substring(0, "hello".length) === "hello";`,
+        )
+
+        assert(result.modified, "transform substring on nested string chain")
+        assert.match(
+          result.code,
+          /"hello world"\.toUpperCase\(\)\.startsWith\("hello"\)/,
+        )
+        assert.doesNotMatch(result.code, /substring/)
+      })
     })
 
     describe("non-transformable patterns", () => {
@@ -115,6 +128,14 @@ suite("widely-available", () => {
         )
 
         assert(!result.modified, "skip substring on a shadowed Array parameter")
+      })
+
+      test("comparison without a substring call", () => {
+        const result = transform(
+          `const prefix = text.substring(0, 3);\nconst matches = left === right;`,
+        )
+
+        assert(!result.modified, "skip a comparison of values without a substring call")
       })
     })
   })

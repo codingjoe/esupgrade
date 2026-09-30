@@ -18,6 +18,36 @@ const ARRAY_METHODS_RETURNING_ARRAY = [
   "sort",
   "splice",
 ]
+const STRING_METHODS_RETURNING_STRING = [
+  "slice",
+  "substr",
+  "substring",
+  "toLowerCase",
+  "toUpperCase",
+  "trim",
+  "trimStart",
+  "trimEnd",
+  "trimLeft",
+  "trimRight",
+  "repeat",
+  "padStart",
+  "padEnd",
+  "concat",
+  "replace",
+  "replaceAll",
+]
+const STRING_METHODS_RETURNING_ITERABLE = [
+  "matchAll",
+  "split",
+  "slice",
+  "substr",
+  "substring",
+  "toLowerCase",
+  "toUpperCase",
+  "trim",
+  "trimStart",
+  "trimEnd",
+]
 
 /**
  * Statements that declare a binding which ast-types scope analysis does not
@@ -150,20 +180,40 @@ export class NodeTest {
   }
 
   /**
-   * Check if node is a method call on a string literal returning one of the specified types.
+   * Check if node is a method call returning one of the specified types on a
+   * verified string receiver.
    *
    * @param {string[]} methodNames - Method names to check for
    * @returns {boolean} True if node matches the pattern
    */
-  isStringLiteralMethodCall(methodNames) {
+  isStringMethodCall(methodNames) {
     return (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
       !this.node.callee.computed &&
       j.Identifier.check(this.node.callee.property) &&
-      j.StringLiteral.check(this.node.callee.object) &&
-      methodNames.includes(this.node.callee.property.name)
+      methodNames.includes(this.node.callee.property.name) &&
+      new NodeTest(this.node.callee.object, this.path).isString()
     )
+  }
+
+  /**
+   * Check if node is statically verifiable as a string. Resolves string-returning
+   * method calls recursively, so a receiver rooted in a string literal or template
+   * literal stays verifiable through any depth of string method calls.
+   *
+   * @returns {boolean} True if the node evaluates to a string
+   */
+  isString() {
+    if (this.isStringLiteral()) {
+      return true
+    }
+
+    if (j.TemplateLiteral.check(this.node)) {
+      return true
+    }
+
+    return this.isStringMethodCall(STRING_METHODS_RETURNING_STRING)
   }
 
   /**
@@ -204,20 +254,7 @@ export class NodeTest {
       return true
     }
 
-    const STRING_METHODS_RETURNING_ITERABLE = [
-      "matchAll",
-      "split",
-      "slice",
-      "substr",
-      "substring",
-      "toLowerCase",
-      "toUpperCase",
-      "trim",
-      "trimStart",
-      "trimEnd",
-    ]
-
-    return this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_ITERABLE)
+    return this.isStringMethodCall(STRING_METHODS_RETURNING_ITERABLE)
   }
 
   /**
@@ -269,36 +306,7 @@ export class NodeTest {
       return true
     }
 
-    // String literal: "hello"
-    if (j.StringLiteral.check(this.node) || j.Literal.check(this.node)) {
-      return typeof this.node.value === "string"
-    }
-
-    // Template literal: `hello`
-    if (j.TemplateLiteral.check(this.node)) {
-      return true
-    }
-
-    const STRING_METHODS_RETURNING_STRING = [
-      "slice",
-      "substr",
-      "substring",
-      "toLowerCase",
-      "toUpperCase",
-      "trim",
-      "trimStart",
-      "trimEnd",
-      "trimLeft",
-      "trimRight",
-      "repeat",
-      "padStart",
-      "padEnd",
-      "concat",
-      "replace",
-      "replaceAll",
-    ]
-
-    if (this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_STRING)) {
+    if (this.isString()) {
       return true
     }
 
@@ -757,36 +765,48 @@ export class NodeTest {
   }
 
   /**
+   * Extract all identifiers a pattern binds (handles destructuring).
+   *
+   * @yields {import("ast-types").namedTypes.Identifier} Binding identifiers
+   * @returns {Generator<import("ast-types").namedTypes.Identifier, void, unknown>}
+   */
+  *extractBindingIdentifiers() {
+    if (
+      j.TSNonNullExpression.check(this.node) ||
+      j.TSAsExpression.check(this.node) ||
+      j.TSSatisfiesExpression.check(this.node)
+    ) {
+      yield* new NodeTest(this.node.expression).extractBindingIdentifiers()
+    } else if (j.Identifier.check(this.node)) {
+      yield this.node
+    } else if (j.ObjectPattern.check(this.node)) {
+      for (const prop of this.node.properties) {
+        if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
+          yield* new NodeTest(prop.value).extractBindingIdentifiers()
+        } else if (j.RestElement.check(prop)) {
+          yield* new NodeTest(prop.argument).extractBindingIdentifiers()
+        }
+      }
+    } else if (j.ArrayPattern.check(this.node)) {
+      for (const element of this.node.elements) {
+        yield* new NodeTest(element).extractBindingIdentifiers()
+      }
+    } else if (j.AssignmentPattern.check(this.node)) {
+      yield* new NodeTest(this.node.left).extractBindingIdentifiers()
+    } else if (j.RestElement.check(this.node)) {
+      yield* new NodeTest(this.node.argument).extractBindingIdentifiers()
+    }
+  }
+
+  /**
    * Extract all identifier names from a pattern (handles destructuring).
    *
    * @yields {string} Identifier names found in the pattern
    * @returns {Generator<string, void, unknown>}
    */
   *extractIdentifiersFromPattern() {
-    if (
-      j.TSNonNullExpression.check(this.node) ||
-      j.TSAsExpression.check(this.node) ||
-      j.TSSatisfiesExpression.check(this.node)
-    ) {
-      yield* new NodeTest(this.node.expression).extractIdentifiersFromPattern()
-    } else if (j.Identifier.check(this.node)) {
-      yield this.node.name
-    } else if (j.ObjectPattern.check(this.node)) {
-      for (const prop of this.node.properties) {
-        if (j.Property.check(prop) || j.ObjectProperty.check(prop)) {
-          yield* new NodeTest(prop.value).extractIdentifiersFromPattern()
-        } else if (j.RestElement.check(prop)) {
-          yield* new NodeTest(prop.argument).extractIdentifiersFromPattern()
-        }
-      }
-    } else if (j.ArrayPattern.check(this.node)) {
-      for (const element of this.node.elements) {
-        yield* new NodeTest(element).extractIdentifiersFromPattern()
-      }
-    } else if (j.AssignmentPattern.check(this.node)) {
-      yield* new NodeTest(this.node.left).extractIdentifiersFromPattern()
-    } else if (j.RestElement.check(this.node)) {
-      yield* new NodeTest(this.node.argument).extractIdentifiersFromPattern()
+    for (const identifier of this.extractBindingIdentifiers()) {
+      yield identifier.name
     }
   }
 
@@ -1364,14 +1384,144 @@ export function determineDeclaratorKind(reassignments, declarator, declarationPa
 }
 
 /**
+ * Check whether a position accepts a lexical declaration.
+ *
+ * A lexical declaration is a statement list item, the target of a `for` loop,
+ * or the declaration of an export.
+ *
+ * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {boolean} True when the position accepts a lexical declaration
+ */
+function acceptsLexicalDeclaration(path) {
+  if (Array.isArray(path.parentPath.value)) {
+    return true
+  }
+
+  const parent = path.parentPath.node
+
+  if (j.ForStatement.check(parent)) {
+    return path.name === "init"
+  }
+
+  if (j.ForInStatement.check(parent) || j.ForOfStatement.check(parent)) {
+    return path.name === "left"
+  }
+
+  return j.ExportNamedDeclaration.check(parent)
+}
+
+/**
+ * Check whether an identifier names a property instead of a variable.
+ *
+ * A non-computed property key and a non-computed member property never read a
+ * variable, so a declaration that shares their name stays confined.
+ *
+ * @param {import("ast-types").NodePath} path - The path to the identifier
+ * @returns {boolean} True when the identifier is not a variable reference
+ */
+function namesProperty({ name, parent }) {
+  const parentNode = parent.node
+
+  return (name === "key" || name === "property") && !parentNode.computed
+}
+
+/**
+ * Check whether a declaration binds every name once.
+ *
+ * Declarators that share a name cannot split into separate lexical
+ * declarations.
+ *
+ * @param {Set<import("ast-types").namedTypes.Identifier>} bindingIdentifiers -
+ *   Identifiers the declaration binds
+ * @returns {boolean} True when the declaration binds every name once
+ */
+function bindsDistinctNames(bindingIdentifiers) {
+  const names = [...bindingIdentifiers].map((identifier) => identifier.name)
+
+  return names.length === new Set(names).size
+}
+
+/**
+ * Check whether a declaration is the only place its names appear.
+ *
+ * A block narrows the scope of the declared names, so a declaration may only
+ * move into a block when every identifier of the names belongs to it.
+ *
+ * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {boolean} True when the names only appear as binding identifiers
+ */
+function confinesNamesToDeclaration(path) {
+  const bindingIdentifiers = new Set(
+    path.node.declarations.flatMap((declarator) => [
+      ...new NodeTest(declarator.id).extractBindingIdentifiers(),
+    ]),
+  )
+
+  if (!bindsDistinctNames(bindingIdentifiers)) {
+    return false
+  }
+
+  const names = new Set([...bindingIdentifiers].map((identifier) => identifier.name))
+
+  return j(path.scope.path)
+    .find(j.Identifier)
+    .every((identifierPath) => {
+      return (
+        !names.has(identifierPath.node.name) ||
+        namesProperty(identifierPath) ||
+        bindingIdentifiers.has(identifierPath.node)
+      )
+    })
+}
+
+/**
+ * Resolve the path of a declaration that may become a lexical declaration.
+ *
+ * A single-statement body does not accept a lexical declaration, so the
+ * declaration moves into a block. A declaration that shares its names with
+ * other code keeps its kind, because a block narrows the scope of the names.
+ *
+ * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {import("ast-types").NodePath | null} Path of the declaration to
+ *   convert, or null when it keeps its kind
+ */
+function resolveLexicalDeclaration(path) {
+  if (acceptsLexicalDeclaration(path)) {
+    return path
+  }
+
+  if (!confinesNamesToDeclaration(path)) {
+    return null
+  }
+
+  const declaration = path.node
+  path.replace(j.blockStatement([declaration]))
+
+  return path.get("body").get(0)
+}
+
+/**
  * Process a single declarator variable declaration
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {boolean} True when the declaration became a lexical declaration
  */
 export function processSingleDeclarator(reassignments, path) {
-  const declarator = path.node.declarations[0]
-  path.node.kind = determineDeclaratorKind(reassignments, declarator, path)
+  const declarationPath = resolveLexicalDeclaration(path)
+
+  if (declarationPath === null) {
+    return false
+  }
+
+  const declarator = declarationPath.node.declarations[0]
+  declarationPath.node.kind = determineDeclaratorKind(
+    reassignments,
+    declarator,
+    declarationPath,
+  )
+
+  return true
 }
 
 /**
@@ -1429,13 +1579,22 @@ function splitDeclarators(reassignments, path) {
  *
  * @param {ReassignmentIndex} reassignments - Indexed assignments and updates
  * @param {import("ast-types").NodePath} path - The path to the variable declaration
+ * @returns {boolean} True when the declaration became a lexical declaration
  */
 export function processMultipleDeclarators(reassignments, path) {
-  if (canSplitDeclaration(path)) {
-    splitDeclarators(reassignments, path)
-  } else {
-    path.node.kind = calculateMergedKind(reassignments, path)
+  const declarationPath = resolveLexicalDeclaration(path)
+
+  if (declarationPath === null) {
+    return false
   }
+
+  if (canSplitDeclaration(declarationPath)) {
+    splitDeclarators(reassignments, declarationPath)
+  } else {
+    declarationPath.node.kind = calculateMergedKind(reassignments, declarationPath)
+  }
+
+  return true
 }
 
 /**

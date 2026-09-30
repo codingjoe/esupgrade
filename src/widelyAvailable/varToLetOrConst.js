@@ -60,13 +60,14 @@ export function varToLetOrConst(root) {
 
     reassignments ??= new ReassignmentIndex(root)
 
-    if (path.node.declarations.length === 1) {
-      processSingleDeclarator(reassignments, path)
-    } else {
-      processMultipleDeclarators(reassignments, path)
-    }
+    const converted =
+      path.node.declarations.length === 1
+        ? processSingleDeclarator(reassignments, path)
+        : processMultipleDeclarators(reassignments, path)
 
-    modified = true
+    if (converted) {
+      modified = true
+    }
   })
 
   return modified

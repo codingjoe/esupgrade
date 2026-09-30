@@ -2,9 +2,7 @@ import { default as j } from "jscodeshift"
 import { NodeTest } from "../types.js"
 
 function getDeclarationScope(path) {
-  return j.FunctionDeclaration.check(path.node)
-    ? (path.scope.parent ?? path.scope)
-    : path.scope
+  return j.FunctionDeclaration.check(path.node) ? path.scope.parent : path.scope
 }
 
 function addConstructor(constructorsByScope, constructorName, declarationPath) {

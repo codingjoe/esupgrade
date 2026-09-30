@@ -327,5 +327,14 @@ suite("widely-available", () => {
 
       assert(!result.modified, "skip when function argument values differ")
     })
+
+    test("skip a conditional testing a logical or", () => {
+      const result = transform(`
+const value = isNull || isUndefined ? fallback : defaultValue;
+const check = value !== null && value !== undefined;
+      `)
+
+      assert(!result.modified, "skip a conditional whose test is not a nullish and")
+    })
   })
 })

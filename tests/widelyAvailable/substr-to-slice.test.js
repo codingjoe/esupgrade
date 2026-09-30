@@ -111,6 +111,27 @@ suite("widely-available", () => {
         )
         assert.doesNotMatch(result.code, /substr/)
       })
+
+      test("deep string method chain", () => {
+        const result = transform(
+          `const s = "  x  ".toUpperCase().toLowerCase().substr(1);`,
+        )
+
+        assert(result.modified, "transform substr in deep string chain")
+        assert.match(
+          result.code,
+          /const s = " {2}x {2}"\.toUpperCase\(\)\.toLowerCase\(\)\.slice\(1\)/,
+        )
+        assert.doesNotMatch(result.code, /substr/)
+      })
+
+      test("substr on template literal method chain", () => {
+        const result = transform("const s = `  x  `.toUpperCase().substr(1);")
+
+        assert(result.modified, "transform substr on template literal chain")
+        assert.match(result.code, /const s = ` {2}x {2}`\.toUpperCase\(\)\.slice\(1\)/)
+        assert.doesNotMatch(result.code, /substr/)
+      })
     })
 
     describe("edge cases", () => {

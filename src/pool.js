@@ -6,6 +6,16 @@ import { Worker } from "worker_threads"
  */
 
 /**
+ * Restore an error posted by a transform worker.
+ *
+ * @param {{name: string, message: string, stack: string | undefined}} errorData - Plain error data.
+ * @returns {Error} Error carrying the worker name, message, and stack.
+ */
+function reviveError({ name, message, stack }) {
+  return Object.assign(new Error(message), { name, stack })
+}
+
+/**
  * Loading the transformation pipeline takes tens of milliseconds, so one worker
  * transforms many files instead of being spawned for a single file.
  */
@@ -64,7 +74,9 @@ export class TransformWorker {
    * @param {Object} message - Worker response message
    */
   #settle(message) {
-    this.#pending?.resolve(message)
+    this.#pending?.resolve(
+      message.success ? message : { ...message, error: reviveError(message.error) },
+    )
     this.#pending = null
   }
 
