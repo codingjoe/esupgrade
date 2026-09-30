@@ -556,7 +556,7 @@ Transformations are limited to when the receiver can be verified as a string (st
 +const right = "  hello  ".trimEnd();
 ```
 
-Transforms the legacy `trimLeft()` and `trimRight()` aliases to `trimStart()` and `trimEnd()`. The transformer rewrites receivers it can verify as strings: string literals, template literals, and string methods called on a string literal. Calls on variables, object properties, function results, and optional chains such as `value?.trimLeft()` stay unchanged, as does the outermost alias of a chain that nests more than one string method call, so `"  x  ".trimLeft().trimRight().trimLeft()` becomes `"  x  ".trimStart().trimEnd().trimLeft()`.
+Transforms the legacy `trimLeft()` and `trimRight()` aliases to `trimStart()` and `trimEnd()`. The transformer rewrites receivers it can verify as a string (string literals, template literals, or string methods called on a string literal), so calls on variables, object properties, and function results stay unchanged.
 
 #### `split().join()` / `replace(/literal/g)` → [String.replaceAll()][mdn-replaceall]
 
