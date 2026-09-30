@@ -30,7 +30,6 @@ export function trimLeftRightToTrimStartEnd(root) {
         return false
       }
 
-      // Check if this is a .trimLeft() or .trimRight() call
       if (
         !j.MemberExpression.check(node.callee) ||
         node.callee.computed ||
@@ -40,11 +39,9 @@ export function trimLeftRightToTrimStartEnd(root) {
         return false
       }
 
-      // Only transform if the object is a known string
       return new NodeTest(node.callee.object).hasIndexOfAndIncludes()
     })
     .forEach(({ node }) => {
-      // Rename the deprecated alias to the standard method name
       const { property } = node.callee
       property.name = TRIM_METHOD_RENAMES.get(property.name)
 
