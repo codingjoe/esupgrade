@@ -36,6 +36,15 @@ suite("widely-available", () => {
           /\.length/,
         )
       })
+
+      test("string method chain receiver", () => {
+        assert.match(
+          transform(
+            `const last = "a,b".trim().split(",")["a,b".trim().split(",").length - 1];`,
+          ).code,
+          /"a,b"\.trim\(\)\.split\(","\)\.at\(-1\)/,
+        )
+      })
     })
 
     describe("skip patterns", () => {

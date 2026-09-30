@@ -18,6 +18,36 @@ const ARRAY_METHODS_RETURNING_ARRAY = [
   "sort",
   "splice",
 ]
+const STRING_METHODS_RETURNING_STRING = [
+  "slice",
+  "substr",
+  "substring",
+  "toLowerCase",
+  "toUpperCase",
+  "trim",
+  "trimStart",
+  "trimEnd",
+  "trimLeft",
+  "trimRight",
+  "repeat",
+  "padStart",
+  "padEnd",
+  "concat",
+  "replace",
+  "replaceAll",
+]
+const STRING_METHODS_RETURNING_ITERABLE = [
+  "matchAll",
+  "split",
+  "slice",
+  "substr",
+  "substring",
+  "toLowerCase",
+  "toUpperCase",
+  "trim",
+  "trimStart",
+  "trimEnd",
+]
 
 /**
  * Statements that declare a binding which ast-types scope analysis does not
@@ -150,20 +180,40 @@ export class NodeTest {
   }
 
   /**
-   * Check if node is a method call on a string literal returning one of the specified types.
+   * Check if node is a method call returning one of the specified types on a
+   * verified string receiver.
    *
    * @param {string[]} methodNames - Method names to check for
    * @returns {boolean} True if node matches the pattern
    */
-  isStringLiteralMethodCall(methodNames) {
+  isStringMethodCall(methodNames) {
     return (
       j.CallExpression.check(this.node) &&
       j.MemberExpression.check(this.node.callee) &&
       !this.node.callee.computed &&
       j.Identifier.check(this.node.callee.property) &&
-      j.StringLiteral.check(this.node.callee.object) &&
-      methodNames.includes(this.node.callee.property.name)
+      methodNames.includes(this.node.callee.property.name) &&
+      new NodeTest(this.node.callee.object, this.path).isString()
     )
+  }
+
+  /**
+   * Check if node is statically verifiable as a string. Resolves string-returning
+   * method calls recursively, so a receiver rooted in a string literal or template
+   * literal stays verifiable through any depth of string method calls.
+   *
+   * @returns {boolean} True if the node evaluates to a string
+   */
+  isString() {
+    if (this.isStringLiteral()) {
+      return true
+    }
+
+    if (j.TemplateLiteral.check(this.node)) {
+      return true
+    }
+
+    return this.isStringMethodCall(STRING_METHODS_RETURNING_STRING)
   }
 
   /**
@@ -204,20 +254,7 @@ export class NodeTest {
       return true
     }
 
-    const STRING_METHODS_RETURNING_ITERABLE = [
-      "matchAll",
-      "split",
-      "slice",
-      "substr",
-      "substring",
-      "toLowerCase",
-      "toUpperCase",
-      "trim",
-      "trimStart",
-      "trimEnd",
-    ]
-
-    return this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_ITERABLE)
+    return this.isStringMethodCall(STRING_METHODS_RETURNING_ITERABLE)
   }
 
   /**
@@ -269,36 +306,7 @@ export class NodeTest {
       return true
     }
 
-    // String literal: "hello"
-    if (j.StringLiteral.check(this.node) || j.Literal.check(this.node)) {
-      return typeof this.node.value === "string"
-    }
-
-    // Template literal: `hello`
-    if (j.TemplateLiteral.check(this.node)) {
-      return true
-    }
-
-    const STRING_METHODS_RETURNING_STRING = [
-      "slice",
-      "substr",
-      "substring",
-      "toLowerCase",
-      "toUpperCase",
-      "trim",
-      "trimStart",
-      "trimEnd",
-      "trimLeft",
-      "trimRight",
-      "repeat",
-      "padStart",
-      "padEnd",
-      "concat",
-      "replace",
-      "replaceAll",
-    ]
-
-    if (this.isStringLiteralMethodCall(STRING_METHODS_RETURNING_STRING)) {
+    if (this.isString()) {
       return true
     }
 

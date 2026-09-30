@@ -33,6 +33,20 @@ function firstPath(code, type) {
   return j.withParser("tsx")(code).find(type).paths()[0]
 }
 
+/**
+ * Build a method call without arguments on a receiver.
+ *
+ * @param {import("ast-types").ASTNode} object - The receiver node
+ * @param {string} methodName - The method name to call
+ * @returns {import("ast-types").ASTNode} The method call expression
+ */
+function callMethod(object, methodName) {
+  return j.callExpression(
+    j.memberExpression(object, j.identifier(methodName), false),
+    [],
+  )
+}
+
 suite("types", () => {
   describe("NodeTest", () => {
     test("getIndexOfInfo returns null for non-binary expressions", () => {
@@ -151,6 +165,90 @@ suite("types", () => {
 
         assert(!new NodeTest(path.node, path).isIterable())
       })
+    })
+  })
+
+  describe("isString", () => {
+    test("accept string literals", () => {
+      assert(new NodeTest(j.stringLiteral("x")).isString())
+    })
+
+    test("accept string-valued literals", () => {
+      assert(new NodeTest(j.literal("x")).isString())
+    })
+
+    test("accept template literals", () => {
+      assert(new NodeTest(j.templateLiteral([], [])).isString())
+    })
+
+    test("accept string method calls", () => {
+      const call = callMethod(j.stringLiteral("x"), "toUpperCase")
+
+      assert(new NodeTest(call).isString())
+    })
+
+    test("accept nested string method calls", () => {
+      const call = callMethod(
+        callMethod(j.stringLiteral("x"), "toUpperCase"),
+        "toLowerCase",
+      )
+
+      assert(new NodeTest(call).isString())
+    })
+
+    test("accept method calls on a template literal", () => {
+      const call = callMethod(
+        callMethod(j.templateLiteral([], []), "trimLeft"),
+        "trimRight",
+      )
+
+      assert(new NodeTest(call).isString())
+    })
+
+    test("reject array literals", () => {
+      assert(!new NodeTest(j.arrayExpression([])).isString())
+    })
+
+    test("reject identifiers", () => {
+      assert(!new NodeTest(j.identifier("value")).isString())
+    })
+
+    test("reject method calls returning other types", () => {
+      const call = callMethod(j.stringLiteral("a,b"), "split")
+
+      assert(!new NodeTest(call).isString())
+    })
+
+    test("reject non-string methods on a string receiver", () => {
+      const call = callMethod(
+        callMethod(j.stringLiteral("a,b"), "toUpperCase"),
+        "split",
+      )
+
+      assert(!new NodeTest(call).isString())
+    })
+  })
+
+  describe("hasIndexOfAndIncludes", () => {
+    test("accept nested string method calls", () => {
+      const call = callMethod(
+        callMethod(j.stringLiteral("x"), "toUpperCase"),
+        "toLowerCase",
+      )
+
+      assert(new NodeTest(call).hasIndexOfAndIncludes())
+    })
+
+    test("accept method calls on a template literal", () => {
+      const call = callMethod(j.templateLiteral([], []), "trim")
+
+      assert(new NodeTest(call).hasIndexOfAndIncludes())
+    })
+
+    test("reject method calls on unknown receivers", () => {
+      const call = callMethod(j.identifier("value"), "toUpperCase")
+
+      assert(!new NodeTest(call).hasIndexOfAndIncludes())
     })
   })
 

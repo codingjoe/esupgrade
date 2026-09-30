@@ -54,6 +54,16 @@ suite("widely-available", () => {
         assert.match(result.code, /"test string"\.endsWith\(suffix\)/)
         assert.doesNotMatch(result.code, /lastIndexOf/)
       })
+
+      test("lastIndexOf on nested string method chain", () => {
+        const result = transform(
+          `const matches = "hello world".toUpperCase().lastIndexOf("WORLD") === "hello world".toUpperCase().length - "WORLD".length;`,
+        )
+
+        assert(result.modified, "transform lastIndexOf on nested string chain")
+        assert.match(result.code, /"hello world"\.toUpperCase\(\)\.endsWith\("WORLD"\)/)
+        assert.doesNotMatch(result.code, /lastIndexOf/)
+      })
     })
 
     describe("non-transformable patterns", () => {
