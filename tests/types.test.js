@@ -4,6 +4,24 @@ import { describe, suite, test } from "node:test"
 import { transform } from "../src/index.js"
 import { NodeTest, findEnclosingFunction } from "../src/types.js"
 
+/**
+ * Run the var/let/const guard over every variable declaration in the code.
+ *
+ * @param {string} code - The source code to parse
+ * @returns {boolean[]} One guard result per variable declaration
+ */
+function collectDeclarationGuards(code) {
+  const guards = []
+
+  j(code)
+    .find(j.VariableDeclaration)
+    .forEach(({ node }) => {
+      guards.push(new NodeTest(node).isVarLetOrConstDeclaration())
+    })
+
+  return guards
+}
+
 suite("types", () => {
   describe("NodeTest", () => {
     test("getIndexOfInfo returns null for non-binary expressions", () => {
@@ -11,6 +29,26 @@ suite("types", () => {
       assert(!j.BinaryExpression.check(node))
       const test = new NodeTest(node)
       assert.equal(test.getIndexOfInfo(), null)
+    })
+  })
+
+  describe("isVarLetOrConstDeclaration", () => {
+    test("accepts var, let and const declarations", () => {
+      const guards = collectDeclarationGuards(`var a = 1; let b = 2; const c = 3;`)
+
+      assert.deepEqual(guards, [true, true, true])
+    })
+
+    test("rejects using and await using declarations", () => {
+      const guards = collectDeclarationGuards(
+        `using a = b; async function f() { await using c = d; }`,
+      )
+
+      assert.deepEqual(guards, [false, false])
+    })
+
+    test("rejects nodes that are not declarations", () => {
+      assert(!new NodeTest(j.literal(1)).isVarLetOrConstDeclaration())
     })
   })
 

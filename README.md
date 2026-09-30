@@ -108,6 +108,9 @@ For more information about Baseline browser support, visit [web.dev/baseline][ba
 
 ## Transformations
 
+`using` and `await using` declarations are never rewritten, because the replacement would
+drop the resource disposal.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://web-platform-dx.github.io/assets/img/baseline-widely-word-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://web-platform-dx.github.io/assets/img/baseline-widely-word.svg">

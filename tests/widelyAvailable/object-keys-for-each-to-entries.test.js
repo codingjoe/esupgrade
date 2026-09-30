@@ -257,5 +257,17 @@ process(key, value);
       assert.match(result.code, /process\(key, value\)/)
       assert.doesNotMatch(result.code, /const value = obj\[key\]/)
     })
+
+    test("keep using declaration value", () => {
+      const result = transform(`
+Object.keys(obj).forEach(key => {
+using value = obj[key];
+process(value);
+});
+    `)
+
+      assert.match(result.code, /using value = obj\[key\]/)
+      assert.doesNotMatch(result.code, /Object\.entries/)
+    })
   })
 })

@@ -332,5 +332,32 @@ suite("widely-available", () => {
       assert.match(result.code, /return 42/)
       assert.match(result.code, /\/\/ trailing comment/)
     })
+
+    test("keep using declaration", () => {
+      const result = transform(`
+using resource = () => 1;
+const create = () => 2;
+      `)
+
+      assert(result.modified, "transform the const declaration")
+      assert.match(result.code, /using resource = \(\) => 1/)
+      assert.match(result.code, /function create\(\)/)
+      assert.doesNotMatch(result.code, /function resource/)
+    })
+
+    test("keep await using declaration", () => {
+      const result = transform(`
+async function load() {
+  await using resource = async () => 1;
+  const create = async () => 1;
+  return [resource, create];
+}
+      `)
+
+      assert(result.modified, "transform the const declaration")
+      assert.match(result.code, /await using resource = async \(\) => 1/)
+      assert.match(result.code, /async function create\(\)/)
+      assert.doesNotMatch(result.code, /async function resource/)
+    })
   })
 })
