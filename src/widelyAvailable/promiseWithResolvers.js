@@ -226,7 +226,6 @@ function getPromiseExecutor(node) {
     return null
   }
 
-  // @babel/parser 8 renamed the type arguments of a call or new expression to typeArguments.
   if (node.callee.name !== "Promise" || node.typeArguments || node.typeParameters) {
     return null
   }

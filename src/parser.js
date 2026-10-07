@@ -2,8 +2,6 @@ import { parse } from "@babel/parser"
 // The TypeScript JSX parser of jscodeshift ignores custom options.
 import typeScriptOptions from "jscodeshift/parser/tsOptions.js"
 
-// jscodeshift requests the "minimal" pipeline proposal, which @babel/parser 8
-// removed. esupgrade transforms standard syntax only, so the plugin is dropped.
 const removedPlugins = new Set(["pipelineOperator"])
 
 const typeScriptPlugins = typeScriptOptions.plugins.filter(isSupportedPlugin)
