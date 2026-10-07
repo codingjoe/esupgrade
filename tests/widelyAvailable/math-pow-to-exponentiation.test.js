@@ -38,6 +38,28 @@ suite("widely-available", () => {
       assert(!result.modified, "skip Math.pow() with wrong number of arguments")
     })
 
+    test("computed callee", () => {
+      const result = transform(`const result = Math[pow](a, b);`)
+
+      assert(!result.modified, "skip computed Math[pow]() callee")
+      assert.match(result.code, /Math\[pow\]\(a, b\)/)
+    })
+
+    test("computed callee in base position", () => {
+      const result = transform(`const result = Math.pow(Math[pow](a, b), 2);`)
+
+      assert(result.modified, "transform only the outer Math.pow()")
+      assert.match(result.code, /Math\[pow\]\(a, b\) \*\* 2/)
+      assert.doesNotMatch(result.code, /a \*\* b \*\* 2/)
+    })
+
+    test("plain call", () => {
+      const result = transform(`const result = Math.pow(a, b);`)
+
+      assert(result.modified, "transform plain Math.pow()")
+      assert.match(result.code, /a \*\* b/)
+    })
+
     test("nested calls", () => {
       const result = transform(`const result = Math.pow(Math.pow(2, 3), 4);`)
 

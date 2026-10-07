@@ -34,10 +34,7 @@ export function mathPowToExponentiation(root) {
         property: { name: "pow" },
       },
     })
-    .filter((path) => {
-      // Must have exactly 2 arguments (base and exponent)
-      return path.node.arguments.length === 2
-    })
+    .filter((path) => isMathPow(path.node))
     .forEach((path) => {
       const node = path.node
       let [base, exponent] = node.arguments
