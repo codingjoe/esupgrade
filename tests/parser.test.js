@@ -18,7 +18,18 @@ suite("parser", () => {
       assert.equal(ast.program.body.length, 1, "parse the typed ambient const")
     })
 
-    test("report standard context error when both contexts fail", () => {
+    test("parse ambiguous generic arrow function", () => {
+      const ast = parseTypeScript("const identity = <T>(value: T): T => value")
+
+      assert.equal(ast.type, "File", "parse a Babel file node")
+      assert.equal(
+        ast.program.body[0].declarations[0].init.type,
+        "ArrowFunctionExpression",
+        "parse the type parameter of the arrow function",
+      )
+    })
+
+    test("report standard context error when every context fails", () => {
       assert.throws(
         () => parseTypeScript("export const a: A;\nconst 1x = 2;"),
         /Missing initializer in const declaration/,
