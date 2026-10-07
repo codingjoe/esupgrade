@@ -22,7 +22,7 @@
   "author": "Johannes Maron",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "@babel/parser": ">=7.24.7",
+    "@babel/parser": ">=8.0.6",
     "commander": ">=14.0.2",
     "diff": ">=8.0.2",
     "jscodeshift": ">=17.3.0"
