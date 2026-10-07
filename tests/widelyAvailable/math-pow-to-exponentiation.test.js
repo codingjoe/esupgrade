@@ -18,6 +18,33 @@ suite("widely-available", () => {
       assert.match(result.code, /base \*\* exponent/)
     })
 
+    test("skip computed calls", () => {
+      const code = `const result = Math[pow](a, b);`
+      const result = transform(code)
+
+      assert(!result.modified, "skip dynamic Math property calls")
+      assert.equal(result.code, code)
+    })
+
+    test("skip computed calls with string keys", () => {
+      const code = `const result = Math['pow'](a, b);`
+      const result = transform(code)
+
+      assert(!result.modified, "skip computed Math.pow() calls")
+      assert.equal(result.code, code)
+    })
+
+    test("preserve a computed call in the base", () => {
+      const result = transform(`const result = Math.pow(Math[pow](a, b), 2);`)
+
+      assert(result.modified, "transform the outer Math.pow() call")
+      assert.equal(result.code, `const result = Math[pow](a, b) ** 2;`)
+      assert.equal(
+        new Function("pow", "a", "b", `${result.code}\nreturn result;`)("max", 2, 3),
+        9,
+      )
+    })
+
     test("with complex expressions", () => {
       const result = transform(`const result = Math.pow(x + 1, y * 2);`)
 

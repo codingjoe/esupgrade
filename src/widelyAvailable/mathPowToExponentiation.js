@@ -36,7 +36,7 @@ export function mathPowToExponentiation(root) {
     })
     .filter((path) => {
       // Must have exactly 2 arguments (base and exponent)
-      return path.node.arguments.length === 2
+      return path.node.arguments.length === 2 && !path.node.callee.computed
     })
     .forEach((path) => {
       const node = path.node
