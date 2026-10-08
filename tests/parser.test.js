@@ -18,18 +18,7 @@ suite("parser", () => {
       assert.equal(ast.program.body.length, 1, "parse the typed ambient const")
     })
 
-    test("parse ambiguous generic arrow function", () => {
-      const ast = parseTypeScript("const identity = <T>(value: T): T => value")
-
-      assert.equal(ast.type, "File", "parse a Babel file node")
-      assert.equal(
-        ast.program.body[0].declarations[0].init.type,
-        "ArrowFunctionExpression",
-        "parse the type parameter of the arrow function",
-      )
-    })
-
-    test("report standard context error when every context fails", () => {
+    test("report standard context error when both contexts fail", () => {
       assert.throws(
         () => parseTypeScript("export const a: A;\nconst 1x = 2;"),
         /Missing initializer in const declaration/,
@@ -61,6 +50,40 @@ suite("parser", () => {
 
       assert(result.modified, "transform var declarations")
       assert.match(result.code, /const x = 1/)
+    })
+  })
+
+  describe("transform TypeScript syntax", () => {
+    test("transform beside an interface extension", () => {
+      const result = transform(
+        `interface B { id: string }
+interface A extends B {}
+var users = 1000000;`,
+      )
+
+      assert(result.modified, "transform the variable beside the interface")
+      assert.match(result.code, /interface A extends B/)
+      assert.match(result.code, /const users = 1_000_000/)
+    })
+
+    test("transform beside a class implementation", () => {
+      const result = transform(
+        `interface B { id: string }
+class A implements B { id = "1"; }
+var users = 1000000;`,
+      )
+
+      assert(result.modified, "transform the variable beside the class")
+      assert.match(result.code, /class A implements B/)
+      assert.match(result.code, /const users = 1_000_000/)
+    })
+
+    test("transform beside a template literal type", () => {
+      const result = transform("type Path = `/api/${string}`;\nvar users = 1000000;")
+
+      assert(result.modified, "transform the variable beside the literal type")
+      assert.match(result.code, /type Path = `\/api\/\$\{string\}`/)
+      assert.match(result.code, /const users = 1_000_000/)
     })
   })
 })

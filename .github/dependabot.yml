@@ -4,6 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: daily
+    ignore:
+      # jscodeshift vendors ast-types, which only understands the Babel 7
+      # syntax tree, so Babel 8 fails on interface and class heritage clauses.
+      - dependency-name: "@babel/parser"
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

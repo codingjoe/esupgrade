@@ -226,7 +226,7 @@ function getPromiseExecutor(node) {
     return null
   }
 
-  if (node.callee.name !== "Promise" || node.typeArguments || node.typeParameters) {
+  if (node.callee.name !== "Promise" || node.typeParameters) {
     return null
   }
 
