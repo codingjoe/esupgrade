@@ -897,6 +897,10 @@ lebab is a similar project that focuses on ECMAScript 6+ transformations without
 esupgrade is distinct in that it applies transformations that are safe based on Baseline browser support.
 Furthermore, esupgrade supports JavaScript, TypeScript, and more, while lebab is limited to JavaScript.
 
+## License
+
+esupgrade is licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). Copyright (C) Johannes Maron. See the [LICENSE](./LICENSE) file and the [AGPL-3.0 license text](https://www.gnu.org/licenses/agpl-3.0.html).
+
 [baseline]: https://web.dev/baseline/
 [calver]: https://calver.org/
 [claude code]: https://code.claude.com
